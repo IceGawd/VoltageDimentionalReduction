@@ -36,7 +36,7 @@ def create_dataset_line(output_file="line.json", start=0, end=1, points=10, seed
 	random.seed(seed)
 
 	for p in range(points):
-		data.append([random.random() * (end - start) + start])
+		data.append(np.array([random.random() * (end - start) + start]))
 
 	save_data(data, output_file)
 
@@ -58,10 +58,10 @@ def create_dataset_square_edge(output_file="square_edge.json", p1=(0,0), p2=(1,1
 		x_rev = 1 - x_side
 		y_rev = 1 - y_side
 
-		data.append([
+		data.append(np.array([
 			var * x_side * x_diff + x_rev * y_side * x_diff + p1[0],	# 1st addition factor: vary on the x axis. 2nd addition factor: x to p2[0]. 3rd addition factor: x to p1[0]
 			var * x_rev * y_diff + x_side * y_rev * y_diff + p1[1]		# 1st addition factor: vary on the y axis. 2nd addition factor: y to p2[1]. 3rd addition factor: y to p1[1]
-		])
+		]))
 
 	save_data(data, output_file)
 
@@ -76,7 +76,7 @@ def create_dataset_square_fill(output_file="square_fill.json", p1=(0,0), p2=(1,1
 		x_rand = random.random()
 		y_rand = random.random()
 
-		data.append([x_diff * x_rand + p1[0], y_diff * y_rand + p2[0]])
+		data.append(np.array([x_diff * x_rand + p1[0], y_diff * y_rand + p2[0]]))
 
 	save_data(data, output_file)
 
@@ -86,10 +86,10 @@ def create_dataset_eigth_sphere(output_file="eigth_sphere.json", radius=1, x_pos
 
 	for p in range(points):
 		z = random.random()						# Z value
-		angleXY = np.pi * random.random() / 2	# Angle in the XY plane
+		angleXY = math.pi * random.random() / 2	# Angle in the XY plane
 
-		point = [radius * np.sqrt(1 - z**2) * np.cos(angleXY), radius * np.sqrt(1 - z**2) * np.sin(angleXY), radius * z]
-		data.append(point)
+		point = [radius * math.sqrt(1 - z**2) * math.cos(angleXY), radius * math.sqrt(1 - z**2) * math.sin(angleXY), radius * z]
+		data.append(np.array(point))
 
 	save_data(data, output_file)
 
@@ -100,19 +100,24 @@ def dimentional_variation(dimentions):
 
 	return np.array(z_vals)
 
+def varied_point(mean, std):
+	return mean + std * dimentional_variation(len(mean))
+
+def select_random(array):
+	return array[int(len(array) * random.random())]
+
 def create_dataset_strong_clusters(output_file="strong_clusters.json", internal_std=1, external_std=10, mean=[0, 0], clusters=10, points=100, seed=42):
 	data = []
 	random.seed(seed)
 
-	dimentions = len(mean)
 	np_mean = np.array(mean)
 
 	cluster_centers = []
 	for c in range(clusters):
-		cluster_centers.append(np_mean + external_std * dimentional_variation(dimentions))
+		cluster_centers.append(varied_point(np_mean, external_std))
 
 	for p in range(points):
-		data.append((cluster_centers[int(clusters * random.random())] + internal_std * dimentional_variation(dimentions)).tolist())
+		data.append(varied_point(select_random(cluster_centers), internal_std))
 
 	save_data(data, output_file)
 
