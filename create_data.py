@@ -4,6 +4,7 @@ import pickle
 import random
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+import scipy.stats as stats
 
 def save_data_json(data, output_file):
 	pass
@@ -17,11 +18,11 @@ def load_data_json(data, input_file):
 def load_data_pickle(data, input_file):
 	pass
 
-file_function_pairs = [["json", save_data_json, load_data_json], ["pkl", save_data_pkl, load_data_pkl]]
+file_function_pairs = [["json", save_data_json, load_data_json], ["pkl", save_data_pickle, load_data_pickle]]
 
 def data_function(data, file, save_or_load):
 	for ffp in file_function_pairs:
-		if output_file[-len(ffp[0]):] == ffp[0]:
+		if file[-len(ffp[0]):] == ffp[0]:
 			ffp[save_or_load](data, file)
 
 def save_data(data, output_file):
@@ -92,6 +93,29 @@ def create_dataset_eigth_sphere(output_file="eigth_sphere.json", radius=1, x_pos
 
 	save_data(data, output_file)
 
+def dimentional_variation(dimentions):
+	z_vals = []
+	for d in range(dimentions):
+		z_vals.append(stats.norm.ppf(random.random()))
+
+	return np.array(z_vals)
+
+def create_dataset_strong_clusters(output_file="strong_clusters.json", internal_std=1, external_std=10, mean=[0, 0], clusters=10, points=100, seed=42):
+	data = []
+	random.seed(seed)
+
+	dimentions = len(mean)
+	np_mean = np.array(mean)
+
+	cluster_centers = []
+	for c in range(clusters):
+		cluster_centers.append(np_mean + external_std * dimentional_variation(dimentions))
+
+	for p in range(points):
+		data.append((cluster_centers[int(clusters * random.random())] + internal_std * dimentional_variation(dimentions)).tolist())
+
+	save_data(data, output_file)
+
 def plotPoints(points):
 	size = len(points[0])
 
@@ -125,3 +149,4 @@ if __name__ == '__main__':
 	create_dataset_square_edge()
 	create_dataset_square_fill()
 	create_dataset_eigth_sphere()
+	create_dataset_strong_clusters()
