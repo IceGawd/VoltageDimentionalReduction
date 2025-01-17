@@ -5,31 +5,45 @@ import random
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import scipy.stats as stats
+import time
 
 def save_data_json(data, output_file):
-	pass
+	with open(output_file, "w") as f:
+		json.dump(np.array(data).tolist(), f)
+
 
 def save_data_pickle(data, output_file):
-	pass
+	with open(output_file, 'wb') as f: 
+		pickle.dump(data, f) 
 
-def load_data_json(data, input_file):
-	pass
+def load_data_json(input_file):
+	with open(input_file, 'r') as f:
+		data = json.load(f)
+		for i, point in enumerate(data):
+			data[i] = np.array(point)
+		return data
 
-def load_data_pickle(data, input_file):
-	pass
+def load_data_pickle(input_file):
+	with open(input_file, 'r') as f:
+		data = pickle.load(f)
+		return data
 
 file_function_pairs = [["json", save_data_json, load_data_json], ["pkl", save_data_pickle, load_data_pickle]]
 
 def data_function(data, file, save_or_load):
 	for ffp in file_function_pairs:
 		if file[-len(ffp[0]):] == ffp[0]:
-			ffp[save_or_load](data, file)
+			if save_or_load == 1:
+				ffp[1](data, file)
+			else:
+				return ffp[2](file)
+
 
 def save_data(data, output_file):
 	data_function(data, output_file, 1)
 
-def load_data(data, input_file):
-	data_function(data, input_file, 2)
+def load_data(input_file):
+	return data_function(None, input_file, 2)
 
 def create_dataset_line(output_file="line.json", start=0, end=1, points=10, seed=42):
 	data = []
@@ -58,10 +72,11 @@ def create_dataset_square_edge(output_file="square_edge.json", p1=(0,0), p2=(1,1
 		x_rev = 1 - x_side
 		y_rev = 1 - y_side
 
-		data.append(np.array([
-			var * x_side * x_diff + x_rev * y_side * x_diff + p1[0],	# 1st addition factor: vary on the x axis. 2nd addition factor: x to p2[0]. 3rd addition factor: x to p1[0]
-			var * x_rev * y_diff + x_side * y_rev * y_diff + p1[1]		# 1st addition factor: vary on the y axis. 2nd addition factor: y to p2[1]. 3rd addition factor: y to p1[1]
-		]))
+		variation = np.array([var * x_side * x_diff, var * x_rev * y_diff]) 	# Variations on the axis that draw the lines
+		side = np.array([x_rev  * y_side * x_diff, x_side * y_rev * y_diff])	# Move the line to the side it is drawing on
+		shift = np.array([p1[0], p1[1]])										# The shift to make the bottom left be p1
+
+		data.append(np.array(variation + side + shift))
 
 	save_data(data, output_file)
 
@@ -86,9 +101,9 @@ def create_dataset_eigth_sphere(output_file="eigth_sphere.json", radius=1, x_pos
 
 	for p in range(points):
 		z = random.random()						# Z value
-		angleXY = math.pi * random.random() / 2	# Angle in the XY plane
+		angleXY = np.pi * random.random() / 2	# Angle in the XY plane
 
-		point = [radius * math.sqrt(1 - z**2) * math.cos(angleXY), radius * math.sqrt(1 - z**2) * math.sin(angleXY), radius * z]
+		point = [radius * np.sqrt(1 - z**2) * np.cos(angleXY), radius * np.sqrt(1 - z**2) * np.sin(angleXY), radius * z]
 		data.append(np.array(point))
 
 	save_data(data, output_file)
@@ -121,10 +136,62 @@ def create_dataset_strong_clusters(output_file="strong_clusters.json", internal_
 
 	save_data(data, output_file)
 
-def plotPoints(points):
+def distance(p1, p2):
+	# return np.sum(np.abs(p1 - p2))			# Manhattan distance 
+	return np.sqrt(np.sum(np.pow(p1 - p2, 2))) 	# Euclidian distance
+
+class Particle:
+	def __init__(self, pos_mean, pos_std, vel_mean, vel_std):
+		self.position = varied_point(pos_mean, pos_std)
+		self.velocity = varied_point(vel_mean, vel_std)
+	def force_vector(self, other_particle):
+		disposition = self.position - other_particle.position
+		return disposition / distance(self.position, other_particle.position)
+
+def create_dataset_weak_clusters(output_file="weak_clusters.json", std=10, mean=[0, 0], clusters=10, points=100, iterations=10, seed=42):
+	random.seed(seed)
+
+	np_mean = np.array(mean)
+
+	nearest_force = points // clusters
+	particles = []
+	for p in range(points):
+		particles.append(Particle(mean, std, mean, 0))
+
+	for i in range(iterations):
+		for p1 in particles:
+			distance_pairs = []
+			for p2 in particles:
+				distance_pairs.append([p2, distance(p1.position, p2.position)])
+
+			distance_pairs = sorted(distance_pairs, key=lambda x: x[1])
+
+			c = 0
+			for pair in distance_pairs:
+				if (np.abs(np.sum(p1.position - pair[0].position) != 0)):
+					if (c > nearest_force):
+						p1.velocity += pair[0].force_vector(p1)
+					else:
+						p1.velocity -= pair[0].force_vector(p1) / (clusters - 1)
+
+					c += 1
+
+
+		for p in particles:
+			# p.velocity /= nearest_force
+			p.velocity *= 0.9
+			p.position += p.velocity
+
+		# print("Iteration #" + str(i + 1))
+		# print([p.position for p in particles])
+		# print([p.velocity for p in particles])
+	save_data([p.position for p in particles], output_file)
+
+def pointFormatting(points):
 	size = len(points[0])
 
 	x_coords = [point[0] for point in points]
+	z_coords = None
 
 	if (size > 1):
 		y_coords = [point[1] for point in points]
@@ -133,25 +200,41 @@ def plotPoints(points):
 	else:
 		y_coords = [0 for point in points]
 
+	return (x_coords, y_coords, z_coords)
+
+def plotPoints(points):
+	plotPointSets([points])
+
+def plotPointSets(sets):
+	markers = ['o', 'v', '*']
+	color = ['r', 'g', 'b']
+
+	size = len(sets[0][0])
+
 	fig = plt.figure()
-	ax = fig.add_subplot(111)
 
 	if (size == 3):
-		ax.scatter(x_coords, y_coords, z_coords, c='r', marker='o', label='Points')
-		ax.set_zlabel('Z-axis')
+		ax = fig.add_subplot(111, projection='3d')
 	else:
-		ax.scatter(x_coords, y_coords, c='r', marker='o', label='Points')
+		ax = fig.add_subplot(111)
 
-	ax.set_xlabel('X-axis')
-	ax.set_ylabel('Y-axis')
+
+	for i, points in enumerate(sets):
+		(x_coords, y_coords, z_coords) = pointFormatting(points)
+
+		if (size == 3):
+			ax.scatter(x_coords, y_coords, z_coords, c=color[i], marker=markers[i], label='Points')
+		else:
+			ax.scatter(x_coords, y_coords, c=color[i], marker=markers[i], label='Points')
 
 	ax.legend()
 
 	plt.show()
 
 if __name__ == '__main__':
-	create_dataset_line()
-	create_dataset_square_edge()
-	create_dataset_square_fill()
-	create_dataset_eigth_sphere()
-	create_dataset_strong_clusters()
+	create_dataset_line(output_file="line.json", seed=time.time())
+	create_dataset_square_edge(output_file="square_edge.json", seed=time.time())
+	create_dataset_square_fill(output_file="square_fill.json", seed=time.time())
+	create_dataset_eigth_sphere(output_file="eigth_sphere.json", seed=time.time())
+	create_dataset_strong_clusters(output_file="strong_clusters.json", seed=time.time())
+	create_dataset_weak_clusters(output_file="weak_clusters.json", seed=time.time())
