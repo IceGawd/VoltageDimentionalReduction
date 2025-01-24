@@ -91,8 +91,10 @@ def approx_dimention(data, start=1, end=10, inc=1, seed=42):
 
 	return -1 / coefficients[0]
 
+
+
 if __name__ == '__main__':
-	data = load_data_json("weak_clusters.json")
+	data = load_data_json("strong_clusters.json")
 	centers, pa = k_means(data, 10, seed=time.time())
 	# plotPointSets([data, centers])
 	print("Approx Intrinsic Dimention: " + str(approx_dimention(data, seed=time.time())))

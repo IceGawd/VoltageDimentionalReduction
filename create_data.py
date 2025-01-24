@@ -45,7 +45,7 @@ def save_data(data, output_file):
 def load_data(input_file):
 	return data_function(None, input_file, 2)
 
-def create_dataset_line(output_file="line.json", start=0, end=1, points=10, seed=42):
+def create_dataset_line(output_file="line.json", start=0, end=1, points=1000, seed=42):
 	data = []
 	random.seed(seed)
 
@@ -54,7 +54,7 @@ def create_dataset_line(output_file="line.json", start=0, end=1, points=10, seed
 
 	save_data(data, output_file)
 
-def create_dataset_square_edge(output_file="square_edge.json", p1=(0,0), p2=(1,1), points=100, seed=42):
+def create_dataset_square_edge(output_file="square_edge.json", p1=(0,0), p2=(1,1), points=1000, seed=42):
 	data = []
 	random.seed(seed)
 
@@ -121,7 +121,7 @@ def varied_point(mean, std):
 def select_random(array):
 	return array[int(len(array) * random.random())]
 
-def create_dataset_strong_clusters(output_file="strong_clusters.json", internal_std=1, external_std=10, mean=[0, 0], clusters=10, points=100, seed=42):
+def create_dataset_strong_clusters(output_file="strong_clusters.json", internal_std=1, external_std=10, mean=[0, 0], clusters=10, points=1000, seed=42):
 	data = []
 	random.seed(seed)
 
@@ -148,7 +148,7 @@ class Particle:
 		disposition = self.position - other_particle.position
 		return disposition / distance(self.position, other_particle.position)
 
-def create_dataset_weak_clusters(output_file="weak_clusters.json", std=10, mean=[0, 0], clusters=10, points=100, iterations=10, seed=42):
+def create_dataset_weak_clusters(output_file="weak_clusters.json", std=10, mean=[0, 0], clusters=10, points=1000, iterations=10, seed=42):
 	random.seed(seed)
 
 	np_mean = np.array(mean)
@@ -232,9 +232,20 @@ def plotPointSets(sets):
 	plt.show()
 
 if __name__ == '__main__':
-	create_dataset_line(output_file="line.json", seed=time.time())
+	print("Making line...")
+	create_dataset_line(output_file="line.json", start=0, end=3, seed=time.time())
+
+	print("Making square edge...")
 	create_dataset_square_edge(output_file="square_edge.json", seed=time.time())
+
+	print("Making square fill...")
 	create_dataset_square_fill(output_file="square_fill.json", seed=time.time())
+
+	print("Making square fill...")
 	create_dataset_eigth_sphere(output_file="eigth_sphere.json", seed=time.time())
+
+	print("Making strong clusters...")
 	create_dataset_strong_clusters(output_file="strong_clusters.json", seed=time.time())
-	create_dataset_weak_clusters(output_file="weak_clusters.json", seed=time.time())
+
+	# print("Making weak clusters...")
+	# create_dataset_weak_clusters(output_file="weak_clusters.json", seed=time.time())
