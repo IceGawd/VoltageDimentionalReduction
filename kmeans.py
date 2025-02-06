@@ -10,66 +10,70 @@ def weighted_random(values, weights):
 
 	return values[i]
 
-def k_means_plus_plus(data, k):
-	centers = [select_random(data)]
+class Partitions(object):
+	def __init__(self, data):
+		self.data = data
 
-	for i in range(k - 1):
-		distances = []
+	def k_means_plus_plus(self, k):
+		self.centers = [select_random(data)]
 
-		for point in data:
-			d = distance(point, centers[0])
-			for center in centers:
-				d = min(d, distance(point, center))
+		for i in range(k - 1):
+			distances = []
 
-			distances.append(d)
+			for point in data:
+				d = distance(point, centers[0])
+				for center in self.centers:
+					d = min(d, distance(point, center))
 
-		distances = np.array(distances)
-		distances /= np.sum(distances)
+				distances.append(d)
 
-		centers.append(weighted_random(data, distances))
+			distances = np.array(distances)
+			distances /= np.sum(distances)
 
-	return centers
+			self.centers.append(weighted_random(data, distances))
 
-def k_means(data, k, seed=42):
-	if (seed != -1):
-		random.seed(seed)
-	
-	centers = k_means_plus_plus(data, k)
-	point_assignments = []
+		return self.centers
 
-	for c in range(k):
-		point_assignments.append([])
-
-	for i, point in enumerate(data):
-		min_index = 0
-		min_dist = distance(point, centers[0])
+	def k_means(data, k, seed=42):
+		if (seed != -1):
+			random.seed(seed)
 		
-		for c in range(k - 1):
-			dist = distance(point, centers[c + 1])
-			if (min_dist > dist):
-				min_index = c + 1
-				min_dist = dist
-		
-		point_assignments[min_index].append([point, min_dist])
+		self.centers = k_means_plus_plus(data, k)
+		point_assignments = []
 
-	updated_centers = []
+		for c in range(k):
+			point_assignments.append([])
 
-	restart = False
-	for points in point_assignments:
-		if (len(points) != 0):
-			center = np.zeros(len(data[0]))
-			for pointPair in points:
-				center += np.array(pointPair[0])
+		for i, point in enumerate(data):
+			min_index = 0
+			min_dist = distance(point, centers[0])
+			
+			for c in range(k - 1):
+				dist = distance(point, centers[c + 1])
+				if (min_dist > dist):
+					min_index = c + 1
+					min_dist = dist
+			
+			point_assignments[min_index].append([point, min_dist])
 
-			center /= len(points)
-			updated_centers.append(center)
-		else:
-			restart = True
+		updated_centers = []
 
-	if restart:
-		return k_means(data, k, -1)
+		restart = False
+		for points in point_assignments:
+			if (len(points) != 0):
+				center = np.zeros(len(data[0]))
+				for pointPair in points:
+					center += np.array(pointPair[0])
 
-	return updated_centers, point_assignments
+				center /= len(points)
+				updated_centers.append(center)
+			else:
+				restart = True
+
+		if restart:
+			return k_means(data, k, -1)
+
+		return updated_centers, point_assignments
 
 def approx_dimention(data, start=1, end=10, inc=1, seed=42):
 	random.seed(seed)
@@ -94,7 +98,7 @@ def approx_dimention(data, start=1, end=10, inc=1, seed=42):
 
 
 if __name__ == '__main__':
-	data = load_data_json("strong_clusters.json")
+	data = load_data_json("3d_square.json")
 	centers, pa = k_means(data, 10, seed=time.time())
-	# plotPointSets([data, centers])
+	plotPointSets([data, centers])
 	print("Approx Intrinsic Dimention: " + str(approx_dimention(data, seed=time.time())))

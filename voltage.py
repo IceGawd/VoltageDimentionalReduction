@@ -39,7 +39,7 @@ def addGround(data, W):
 
 	newW[0:n,0:n] = W
 
-	p_g = 1
+	p_g = 0.01
 
 	for x in range(0, n):			# W[g, g] = 0
 		newW[x][n] = p_g / n
@@ -80,7 +80,7 @@ if __name__ == "__main__":
 	W = getWeights(data, kernel=gaussiankernel, c=0.03)
 	voltages = compute_voltages(W, X0, X1)
 
-	W = getWeights(data, kernel=gaussiankernel, c=1)
+	W = getWeights(data, kernel=gaussiankernel, c=0.3)
 	grounded_voltage = compute_voltages(addGround(data, W), [n], X1)
 	
 	fig = plt.figure()
