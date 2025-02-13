@@ -9,30 +9,47 @@ class Landmark():
 		self.index = index
 		self.voltage = voltage
 
-class LVM():
+class Solver():
 	def __init__(self, data):
 		self.data = data
 		self.landmarks = []
+		n = len(data)
+		self.weights = np.zeros([len(data), len(data)])
+		self.universalGround = False
 
 	def setWeights(self, kernel, c):
-		n = len(self.data)
-
-		self.weights = np.zeros([n, n])
 		"""
 		for (x, datax) in enumerate(self.data):
 			y_iter = enumerate(self.data)
 
 			for y in range(0, x):
-				y_iter.__next__()							# "Burn" x data points in this generator
+				y_iter.__next__()																		# "Burn" x data points in this generator
 
 			for (y, datay) in y_iter:
 		"""
+		n = len(self.data)
+
 		for x in range(0, n):
 			datax = self.data[x]
 			for y in range(x, n):
 				datay = self.data[y]
 
-				v = kernel(datax, datay, c) / np.pow(n, 2)	# R = n^2/k, W = 1/R = k/n^2
+				v = kernel(datax, datay, c) / np.pow(n, 2)												# R = n^2/k, W = 1/R = k/n^2
+
+				self.weights[x][y] = v
+				self.weights[y][x] = v
+
+		return self.weights
+
+	def setWeights(self, kernel, c, partition):
+		n = len(self.data)
+
+		for x in range(0, n):
+			datax = self.data[x]
+			for y in range(x, n):
+				datay = self.data[y]
+
+				v = kernel(datax, datay, c) / (partition.point_counts[x] * partition.point_counts[y])
 
 				self.weights[x][y] = v
 				self.weights[y][x] = v
@@ -75,9 +92,14 @@ class LVM():
 
 		self.voltages[unconstrained_nodes] = v_unconstrained
 		
+		if (self.universalGround):
+			self.voltages = self.voltages[:-1]
+
 		return self.voltages
 
-	def addGround(self):
+	def addUniversalGround(self):
+		self.universalGround = True
+
 		n = self.weights.shape[0]
 		newW = np.zeros([n + 1, n + 1])
 
@@ -89,7 +111,34 @@ class LVM():
 			newW[x][n] = p_g / n
 			newW[n][x] = p_g / n
 
+		self.weights = newW
+		self.addLandmark(Landmark(n, 0))
+
 		return newW
+
+	def plot(self, color='r', ax=None, show=True, label=""):
+		dim = len(self.data[0])
+
+		if (ax == None):
+			fig = plt.figure()
+
+			if (dim == 2):
+				ax = fig.add_subplot(111, projection='3d')
+			else:
+				ax = fig.add_subplot(111)
+			ax.legend()
+
+		(x_coords, y_coords, z_coords) = pointFormatting(self.data)
+
+		if (dim == 1):
+			ax.scatter(x_coords, self.voltages, c=color, marker='o', label=label)
+		if (dim == 2):
+			ax.scatter(x_coords, y_coords, self.voltages, c=color, marker='o', label=label)
+
+		if (show):
+			plt.show()
+
+		return ax
 
 def radialkernel(x, y, r):
 	if (distance(x, y) < r):
@@ -100,12 +149,44 @@ def radialkernel(x, y, r):
 def gaussiankernel(x, y, std):
 	return np.exp(np.pow(distance(x, y) / std, 2) / -2)
 
+def bestCFinder(kernel, landmarks, partition, emin=-5, emax=5):
+	bestE = emin
+	medVol = 0
+
+	for e in range(emin, emax+1):
+		# print(e)
+		meanSolver = Solver(partition.centers)
+		meanSolver.setWeights(kernel=kernel, c=pow(10, e), partition=partition)
+		meanSolver.addUniversalGround()
+		meanSolver.addLandmarks(landmarks)
+
+		voltages = meanSolver.compute_voltages()
+		if (medVol < np.median(voltages)):
+			bestE = e
+			medVol = np.median(voltages)
+
+	bestV = -10
+	medVol = 0
+	for v in range(-10, 11):
+		# print(v)
+		meanSolver = Solver(partition.centers)
+		meanSolver.setWeights(kernel=kernel, c=pow(10, bestE) + v * pow(10, bestE - 1), partition=partition)		
+		meanSolver.addUniversalGround()
+		meanSolver.addLandmarks(landmarks)
+
+		voltages = meanSolver.compute_voltages()
+		if (medVol < np.median(voltages)):
+			bestV = v
+			medVol = np.median(voltages)
+
+	return pow(10, bestE) + bestV * pow(10, bestE - 1)
+
 # Example usage
 if __name__ == "__main__":
-	data = Data("line.json")
+	data = Data("line.json", stream=True)
 	n = len(data)
 
-	ungrounded = LVM(data)
+	ungrounded = Solver(data)
 
 	X0 = []
 	X1 = []
@@ -121,15 +202,11 @@ if __name__ == "__main__":
 	ungrounded.addLandmarks(X1)
 	voltages = ungrounded.compute_voltages()
 
-	grounded = LVM(data)
+	grounded = Solver(data)
 	grounded.setWeights(kernel=gaussiankernel, c=0.3)
-	grounded.weights = grounded.addGround()
+	grounded.addUniversalGround()
 	grounded.addLandmarks(X1)
 	grounded_voltage = grounded.compute_voltages()
-	
-	fig = plt.figure()
-	ax = fig.add_subplot(111)
-	ax.scatter([x[0] for x in data], voltages, c='r', marker='o', label='Voltage Points')
-	ax.scatter([x[0] for x in data], grounded_voltage[:-1], c='b', marker='.', label='Grounded Points')
-	ax.legend()
-	plt.show()
+
+	ax = ungrounded.plot(color='r', show=False, label="Ungrounded Points")
+	ax = grounded.plot(color='b', ax=ax, label="Grounded Points")

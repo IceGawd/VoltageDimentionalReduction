@@ -105,10 +105,11 @@ class Data():
 	def __getitem__(self, index):
 		if (self.stream):
 			if (index < self.i):
-				self.data = self.stream_data_json(arg)
+				self.data = self.stream_data_json(self.input_file)
+				next(self.data)
 				self.i = 0
 
-			while (self.i < index):
+			while (self.i <= index):
 				value = next(self.data)
 				self.i += 1
 
