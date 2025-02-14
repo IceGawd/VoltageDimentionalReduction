@@ -41,7 +41,7 @@ class Solver():
 
 		return self.weights
 
-	def setWeights(self, kernel, c, partition):
+	def setPartitionWeights(self, kernel, c, partition):
 		n = len(self.data)
 
 		for x in range(0, n):
@@ -97,15 +97,13 @@ class Solver():
 
 		return self.voltages
 
-	def addUniversalGround(self):
+	def addUniversalGround(self, p_g=0.01):
 		self.universalGround = True
 
 		n = self.weights.shape[0]
 		newW = np.zeros([n + 1, n + 1])
 
 		newW[0:n,0:n] = self.weights
-
-		p_g = 0.01
 
 		for x in range(0, n):			# W[g, g] = 0
 			newW[x][n] = p_g / n
@@ -131,9 +129,9 @@ class Solver():
 		(x_coords, y_coords, z_coords) = pointFormatting(self.data)
 
 		if (dim == 1):
-			ax.scatter(x_coords, self.voltages, c=color, marker='o', label=label)
+			ax.scatter(x_coords, self.voltages, c=self.voltages, cmap='viridis', marker='o', label=label)
 		if (dim == 2):
-			ax.scatter(x_coords, y_coords, self.voltages, c=color, marker='o', label=label)
+			ax.scatter(x_coords, y_coords, self.voltages, c=self.voltages, cmap='viridis', marker='o', label=label)
 
 		if (show):
 			plt.show()
@@ -156,7 +154,7 @@ def bestCFinder(kernel, landmarks, partition, emin=-5, emax=5):
 	for e in range(emin, emax+1):
 		# print(e)
 		meanSolver = Solver(partition.centers)
-		meanSolver.setWeights(kernel=kernel, c=pow(10, e), partition=partition)
+		meanSolver.setPartitionWeights(kernel=kernel, c=pow(10, e), partition=partition)
 		meanSolver.addUniversalGround()
 		meanSolver.addLandmarks(landmarks)
 
@@ -170,7 +168,7 @@ def bestCFinder(kernel, landmarks, partition, emin=-5, emax=5):
 	for v in range(-10, 11):
 		# print(v)
 		meanSolver = Solver(partition.centers)
-		meanSolver.setWeights(kernel=kernel, c=pow(10, bestE) + v * pow(10, bestE - 1), partition=partition)		
+		meanSolver.setPartitionWeights(kernel=kernel, c=pow(10, bestE) + v * pow(10, bestE - 1), partition=partition)		
 		meanSolver.addUniversalGround()
 		meanSolver.addLandmarks(landmarks)
 

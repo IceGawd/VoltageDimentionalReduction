@@ -134,6 +134,12 @@ class Data():
 		except StopIteration:
 			raise
 
+	def getSubSet(self, indexList):
+		subset = []
+		for index in indexList:
+			subset.append(self.data[index])
+		return Data(subset)
+
 	def save_data_json(self, output_file):
 		stream_save(output_file, linear_generator, self.data)
 

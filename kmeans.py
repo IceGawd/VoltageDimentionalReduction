@@ -80,6 +80,24 @@ class Partitions():
 				self.point_counts.append(count)
 
 		self.centers = updated_centers
+		# self.voronoi = Voronoi(self.centers)
+
+	def getClosestPoints(self, index):
+		closest = []
+		for i, point in enumerate(self.data):
+			min_index = 0
+			min_dist = distance(point, self.centers[0])
+			
+			for c in range(len(self.centers) - 1):
+				dist = distance(point, self.centers[c + 1])
+				if (min_dist > dist):
+					min_index = c + 1
+					min_dist = dist
+
+			if (min_index == index):
+				closest.append(i)
+
+		return closest
 
 	def plot(self, color='r', marker='o', ax=None):
 		size = len(self.centers[0])
@@ -98,8 +116,7 @@ class Partitions():
 		else:
 			ax.scatter(x_coords, y_coords, c=color, marker=marker, label='Points')
 
-		vor = Voronoi(self.centers)
-		voronoi_plot_2d(vor, ax=ax, show_vertices=False, line_colors='blue', line_width=1, line_alpha=0.6)
+		# voronoi_plot_2d(self.voronoi, ax=ax, show_vertices=False, line_colors='blue', line_width=1, line_alpha=0.6)
 		ax.legend()
 		plt.show()
 		# plotPointSets([self.data, self.centers])
