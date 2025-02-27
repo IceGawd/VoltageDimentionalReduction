@@ -1,5 +1,6 @@
 from create_data import *
 from scipy.spatial import Voronoi, voronoi_plot_2d
+from sklearn.cluster import KMeans
 
 def weighted_random(values, weights):
 	r = random.random()
@@ -44,6 +45,24 @@ class Partitions():
 		return self.centers
 
 	def k_means(self, k, seed=42, savePointAssignments=False):
+		if (seed == -1):
+			kmeans = KMeans(n_clusters=k, init="k-means++").fit(self.data)
+		else:
+			kmeans = KMeans(n_clusters=k, random_state=int(seed), init="k-means++", n_init=1).fit(self.data)
+
+		self.centers = kmeans.cluster_centers_
+		self.point_counts = np.bincount(kmeans.labels_).tolist()
+
+		if savePointAssignments:
+			self.point_assignments = [[] for i in range(k)]
+			for i, point in enumerate(data):
+				label = kmeans.labels_[i]
+				self.point_assignments[label].append([point, distance(point, self.centers[label])])
+
+			# self.point_assignments = [data[kmeans.labels_ == i] for i in range(k)]	# k times less efficient
+		self.voronoi = Voronoi(self.centers)
+
+	def my_k_means(self, k, seed=42, savePointAssignments=False):
 		if (seed != -1):
 			random.seed(seed)
 		
@@ -52,7 +71,7 @@ class Partitions():
 		point_accumulator = [np.zeros(len(self.data[0])) for i in range(k)]
 		point_counts = [0 for i in range(k)]
 
-		if (savePointAssignments):													# This removes the benefit of streaming
+		if (savePointAssignments):														# This removes the benefit of streaming
 			self.point_assignments = [[] for i in range(k)]
 
 		for i, point in enumerate(self.data):
@@ -80,7 +99,7 @@ class Partitions():
 				self.point_counts.append(count)
 
 		self.centers = updated_centers
-		# self.voronoi = Voronoi(self.centers)
+		self.voronoi = Voronoi(self.centers)
 
 	def getClosestPoints(self, index):
 		closest = []
@@ -116,7 +135,7 @@ class Partitions():
 		else:
 			ax.scatter(x_coords, y_coords, c=color, marker=marker, label='Points')
 
-		# voronoi_plot_2d(self.voronoi, ax=ax, show_vertices=False, line_colors='blue', line_width=1, line_alpha=0.6)
+		voronoi_plot_2d(self.voronoi, ax=ax, show_vertices=False, line_colors='blue', line_width=1, line_alpha=0.6)
 		ax.legend()
 		plt.show()
 		# plotPointSets([self.data, self.centers])

@@ -114,24 +114,29 @@ class Solver():
 
 		return newW
 
-	def plot(self, color='r', ax=None, show=True, label=""):
+	def plot(self, color='r', ax=None, show=True, label="", colored=False):
 		dim = len(self.data[0])
 
 		if (ax == None):
 			fig = plt.figure()
 
-			if (dim == 2):
-				ax = fig.add_subplot(111, projection='3d')
+			if (dim == 2 and not colored):
+				ax = fig.add_subplot(111, projection="3d")
 			else:
 				ax = fig.add_subplot(111)
-			ax.legend()
 
 		(x_coords, y_coords, z_coords) = pointFormatting(self.data)
 
-		if (dim == 1):
-			ax.scatter(x_coords, self.voltages, c=self.voltages, cmap='viridis', marker='o', label=label)
-		if (dim == 2):
-			ax.scatter(x_coords, y_coords, self.voltages, c=self.voltages, cmap='viridis', marker='o', label=label)
+		cmap = None
+		c = color
+		args = [x_coords, y_coords, z_coords][:dim]
+		args.append(self.voltages)
+		if colored:
+			cmap = 'viridis'
+			c = self.voltages
+			args = args[:-1]
+
+		ax.scatter(*args, c=c, cmap=cmap, marker='o', label=label)
 
 		if (show):
 			plt.show()
@@ -206,5 +211,5 @@ if __name__ == "__main__":
 	grounded.addLandmarks(X1)
 	grounded_voltage = grounded.compute_voltages()
 
-	ax = ungrounded.plot(color='r', show=False, label="Ungrounded Points")
-	ax = grounded.plot(color='b', ax=ax, label="Grounded Points")
+	ax = ungrounded.plot(color='r', label="Ungrounded Points")
+	ax = grounded.plot(color='b', label="Grounded Points")
