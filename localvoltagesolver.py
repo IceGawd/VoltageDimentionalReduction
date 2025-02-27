@@ -3,29 +3,34 @@ from kmeans import *
 
 # Example usage
 if __name__ == "__main__":
-	data = Data("strong_clusters.json", stream=False)
+	data = Data("eigth_sphere.json", stream=False)
+	# data = Data("square_fill.json", stream=False)
 
-	k = 10
+	k = 100
 
 	partitions = Partitions(data)
 	partitions.k_means(k, seed=time.time())
 
-	most_central_index = 0
+	# c, p_g = bestParameterFinder(gaussiankernel, landmarks, partitions)
+	# print(c, p_g)
+	c = 0.1
+	p_g = 0.001
 
-	for index in range(len(partitions.centers)):
-		if distance(partitions.centers[index], [0, 0]) > distance(partitions.centers[most_central_index], [0, 0]):
-			most_central_index = index
+	landmarks = [createLandmarkClosestTo(data, [1, 0, 0], 1), createLandmarkClosestTo(data, [0, 1, 0], 1), createLandmarkClosestTo(data, [0, 0, 1], 1)]
+	# landmarks = [createLandmarkClosestTo(partitions.centers, [1, 0], 1), createLandmarkClosestTo(partitions.centers, [0, 1], 1)]
+	solvers = []
 
-	# print(partitions.centers[most_central_index])
+	for i in range(len(landmarks)):
+		landmark = landmarks[i]
 
-	landmarks = [Landmark(index, 1)]
-	c = bestCFinder(gaussiankernel, landmarks, partitions)
+		landmarkSolver = Solver(partitions.centers)
+		landmarkSolver.setPartitionWeights(gaussiankernel, partitions, c)
+		landmarkSolver.addUniversalGround(p_g)
+		landmarkSolver.addLandmark(landmark)
+		landmarkVoltages = landmarkSolver.compute_voltages()
 
-	landmarkSolver = Solver(partitions.centers)
-	landmarkSolver.setPartitionWeights(kernel=gaussiankernel, c=c, partition=partitions)
-	landmarkSolver.addUniversalGround()
-	landmarkSolver.addLandmarks(landmarks)
-	landmarkVoltages = landmarkSolver.compute_voltages()
+		solvers.append(landmarkSolver)
+		landmarkSolver.plot(colored=True, name="eigth_sphere_voltages_" + str(i) + ".png")
 
 	voltages = [0 for i in range(len(data))]
 
@@ -44,7 +49,7 @@ if __name__ == "__main__":
 			closeLandmarks.append(Landmark(cli, landmarkVoltages[cli]))
 
 		localSolver = Solver(data.getSubSet(closestIndicies))
-		localSolver.setWeights(kernel=gaussiankernel, c=c)
+		localSolver.setWeights(gaussiankernel, c)
 		localSolver.addLandmarks(closeLandmarks)
 		localVoltages = localSolver.compute_voltages()
 

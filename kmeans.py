@@ -118,7 +118,7 @@ class Partitions():
 
 		return closest
 
-	def plot(self, color='r', marker='o', ax=None):
+	def plot(self, color='r', marker='o', ax=None, name=None):
 		size = len(self.centers[0])
 
 		if (ax == None):
@@ -129,14 +129,20 @@ class Partitions():
 			else:
 				ax = fig.add_subplot(111)
 
-		(x_coords, y_coords, z_coords) = pointFormatting(self.data)
 		if (size == 3):
-			ax.scatter(x_coords, y_coords, z_coords, c=color, marker=marker, label='Points')
+			(x_coords, y_coords, z_coords) = pointFormatting(self.centers)
+			ax.scatter(x_coords, y_coords, z_coords, c=color, marker=marker, label='Centers')
 		else:
+			(x_coords, y_coords, z_coords) = pointFormatting(self.data)
 			ax.scatter(x_coords, y_coords, c=color, marker=marker, label='Points')
 
-		voronoi_plot_2d(self.voronoi, ax=ax, show_vertices=False, line_colors='blue', line_width=1, line_alpha=0.6)
+			voronoi_plot_2d(self.voronoi, ax=ax, show_vertices=False, line_colors='blue', line_width=1, line_alpha=0.6)
+
 		ax.legend()
+
+		if (name):
+			plt.savefig(name)
+
 		plt.show()
 		# plotPointSets([self.data, self.centers])
 

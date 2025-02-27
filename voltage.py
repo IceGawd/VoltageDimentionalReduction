@@ -2,12 +2,26 @@ from create_data import *
 import numpy as np
 from scipy.sparse import csgraph
 from scipy.linalg import solve
+from scipy.stats import kstest
 import threading
 
 class Landmark():
 	def __init__(self, index, voltage):
 		self.index = index
 		self.voltage = voltage
+
+def createLandmarkClosestTo(data, point, voltage):
+	most_central_index = 0
+	mindist = distance(data[0], point)
+
+	for index in range(1, len(data)):
+		dist = distance(data[index], point)
+		if dist < mindist:
+			most_central_index = index
+			mindist = dist
+	
+	return Landmark(most_central_index, voltage)
+
 
 class Solver():
 	def __init__(self, data):
@@ -17,7 +31,7 @@ class Solver():
 		self.weights = np.zeros([len(data), len(data)])
 		self.universalGround = False
 
-	def setWeights(self, kernel, c):
+	def setWeights(self, kernel, *c):
 		"""
 		for (x, datax) in enumerate(self.data):
 			y_iter = enumerate(self.data)
@@ -34,22 +48,23 @@ class Solver():
 			for y in range(x, n):
 				datay = self.data[y]
 
-				v = kernel(datax, datay, c) / np.pow(n, 2)												# R = n^2/k, W = 1/R = k/n^2
+				v = kernel(datax, datay, *c) / np.pow(n, 2)												# R = n^2/k, W = 1/R = k/n^2
 
 				self.weights[x][y] = v
 				self.weights[y][x] = v
 
 		return self.weights
 
-	def setPartitionWeights(self, kernel, c, partition):
+	def setPartitionWeights(self, kernel, partition, *c):
 		n = len(self.data)
+		d = np.pow(len(partition.data), 2)
 
 		for x in range(0, n):
 			datax = self.data[x]
 			for y in range(x, n):
 				datay = self.data[y]
 
-				v = kernel(datax, datay, c) / (partition.point_counts[x] * partition.point_counts[y])
+				v = kernel(datax, datay, *c) * (partition.point_counts[x] * partition.point_counts[y]) / d
 
 				self.weights[x][y] = v
 				self.weights[y][x] = v
@@ -98,29 +113,39 @@ class Solver():
 		return self.voltages
 
 	def addUniversalGround(self, p_g=0.01):
-		self.universalGround = True
+		if (self.universalGround):
+			n = self.weights.shape[0] - 1
 
-		n = self.weights.shape[0]
-		newW = np.zeros([n + 1, n + 1])
+			for x in range(n):				# W[g, g] = 0
+				self.weights[x][n] = p_g / n
+				self.weights[n][x] = p_g / n
 
-		newW[0:n,0:n] = self.weights
+			return self.weights
 
-		for x in range(0, n):			# W[g, g] = 0
-			newW[x][n] = p_g / n
-			newW[n][x] = p_g / n
+		else:
+			self.universalGround = True
 
-		self.weights = newW
-		self.addLandmark(Landmark(n, 0))
+			n = self.weights.shape[0]
+			newW = np.zeros([n + 1, n + 1])
 
-		return newW
+			newW[0:n,0:n] = self.weights
 
-	def plot(self, color='r', ax=None, show=True, label="", colored=False):
+			for x in range(0, n):			# W[g, g] = 0
+				newW[x][n] = p_g / n
+				newW[n][x] = p_g / n
+
+			self.weights = newW
+			self.addLandmark(Landmark(n, 0))
+
+			return newW
+
+	def plot(self, color='r', ax=None, show=True, label="", colored=False, name=None):
 		dim = len(self.data[0])
 
 		if (ax == None):
 			fig = plt.figure()
 
-			if (dim == 2 and not colored):
+			if ((dim + (not colored)) == 3):
 				ax = fig.add_subplot(111, projection="3d")
 			else:
 				ax = fig.add_subplot(111)
@@ -136,8 +161,12 @@ class Solver():
 			c = self.voltages
 			args = args[:-1]
 
+		# print(c)
+		# print(args)
 		ax.scatter(*args, c=c, cmap=cmap, marker='o', label=label)
 
+		if (name):
+			plt.savefig(name)
 		if (show):
 			plt.show()
 
@@ -152,37 +181,64 @@ def radialkernel(x, y, r):
 def gaussiankernel(x, y, std):
 	return np.exp(np.pow(distance(x, y) / std, 2) / -2)
 
-def bestCFinder(kernel, landmarks, partition, emin=-5, emax=5):
-	bestE = emin
-	medVol = 0
+def bestParameterFinder(kernel, landmarks, partition, emin=-5, emax=5, mantissa=True, divisions=1, L=0.3):
+	bestC = emin
+	bestG = emin
 
-	for e in range(emin, emax+1):
-		# print(e)
-		meanSolver = Solver(partition.centers)
-		meanSolver.setPartitionWeights(kernel=kernel, c=pow(10, e), partition=partition)
-		meanSolver.addUniversalGround()
-		meanSolver.addLandmarks(landmarks)
+	val = float('inf')
 
-		voltages = meanSolver.compute_voltages()
-		if (medVol < np.median(voltages)):
-			bestE = e
-			medVol = np.median(voltages)
+	for c_e in range(emin, emax+1):
+		for g_e in range(emin, emax+1):
+			# print(e)
+			meanSolver = Solver(partition.centers)
+			meanSolver.setPartitionWeights(kernel, partition, pow(10, c_e))
+			meanSolver.addUniversalGround(pow(10, g_e))
+			meanSolver.addLandmarks(landmarks)
 
-	bestV = -10
-	medVol = 0
-	for v in range(-10, 11):
-		# print(v)
-		meanSolver = Solver(partition.centers)
-		meanSolver.setPartitionWeights(kernel=kernel, c=pow(10, bestE) + v * pow(10, bestE - 1), partition=partition)		
-		meanSolver.addUniversalGround()
-		meanSolver.addLandmarks(landmarks)
+			voltages = np.array(meanSolver.compute_voltages())
+			vmin = voltages.min()
+			voltages = (voltages - vmin) / (voltages.max() - vmin + 1e-8)
+			tempval, _ = kstest(voltages, 'uniform')
+			tempval += L * vmin
 
-		voltages = meanSolver.compute_voltages()
-		if (medVol < np.median(voltages)):
-			bestV = v
-			medVol = np.median(voltages)
+			# print(tempval)
+			if (val > tempval):
+				bestC = c_e
+				bestG = g_e
+				val = tempval
 
-	return pow(10, bestE) + bestV * pow(10, bestE - 1)
+	bestc = -9
+	bestg = -9
+	val = float('inf')
+
+	if (mantissa):
+		for c in range(-9, 10, divisions):
+			C = pow(10, bestC) + c * pow(10, bestC - 1)
+
+			for g in range(-9, 10, divisions):
+				G = pow(10, bestG) + g * pow(10, bestG - 1)
+
+				# print(v)
+				meanSolver = Solver(partition.centers)
+				meanSolver.setPartitionWeights(kernel, partition, C)		
+				meanSolver.addUniversalGround(G)
+				meanSolver.addLandmarks(landmarks)
+
+				voltages = np.array(meanSolver.compute_voltages())
+				vmin = voltages.min()
+				voltages = (voltages - vmin) / (voltages.max() - vmin + 1e-8)
+				tempval, _ = kstest(voltages, 'uniform')
+				tempval += L * vmin
+
+				if (val > tempval):
+					bestc = c
+					bestg = g
+					val = tempval
+	else:
+		bestc = 0
+		bestg = 0
+
+	return pow(10, bestC) + bestc * pow(10, bestC - 1), pow(10, bestG) + bestg * pow(10, bestG - 1)
 
 # Example usage
 if __name__ == "__main__":
@@ -200,13 +256,13 @@ if __name__ == "__main__":
 		if point[0] > 2:
 			X1.append(Landmark(index, 1))
 
-	ungrounded.setWeights(kernel=gaussiankernel, c=0.03)
+	ungrounded.setWeights(gaussiankernel, 0.03)
 	ungrounded.addLandmarks(X0)
 	ungrounded.addLandmarks(X1)
 	voltages = ungrounded.compute_voltages()
 
 	grounded = Solver(data)
-	grounded.setWeights(kernel=gaussiankernel, c=0.3)
+	grounded.setWeights(gaussiankernel, 0.3)
 	grounded.addUniversalGround()
 	grounded.addLandmarks(X1)
 	grounded_voltage = grounded.compute_voltages()
