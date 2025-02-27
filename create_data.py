@@ -486,10 +486,13 @@ if __name__ == '__main__':
 
 	print("Large Many Clusters")
 	create_dataset_strong_clusters(output_file="large_many_clusters.json", internal_std=100, external_std=1000, mean=[0, 0, 0], clusters=10000, points=1000000, seed=time.time(), stream=True)
-	# """
 
 	print("Large eigth sphere")
 	create_dataset_eigth_sphere(output_file="large_eigth_sphere.json", points=1000000, seed=time.time(), stream=True)
+	# """
+
+	print("Large spiral")
+	create_dataset_spiral(output_file="large_spiral.json", points=1000000, seed=time.time(), stream=True)
 
 	# data = Data("large_line.json", stream=True)
 	# for point in data:
