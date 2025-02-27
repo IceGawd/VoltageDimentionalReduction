@@ -1,9 +1,11 @@
 from voltage import *
 from kmeans import *
+from sklearn.decomposition import PCA
 
 # Example usage
 if __name__ == "__main__":
-	data = Data("eigth_sphere.json", stream=False)
+	name = "eigth_sphere"
+	data = Data(name + ".json", stream=False)
 	# data = Data("square_fill.json", stream=False)
 
 	k = 100
@@ -13,12 +15,18 @@ if __name__ == "__main__":
 
 	# c, p_g = bestParameterFinder(gaussiankernel, landmarks, partitions)
 	# print(c, p_g)
-	c = 0.1
-	p_g = 0.001
+	c = 0.03
+	p_g = 0.00000006
 
-	landmarks = [createLandmarkClosestTo(data, [1, 0, 0], 1), createLandmarkClosestTo(data, [0, 1, 0], 1), createLandmarkClosestTo(data, [0, 0, 1], 1)]
+	landmarks = [
+					createLandmarkClosestTo(partitions.centers, [1, 0, 0], 1), 
+					createLandmarkClosestTo(partitions.centers, [0, 1, 0], 1), 
+					createLandmarkClosestTo(partitions.centers, [0, 0, 1], 1)
+				]
+
 	# landmarks = [createLandmarkClosestTo(partitions.centers, [1, 0], 1), createLandmarkClosestTo(partitions.centers, [0, 1], 1)]
 	solvers = []
+	voltages = []
 
 	for i in range(len(landmarks)):
 		landmark = landmarks[i]
@@ -30,32 +38,18 @@ if __name__ == "__main__":
 		landmarkVoltages = landmarkSolver.compute_voltages()
 
 		solvers.append(landmarkSolver)
-		landmarkSolver.plot(colored=True, name="eigth_sphere_voltages_" + str(i) + ".png")
 
-	voltages = [0 for i in range(len(data))]
+		# landmarkSolver.plot(colored=True, name=name + "_voltages_" + str(i) + ".png")
 
-	for index in range(k):
-		closestIndicies = partitions.getClosestPoints(index)
-		closeLandmarksIndicies = []
+	points = np.array(list(map(list, zip(*(solver.localSolver(data, partitions, c) for solver in solvers)))))
 
-		for pair in partitions.voronoi.ridge_points:
-			if pair[0] == index:
-				closeLandmarksIndicies.append(pair[1])
-			if pair[1] == index:
-				closeLandmarksIndicies.append(pair[0])
+	pca = PCA(n_components=2)
+	points_2d = pca.fit_transform(points_array)
 
-		closeLandmarks = []
-		for cli in closeLandmarksIndicies:
-			closeLandmarks.append(Landmark(cli, landmarkVoltages[cli]))
+	plt.scatter(points_2d[:, 0], points_2d[:, 1])
+	plt.xlabel("PCA Component 1")
+	plt.ylabel("PCA Component 2")
+	plt.title("PCA Projection of Solver Outputs")
+	plt.show()
 
-		localSolver = Solver(data.getSubSet(closestIndicies))
-		localSolver.setWeights(gaussiankernel, c)
-		localSolver.addLandmarks(closeLandmarks)
-		localVoltages = localSolver.compute_voltages()
-
-		for i, v in zip(closestIndicies, localVoltages):
-			voltages[i] = v
-
-	temp = Solver(data)
-	temp.voltages = voltages
-	temp.plot()
+	plt.savefig(name + "_PCA.png")

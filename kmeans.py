@@ -18,7 +18,6 @@ class Partitions():
 
 	def k_means_plus_plus(self, k):
 		# print(self.data.data)
-
 		self.centers = [select_random(self.data)]
 
 		for i in range(k - 1):
@@ -50,6 +49,7 @@ class Partitions():
 		else:
 			kmeans = KMeans(n_clusters=k, random_state=int(seed), init="k-means++", n_init=1).fit(self.data)
 
+		self.k = k
 		self.centers = kmeans.cluster_centers_
 		self.point_counts = np.bincount(kmeans.labels_).tolist()
 

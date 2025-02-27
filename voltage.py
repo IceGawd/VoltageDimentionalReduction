@@ -139,6 +139,33 @@ class Solver():
 
 			return newW
 
+	def localSolver(self, data, partitions, c):
+		voltages = [0 for i in range(len(data))]
+
+		for index in range(partitions.k):
+			closestIndicies = partitions.getClosestPoints(index)
+			closeLandmarksIndicies = []
+
+			for pair in partitions.voronoi.ridge_points:
+				if pair[0] == index:
+					closeLandmarksIndicies.append(pair[1])
+				if pair[1] == index:
+					closeLandmarksIndicies.append(pair[0])
+
+			closeLandmarks = []
+			for cli in closeLandmarksIndicies:
+				closeLandmarks.append(Landmark(cli, self.voltages[cli]))
+
+			localSolver = Solver(data.getSubSet(closestIndicies))
+			localSolver.setWeights(gaussiankernel, c)
+			localSolver.addLandmarks(closeLandmarks)
+			localVoltages = localSolver.compute_voltages()
+
+			for i, v in zip(closestIndicies, localVoltages):
+				voltages[i] = v
+
+		return voltages
+
 	def plot(self, color='r', ax=None, show=True, label="", colored=False, name=None):
 		dim = len(self.data[0])
 
