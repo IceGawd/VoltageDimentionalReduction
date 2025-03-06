@@ -60,7 +60,7 @@ class Partitions():
 				self.point_assignments[label].append([point, distance(point, self.centers[label])])
 
 			# self.point_assignments = [data[kmeans.labels_ == i] for i in range(k)]	# k times less efficient
-		self.voronoi = Voronoi(self.centers)
+		# self.voronoi = Voronoi(self.centers)
 
 	def my_k_means(self, k, seed=42, savePointAssignments=False):
 		if (seed != -1):
@@ -136,7 +136,7 @@ class Partitions():
 			(x_coords, y_coords, z_coords) = pointFormatting(self.data)
 			ax.scatter(x_coords, y_coords, c=color, marker=marker, label='Points')
 
-			voronoi_plot_2d(self.voronoi, ax=ax, show_vertices=False, line_colors='blue', line_width=1, line_alpha=0.6)
+			# voronoi_plot_2d(self.voronoi, ax=ax, show_vertices=False, line_colors='blue', line_width=1, line_alpha=0.6)
 
 		ax.legend()
 
