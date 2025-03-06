@@ -30,7 +30,7 @@ if __name__ == '__main__':
 
 		start = time.time()
 
-		ungrounded = voltage.Solver(data)
+		# ungrounded = voltage.Solver(data)
 
 		X0 = []
 		X1 = []
@@ -41,24 +41,31 @@ if __name__ == '__main__':
 			if point[0] > 2:
 				X1.append(voltage.Landmark(index, 1))
 
-		ungrounded.setWeights(voltage.gaussiankernel, 0.03)
-		ungrounded.addLandmarks(X0)
-		ungrounded.addLandmarks(X1)
-		ungrounded.compute_voltages()
+		# ungrounded.setWeights(voltage.gaussiankernel, 0.03)
+		# ungrounded.addLandmarks(X0)
+		# ungrounded.addLandmarks(X1)
+		# ungrounded.compute_voltages()
+
+		grounded = voltage.Solver(data)
+		grounded.setWeights(voltage.gaussiankernel, 0.3)
+		grounded.addUniversalGround()
+		grounded.addLandmarks(X1)
+		grounded_voltage = grounded.compute_voltages()
+
 
 		end = time.time()
 
 		times.append(end - start)
 
 	plt.figure(figsize=(10, 5))
-	plt.plot(value, times, marker='o', linestyle='-', color='b', label="K-Means Runtime")
+	plt.plot(value, times, marker='o', linestyle='-', color='b', label="Runtime")
 
 	plt.xlabel("Points")
 	plt.ylabel("Time Taken (seconds)")
-	plt.title("Ungrounded vs. Points")
+	plt.title("Grounded vs. Points")
 	plt.legend()
 	plt.grid(True)
 
 	plt.show()
 
-	plt.savefig("../inputoutput/matplotfigures/voltageVSpointsTimeGraph.png")
+	plt.savefig("../inputoutput/matplotfigures/groundedvoltageVSpointsTimeGraph.png")
