@@ -4,6 +4,7 @@ from scipy.sparse import csgraph
 from scipy.linalg import solve
 from scipy.stats import kstest
 import threading
+from sklearn.decomposition import PCA
 
 class Landmark():
 	def __init__(self, index, voltage):
@@ -177,7 +178,15 @@ class Solver():
 			else:
 				ax = fig.add_subplot(111)
 
-		(x_coords, y_coords, z_coords) = pointFormatting(self.data)
+		if (dim > 3):
+			pca = PCA(n_components=2)
+			points_2d = pca.fit_transform(self.data)
+			x_coords, y_coords, z_coords = points_2d[:, 0], points_2d[:, 1], None
+
+			dim = 2
+		else:
+			(x_coords, y_coords, z_coords) = pointFormatting(self.data)
+
 
 		cmap = None
 		c = color

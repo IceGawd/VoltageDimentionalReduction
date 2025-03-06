@@ -170,7 +170,7 @@ def approx_dimention(data, start=1, end=10, inc=1, seed=42):
 
 
 if __name__ == '__main__':
-	data = Data("large_spiral.json", stream=True)
+	data = Data("../inputoutput/data/large_spiral.json", stream=True)
 	partitions = Partitions(data)
 
 	partitions.k_means(10, seed=time.time())
