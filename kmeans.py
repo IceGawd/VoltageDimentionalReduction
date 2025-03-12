@@ -77,6 +77,8 @@ def approx_dimention(data, start=1, end=10, inc=1, seed=42):
 	x = []
 	y = []
 	for k in range(start, end, inc):
+		print("K: " + str(k))
+
 		centers, point_assignments = k_means(data, k, -1)
 
 		total_distance = 0
@@ -89,10 +91,18 @@ def approx_dimention(data, start=1, end=10, inc=1, seed=42):
 
 	coefficients = np.polyfit(np.array(x), np.array(y), 1)
 
+	fig = plt.figure()
+	ax = fig.add_subplot(111)
+	ax.scatter(x, y, c='r', marker='o')
+	plt.xlabel("Log(K)")
+	plt.ylabel("Log(Avg. Dist)")
+	plt.grid()
+	plt.show() 
+
 	return -1 / coefficients[0]
 
 if __name__ == '__main__':
-	data = load_data_json("weak_clusters.json")
+	data = load_data_json("strong_clusters.json")
 	centers, pa = k_means(data, 10, seed=time.time())
 	# plotPointSets([data, centers])
-	print("Approx Intrinsic Dimention: " + str(approx_dimention(data, seed=time.time())))
+	print("Approx Intrinsic Dimention: " + str(approx_dimention(data, end=50, seed=time.time())))

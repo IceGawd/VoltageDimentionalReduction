@@ -232,9 +232,12 @@ def plotPointSets(sets):
 	plt.show()
 
 if __name__ == '__main__':
-	create_dataset_line(output_file="line.json", seed=time.time())
+	create_dataset_line(output_file="line.json", points=1000, seed=time.time())
 	create_dataset_square_edge(output_file="square_edge.json", seed=time.time())
 	create_dataset_square_fill(output_file="square_fill.json", seed=time.time())
 	create_dataset_eigth_sphere(output_file="eigth_sphere.json", seed=time.time())
 	create_dataset_strong_clusters(output_file="strong_clusters.json", seed=time.time())
 	create_dataset_weak_clusters(output_file="weak_clusters.json", seed=time.time())
+
+	
+	plotPoints(load_data_json("eigth_sphere.json"))
