@@ -1,0 +1,10 @@
+- measure the time differences between things
+- Multidimensional Scaling vs PCA
+- MNIST
+- follow paper (diagram)
+- (intrinsic dimention + 1) landmarks
+- organize github (Code, Data+Images)
+- docstrings and readme
+
+bugs:
+- kmeans only works with imported / streamed data?

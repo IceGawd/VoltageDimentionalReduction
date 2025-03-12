@@ -122,13 +122,25 @@ class Data():
 
 	# Make Data able to be for looped
 	def __iter__(self):
-		self.streaming_data = self.stream_data_json(self.input_file)
-		next(self.streaming_data)
+		if (hasattr(self, 'input_file')):
+			self.streaming_data = self.stream_data_json(self.input_file)
+			next(self.streaming_data)
+		else:
+			self.streaming_data = 0
+
 		return self
 
 	def __next__(self):
 		try:
-			return np.array(next(self.streaming_data))
+			if (hasattr(self, 'input_file')):
+				return np.array(next(self.streaming_data))
+			else:
+				if (self.streaming_data == self.length):
+					raise
+				else:
+					return np.array(self.data[self.streaming_data])
+
+				self.streaming_data += 1
 		except StopIteration:
 			raise
 
@@ -482,13 +494,13 @@ if __name__ == '__main__':
 	create_dataset_spiral(output_file="../inputoutput/data/spiral.json", seed=time.time())
 
 	print("Line in 3D")
-	rotate_into_dimention(line_points, seed=time.time()).save_data("3d_line.json")
+	rotate_into_dimention(line_points, seed=time.time()).save_data("../inputoutput/data/3d_line.json")
 
 	print("Square Fill in 3D")
-	rotate_into_dimention(square_points, seed=time.time()).save_data("3d_square.json")
+	rotate_into_dimention(square_points, seed=time.time()).save_data("../inputoutput/data/3d_square.json")
 
 	print("Square Edge in 10D")
-	rotate_into_dimention(edge_points, higher_dim=10, seed=time.time()).save_data("10d_square_edge.json")
+	rotate_into_dimention(edge_points, higher_dim=10, seed=time.time()).save_data("../inputoutput/data/10d_square_edge.json")
 
 	"""
 	print("Large Line")
