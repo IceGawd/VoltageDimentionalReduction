@@ -2,7 +2,6 @@ from create_data import *
 import numpy as np
 from scipy.sparse import csgraph
 from scipy.linalg import solve
-from scipy.stats import kstest
 import threading
 from sklearn.decomposition import PCA
 
@@ -216,65 +215,6 @@ def radialkernel(x, y, r):
 
 def gaussiankernel(x, y, std):
 	return np.exp(np.pow(distance(x, y) / std, 2) / -2)
-
-def bestParameterFinder(kernel, landmarks, partition, emin=-5, emax=5, mantissa=True, divisions=1, L=0.3):
-	bestC = emin
-	bestG = emin
-
-	val = float('inf')
-
-	for c_e in range(emin, emax+1):
-		for g_e in range(emin, emax+1):
-			# print(e)
-			meanSolver = Solver(partition.centers)
-			meanSolver.setPartitionWeights(kernel, partition, pow(10, c_e))
-			meanSolver.addUniversalGround(pow(10, g_e))
-			meanSolver.addLandmarks(landmarks)
-
-			voltages = np.array(meanSolver.compute_voltages())
-			vmin = voltages.min()
-			voltages = (voltages - vmin) / (voltages.max() - vmin + 1e-8)
-			tempval, _ = kstest(voltages, 'uniform')
-			tempval += L * vmin
-
-			# print(tempval)
-			if (val > tempval):
-				bestC = c_e
-				bestG = g_e
-				val = tempval
-
-	bestc = -9
-	bestg = -9
-	val = float('inf')
-
-	if (mantissa):
-		for c in range(-9, 10, divisions):
-			C = pow(10, bestC) + c * pow(10, bestC - 1)
-
-			for g in range(-9, 10, divisions):
-				G = pow(10, bestG) + g * pow(10, bestG - 1)
-
-				# print(v)
-				meanSolver = Solver(partition.centers)
-				meanSolver.setPartitionWeights(kernel, partition, C)		
-				meanSolver.addUniversalGround(G)
-				meanSolver.addLandmarks(landmarks)
-
-				voltages = np.array(meanSolver.compute_voltages())
-				vmin = voltages.min()
-				voltages = (voltages - vmin) / (voltages.max() - vmin + 1e-8)
-				tempval, _ = kstest(voltages, 'uniform')
-				tempval += L * vmin
-
-				if (val > tempval):
-					bestc = c
-					bestg = g
-					val = tempval
-	else:
-		bestc = 0
-		bestg = 0
-
-	return pow(10, bestC) + bestc * pow(10, bestC - 1), pow(10, bestG) + bestg * pow(10, bestG - 1)
 
 # Example usage
 if __name__ == "__main__":

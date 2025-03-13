@@ -329,6 +329,26 @@ def create_dataset_eigth_sphere(output_file=None, radius=1, x_pos=True, y_pos=Tr
 	"""Generates a dataset of an eigth sphere"""
 	return stream_dataset_creator(output_file, eigth_sphere_generator, seed, stream, radius, x_pos, y_pos, z_pos, points)
 
+def triangle_generator(edges, points):
+	base = np.array(edges[0])
+	edgeDiff1 = np.array(edges[1]) - base
+	edgeDiff2 = np.array(edges[2]) - base
+	for p in range(points):
+		d1 = random.random()
+		d2 = random.random()
+
+		if d1 + d2 > 1:
+			d1 = 1 - d1
+			d2 = 1 - d2
+
+		yield base + d1 * edgeDiff1 + d2 * edgeDiff2
+
+
+def create_dataset_triangle(output_file=None, edges=[[0, 0], [1, 1], [2, 0]], points=1000, seed=42, stream=False):
+	"""Generates a dataset of an eigth sphere"""
+	return stream_dataset_creator(output_file, triangle_generator, seed, stream, edges, points)
+
+
 def dimentional_variation(dimentions):
 	"""Returns an np array that is full of random variables from -inf to inf based on the standard normal distribution"""
 	z_vals = []
@@ -492,6 +512,9 @@ if __name__ == '__main__':
 
 	print("Making spiral...")
 	create_dataset_spiral(output_file="../inputoutput/data/spiral.json", seed=time.time())
+
+	print("Making triangle...")
+	create_dataset_triangle(output_file="../inputoutput/data/triangle.json", seed=time.time())
 
 	print("Line in 3D")
 	rotate_into_dimention(line_points, seed=time.time()).save_data("../inputoutput/data/3d_line.json")
