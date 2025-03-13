@@ -114,9 +114,11 @@ def bestParameterFinder(kernel, landmarks, partition, metric=nInfUniform, minBou
 	return bestc, bestg
 
 if __name__ == "__main__":
-	triangle = create_data.Data("../inputoutput/data/triangle.json", stream=True)
+	print("Loading data...")
+	triangle = create_data.Data("../inputoutput/data/large_triangle.json", stream=True)
 
-	k = 100
+	print("Doing partitioning...")
+	k = 200
 
 	partitions = kmeans.Partitions(triangle)
 	partitions.k_means(k, seed=time.time())

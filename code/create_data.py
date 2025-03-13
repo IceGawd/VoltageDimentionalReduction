@@ -542,7 +542,7 @@ if __name__ == '__main__':
 	create_dataset_spiral(output_file="../inputoutput/data/large_spiral.json", points=1000000, seed=time.time(), stream=True)
 	# """
 	print("Large triangle")
-	create_dataset_triangle(output_file="../inputoutput/data/triangle.json", points=1000000, seed=time.time(), stream=True)
+	create_dataset_triangle(output_file="../inputoutput/data/large_triangle.json", points=1000000, seed=time.time(), stream=True)
 
 
 	# data = Data("large_line.json", stream=True)
