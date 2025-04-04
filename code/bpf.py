@@ -38,9 +38,23 @@ def minWithStd(voltages, value=0.1):
 	voltages.sort()
 	return abs(voltages[0] - value) / np.std(voltages)
 
-def calculateFor(kernel, landmarks, partition, metric, c, p_g):
-	meanSolver = voltage.Solver(partition.centers)
-	meanSolver.setPartitionWeights(kernel, partition, np.exp(c))
+def calculateFor(kernel, landmarks, data, metric, c, p_g):
+	# print(type(data))
+
+	if (isinstance(data, create_data.Data)):
+		meanSolver = voltage.Solver(data)
+		meanSolver.setWeights(kernel, np.exp(c))
+		# print(meanSolver)
+
+	if (isinstance(data, kmeans.Partitions)):
+		partitions = data
+
+		meanSolver = voltage.Solver(partition.centers)
+		meanSolver.setPartitionWeights(kernel, partition, np.exp(c))
+		# print(meanSolver)
+
+	# print(meanSolver)
+
 	meanSolver.addUniversalGround(np.exp(p_g))
 	meanSolver.addLandmarks(landmarks)
 
@@ -51,7 +65,7 @@ def calculateFor(kernel, landmarks, partition, metric, c, p_g):
 	else:
 		return voltages, meanSolver
 
-def bestParameterFinder(kernel, landmarks, partition, metric=nInfUniform, minBound=-25, maxBound=-1, granularity=5, epsilon=1):
+def bestParameterFinder(kernel, landmarks, data, metric=nInfUniform, minBound=-25, maxBound=-1, granularity=5, epsilon=1):
 	"""
 	Finds the best parameters (C and P_G) for a solver based on voltage distribution minimization.
 
@@ -65,8 +79,8 @@ def bestParameterFinder(kernel, landmarks, partition, metric=nInfUniform, minBou
 		The kernel function or object used to compute partition weights.
 	landmarks : list
 		A list of landmark points used in the solver.
-	partition : object
-		A partition object containing centers used in the solver.
+	data : object
+		Either a data object or a partition object containing centers used in the solver.
 	nInfUniform : function (list of floating point values -> floating point value)
 		A function that is used to quantify if voltages are good or bad, the smaller the better
 	minBound : int, optional (default=1e-5)
@@ -97,7 +111,8 @@ def bestParameterFinder(kernel, landmarks, partition, metric=nInfUniform, minBou
 
 		for c in cs:
 			for g in gs:
-				tempval = calculateFor(kernel, landmarks, partition, metric, c, g)
+				# print(c, g)
+				tempval = calculateFor(kernel, landmarks, data, metric, c, g)
 
 				# print(tempval)
 				if (val > tempval):
@@ -113,14 +128,47 @@ def bestParameterFinder(kernel, landmarks, partition, metric=nInfUniform, minBou
 
 	return bestc, bestg
 
+def visualizations(voltages, fileStarter):
+	points = np.array(list(map(list, zip(*voltages))))
+
+	# print(points.shape)
+
+	# PCA
+	pca = PCA(n_components=2)
+	points_2d = pca.fit_transform(points)
+
+	# print(points_2d.shape)
+
+	plt.scatter(points_2d[:, 0], points_2d[:, 1], s=10)
+	plt.xlabel("PCA Component 1")
+	plt.ylabel("PCA Component 2")
+	plt.title("PCA Projection of Solver Outputs")
+
+	plt.savefig(fileStarter + "_PCA.png")
+	plt.clf()
+
+	# MDS
+	mds = MDS(n_components=2, random_state=42)
+	transformed_points = mds.fit_transform(points)
+	
+	plt.figure(figsize=(8, 6))
+	plt.scatter(transformed_points[:, 0], transformed_points[:, 1], c='blue', edgecolors='black')
+	
+	plt.xlabel("MDS Dimension 1")
+	plt.ylabel("MDS Dimension 2")
+	plt.title("Multidimensional Scaling (MDS) to 2D")
+	
+	plt.savefig(fileStarter + "_MDS.png")
+	plt.clf()
+
 if __name__ == "__main__":
 	print("Loading data...")
-	triangle = create_data.Data("../inputoutput/data/large_triangle.json", stream=True)
+	data = create_data.Data("../inputoutput/data/spiral.json", stream=True)
 
 	print("Doing partitioning...")
-	k = 200
+	k = 100
 
-	partitions = kmeans.Partitions(triangle)
+	partitions = kmeans.Partitions(data)
 	partitions.k_means(k, seed=time.time())
 
 	landmarks = [voltage.createLandmarkClosestTo(partitions.centers, [0, 0], 1)]
@@ -131,18 +179,14 @@ if __name__ == "__main__":
 			c, p_g = bestParameterFinder(kernel, landmarks, partitions, metric=metric)
 			print("Metric: " + metric.__name__ + " Kernel: " + kernel.__name__ + " c: " + str(np.exp(c)) + " p_g: " + str(np.exp(p_g)))
 
+			fileStarter = "../inputoutput/matplotfigures/" + metric.__name__ + "_" + kernel.__name__
+
 			singlevoltage, meanSolver = calculateFor(kernel, landmarks, partitions, None, c, p_g)
 			# print(singlevoltage)
 
 			voltages = [singlevoltage]
 			for landmark in allLandmarks:
 				voltages.append(calculateFor(kernel, [landmark], partitions, None, c, p_g)[0])
-
-			points = np.array(list(map(list, zip(*voltages))))
-
-			# print(points.shape)
-
-			fileStarter = "../inputoutput/matplotfigures/" + metric.__name__ + "_" + kernel.__name__
 
 			meanSolver.plot(colored=True, show=False, name=fileStarter + "_colored.png")
 			plt.clf()
@@ -157,30 +201,4 @@ if __name__ == "__main__":
 			plt.savefig(fileStarter + '_histogram.png')
 			plt.clf()
 
-			# PCA
-			pca = PCA(n_components=2)
-			points_2d = pca.fit_transform(points)
-
-			# print(points_2d.shape)
-
-			plt.scatter(points_2d[:, 0], points_2d[:, 1], s=10)
-			plt.xlabel("PCA Component 1")
-			plt.ylabel("PCA Component 2")
-			plt.title("PCA Projection of Solver Outputs")
-
-			plt.savefig(fileStarter + "_PCA.png")
-			plt.clf()
-
-			# MDS
-			mds = MDS(n_components=2, random_state=42)
-			transformed_points = mds.fit_transform(points)
-			
-			plt.figure(figsize=(8, 6))
-			plt.scatter(transformed_points[:, 0], transformed_points[:, 1], c='blue', edgecolors='black')
-			
-			plt.xlabel("MDS Dimension 1")
-			plt.ylabel("MDS Dimension 2")
-			plt.title("Multidimensional Scaling (MDS) to 2D")
-			
-			plt.savefig(fileStarter + "_MDS.png")
-			plt.clf()
+			visualizations(voltages, fileStarter)

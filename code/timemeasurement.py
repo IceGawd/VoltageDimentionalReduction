@@ -50,8 +50,8 @@ if __name__ == '__main__':
 		grounded.setWeights(voltage.gaussiankernel, 0.3)
 		grounded.addUniversalGround()
 		grounded.addLandmarks(X1)
-		grounded_voltage = grounded.compute_voltages()
-
+		# grounded_voltage = grounded.compute_voltages()
+		grounded_voltage = approximate_voltages(max_iters=100)
 
 		end = time.time()
 
@@ -62,10 +62,10 @@ if __name__ == '__main__':
 
 	plt.xlabel("Points")
 	plt.ylabel("Time Taken (seconds)")
-	plt.title("Grounded vs. Points")
+	plt.title("approximate_voltages(max_iters=100)Grounded vs. Points")
 	plt.legend()
 	plt.grid(True)
 
 	plt.show()
 
-	plt.savefig("../inputoutput/matplotfigures/groundedvoltageVSpointsTimeGraph.png")
+	plt.savefig("../inputoutput/matplotfigures/groundedvoltageapproxVSpointsTimeGraph.png")

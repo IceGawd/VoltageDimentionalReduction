@@ -5,6 +5,7 @@ import localvoltagesolver
 
 from sklearn.datasets import fetch_openml
 import numpy as np
+import time
 
 if __name__ == "__main__":
 	print("Loading Data...")
@@ -24,11 +25,11 @@ if __name__ == "__main__":
 		if yi in summation:
 			subDivision[yi].append(np.array(xi))
 			summation[yi] += np.array(xi)
-			count[y1] += 1
+			count[yi] += 1
 		else:
 			subDivision[yi] = [np.array(xi)]
 			summation[yi] = np.array(xi)
-			count[y1] = 1
+			count[yi] = 1
 
 	print("Kmeans...")
 
@@ -49,6 +50,6 @@ if __name__ == "__main__":
 
 	print("Parameter Finding...")
 
-	c, p_g = voltage.bestParameterFinder(voltage.gaussiankernel, landmarks, partitions, emin=-10, emax=-1, mantissa=True, L=0)
+	c, p_g = voltage.bestParameterFinder(voltage.gaussiankernel, landmarks, partitions)
 	print(c, p_g)
 	# localvoltagesolver.localSolver(data, landmarks, c, p_g)

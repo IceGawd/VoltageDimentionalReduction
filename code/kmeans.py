@@ -1,6 +1,10 @@
-from create_data import *
+import create_data
 from scipy.spatial import Voronoi, voronoi_plot_2d
 from sklearn.cluster import KMeans
+import time
+import numpy as np
+import matplotlib.pyplot as plt
+import random
 
 def weighted_random(values, weights):
 	r = random.random()
@@ -18,7 +22,7 @@ class Partitions():
 
 	def k_means_plus_plus(self, k):
 		# print(self.data.data)
-		self.centers = [select_random(self.data)]
+		self.centers = [create_data.select_random(self.data)]
 
 		for i in range(k - 1):
 			distances = []
@@ -30,9 +34,9 @@ class Partitions():
 				# print(point)
 				# print(self.centers[0])
 
-				d = distance(point, self.centers[0])
+				d = create_data.distance(point, self.centers[0])
 				for center in self.centers:
-					d = min(d, distance(point, center))
+					d = min(d, create_data.distance(point, center))
 
 				distances.append(d)
 
@@ -57,7 +61,7 @@ class Partitions():
 			self.point_assignments = [[] for i in range(k)]
 			for i, point in enumerate(data):
 				label = kmeans.labels_[i]
-				self.point_assignments[label].append([point, distance(point, self.centers[label])])
+				self.point_assignments[label].append([point, create_data.distance(point, self.centers[label])])
 
 			# self.point_assignments = [data[kmeans.labels_ == i] for i in range(k)]	# k times less efficient
 		# self.voronoi = Voronoi(self.centers)
@@ -76,10 +80,10 @@ class Partitions():
 
 		for i, point in enumerate(self.data):
 			min_index = 0
-			min_dist = distance(point, self.centers[0])
+			min_dist = create_data.distance(point, self.centers[0])
 			
 			for c in range(k - 1):
-				dist = distance(point, self.centers[c + 1])
+				dist = create_data.distance(point, self.centers[c + 1])
 				if (min_dist > dist):
 					min_index = c + 1
 					min_dist = dist
@@ -105,10 +109,10 @@ class Partitions():
 		closest = []
 		for i, point in enumerate(self.data):
 			min_index = 0
-			min_dist = distance(point, self.centers[0])
+			min_dist = create_data.distance(point, self.centers[0])
 			
 			for c in range(len(self.centers) - 1):
-				dist = distance(point, self.centers[c + 1])
+				dist = create_data.distance(point, self.centers[c + 1])
 				if (min_dist > dist):
 					min_index = c + 1
 					min_dist = dist
@@ -130,10 +134,10 @@ class Partitions():
 				ax = fig.add_subplot(111)
 
 		if (size == 3):
-			(x_coords, y_coords, z_coords) = pointFormatting(self.centers)
+			(x_coords, y_coords, z_coords) = create_data.pointFormatting(self.centers)
 			ax.scatter(x_coords, y_coords, z_coords, c=color, marker=marker, label='Centers')
 		else:
-			(x_coords, y_coords, z_coords) = pointFormatting(self.data)
+			(x_coords, y_coords, z_coords) = create_data.pointFormatting(self.data)
 			ax.scatter(x_coords, y_coords, c=color, marker=marker, label='Points')
 
 			# voronoi_plot_2d(self.voronoi, ax=ax, show_vertices=False, line_colors='blue', line_width=1, line_alpha=0.6)
@@ -159,7 +163,7 @@ def approx_dimention(data, start=1, end=10, inc=1, seed=42):
 		total_distance = 0
 		for i, points in enumerate(partitions.point_assignments):
 			for point in points:
-				total_distance += distance(point[0], partitions.centers[i])
+				total_distance += create_data.distance(point[0], partitions.centers[i])
 
 		x.append(np.log(k))
 		y.append(np.log(total_distance / len(partitions.data)))
@@ -170,7 +174,7 @@ def approx_dimention(data, start=1, end=10, inc=1, seed=42):
 
 
 if __name__ == '__main__':
-	data = Data("../inputoutput/data/large_spiral.json", stream=True)
+	data = create_data.Data("../inputoutput/data/spiral.json", stream=True)
 	partitions = Partitions(data)
 
 	partitions.k_means(10, seed=time.time())

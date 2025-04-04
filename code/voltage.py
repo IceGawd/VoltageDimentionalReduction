@@ -23,7 +23,6 @@ def createLandmarkClosestTo(data, point, voltage):
 	
 	return Landmark(most_central_index, voltage)
 
-
 class Solver():
 	def __init__(self, data):
 		self.data = data
@@ -33,42 +32,45 @@ class Solver():
 		self.universalGround = False
 
 	def setWeights(self, kernel, *c):
-		"""
-		for (x, datax) in enumerate(self.data):
-			y_iter = enumerate(self.data)
-
-			for y in range(0, x):
-				y_iter.__next__()																		# "Burn" x data points in this generator
-
-			for (y, datay) in y_iter:
-		"""
 		n = len(self.data)
 
-		for x in range(0, n):
+		for x in range(0, n - 1):
 			datax = self.data[x]
-			for y in range(x, n):
+			for y in range(x + 1, n):
 				datay = self.data[y]
 
-				v = kernel(datax, datay, *c) / np.pow(n, 2)												# R = n^2/k, W = 1/R = k/n^2
+				v = kernel(datax, datay, *c)
+				# v = kernel(datax, datay, *c) / np.pow(n, 2)												# R = n^2/k, W = 1/R = k/n^2
 
 				self.weights[x][y] = v
 				self.weights[y][x] = v
+
+		self.normalizeWeights()
 
 		return self.weights
 
+	def normalizeWeights(self):
+		self.weights = self.weights / self.weights.sum(axis=1, keepdims=True)
+
+		if np.isnan(self.weights).any():
+			raise ValueError("Array contains NaN values!")
+
 	def setPartitionWeights(self, kernel, partition, *c):
 		n = len(self.data)
-		d = np.pow(len(partition.data), 2)
+		# d = np.pow(len(partition.data), 2)
 
 		for x in range(0, n):
 			datax = self.data[x]
 			for y in range(x, n):
 				datay = self.data[y]
 
-				v = kernel(datax, datay, *c) * (partition.point_counts[x] * partition.point_counts[y]) / d
+				# v = kernel(datax, datay, *c) * (partition.point_counts[x] * partition.point_counts[y]) / d
+				v = kernel(datax, datay, *c) * partition.point_counts[x] * partition.point_counts[y]
 
 				self.weights[x][y] = v
 				self.weights[y][x] = v
+
+		self.normalizeWeights()
 
 		return self.weights
 
@@ -81,26 +83,26 @@ class Solver():
 	def compute_voltages(self):
 		n = self.weights.shape[0]
 		
-		L = csgraph.laplacian(self.weights, normed=False)
-		
 		constrained_nodes =   [l.index for l in self.landmarks]
 		unconstrained_nodes = [i for i in range(n) if i not in constrained_nodes]
 		
 		b = np.zeros(n)
 		for landmark in self.landmarks:
-			b[landmark.index] = landmark.voltage
+			for y in range(0, n):
+				b[y] += landmark.voltage * self.weights[y][landmark.index]
 		
-		# print(L)
-		# print(b)
+		A_unconstrained = np.identity(len(unconstrained_nodes)) - self.weights[np.ix_(unconstrained_nodes, unconstrained_nodes)]
 
-		L_unconstrained = L[np.ix_(unconstrained_nodes, unconstrained_nodes)]															# Gets diagonal subgraph of L
-		# print(L_unconstrained)
+		b_unconstrained = b[unconstrained_nodes]
 
-		b_unconstrained = b[unconstrained_nodes] - np.matmul(L[np.ix_(unconstrained_nodes, constrained_nodes)], b[constrained_nodes])	# B with the subtraction of the constrained term
+		# print(self.weights)
+		# print(A_unconstrained)
 		# print(b_unconstrained)
 		
-		v_unconstrained = solve(L_unconstrained, b_unconstrained)
+		v_unconstrained = solve(A_unconstrained, b_unconstrained)
 		
+		# print(v_unconstrained)
+
 		self.voltages = np.zeros(n)
 
 		for landmark in self.landmarks:
@@ -113,6 +115,44 @@ class Solver():
 
 		return self.voltages
 
+	def approximate_voltages(self, epsilon=None, max_iters=None):
+		n = self.weights.shape[0]
+
+		if (epsilon == None):
+			if (max_iters == None):
+				epsilon = 1 / n
+
+		constrained_nodes =		[l.index for l in self.landmarks]
+		constraints = 			[l.voltage for l in self.landmarks]
+		unconstrained_nodes =	[i for i in range(n) if i not in constrained_nodes]
+
+		self.voltages = np.zeros(n)
+		voltages = np.zeros(n)
+
+		for landmark in self.landmarks:
+			self.voltages[landmark.index] = landmark.voltage
+
+		dist = create_data.distance(self.voltages, voltages)
+		prev_dist = float('inf')
+
+		iterations = 0
+
+		while (((epsilon != None and dist > epsilon * len(self.data)) or (max_iters != None and iterations < max_iters)) and dist < prev_dist):
+			voltages = np.matmul(self.weights, self.voltages)
+			voltages[constrained_nodes] = constraints
+			prev_dist = dist
+			dist = create_data.distance(self.voltages, voltages)
+
+			print(prev_dist, dist)
+
+			self.voltages = voltages
+			iterations += 1
+
+		if (self.universalGround):
+			self.voltages = self.voltages[:-1]
+
+		return self.voltages
+
 	def addUniversalGround(self, p_g=0.01):
 		if (self.universalGround):
 			n = self.weights.shape[0] - 1
@@ -120,8 +160,6 @@ class Solver():
 			for x in range(n):				# W[g, g] = 0
 				self.weights[x][n] = p_g / n
 				self.weights[n][x] = p_g / n
-
-			return self.weights
 
 		else:
 			self.universalGround = True
@@ -138,7 +176,9 @@ class Solver():
 			self.weights = newW
 			self.addLandmark(Landmark(n, 0))
 
-			return newW
+		self.normalizeWeights()
+
+		return self.weights
 
 	def localSolver(self, data, partitions, c):
 		voltages = [0 for i in range(len(data))]
@@ -209,7 +249,7 @@ class Solver():
 		return ax
 
 def radialkernel(x, y, r):
-	if (create_data.distance(x, y) < r):
+	if (create_data.distance(x, y) <= r):
 		return 1
 	else:
 		return 0
@@ -233,16 +273,20 @@ if __name__ == "__main__":
 		if point[0] > 2:
 			X1.append(Landmark(index, 1))
 
-	ungrounded.setWeights(gaussiankernel, 0.03)
+	# """
+	ungrounded.setWeights(gaussiankernel, 0.3)
 	ungrounded.addLandmarks(X0)
 	ungrounded.addLandmarks(X1)
-	voltages = ungrounded.compute_voltages()
+	# voltages = ungrounded.compute_voltages()
+	voltages = ungrounded.approximate_voltages(max_iters=100)
+	# """
 
 	grounded = Solver(data)
-	grounded.setWeights(gaussiankernel, 0.3)
+	grounded.setWeights(gaussiankernel, 0.03)
 	grounded.addUniversalGround()
 	grounded.addLandmarks(X1)
-	grounded_voltage = grounded.compute_voltages()
+	# grounded_voltage = grounded.compute_voltages()
+	grounded_voltage = grounded.approximate_voltages(max_iters=100)
 
-	ax = ungrounded.plot(color='r', label="Ungrounded Points")
-	ax = grounded.plot(color='b', label="Grounded Points")
+	ax = ungrounded.plot(color='r', label="Ungrounded Points", name="../inputoutput/matplotfigures/approxUngrounded.png")
+	ax = grounded.plot(color='b', label="Grounded Points", name="../inputoutput/matplotfigures/approxGrounded.png")
