@@ -1,9 +1,10 @@
-from create_data import *
+import create_data
 import numpy as np
 from scipy.sparse import csgraph
 from scipy.linalg import solve
 import threading
 from sklearn.decomposition import PCA
+import matplotlib.pyplot as plt
 
 class Landmark():
 	def __init__(self, index, voltage):
@@ -12,10 +13,10 @@ class Landmark():
 
 def createLandmarkClosestTo(data, point, voltage):
 	most_central_index = 0
-	mindist = distance(data[0], point)
+	mindist = create_data.distance(data[0], point)
 
 	for index in range(1, len(data)):
-		dist = distance(data[index], point)
+		dist = create_data.distance(data[index], point)
 		if dist < mindist:
 			most_central_index = index
 			mindist = dist
@@ -184,7 +185,7 @@ class Solver():
 
 			dim = 2
 		else:
-			(x_coords, y_coords, z_coords) = pointFormatting(self.data)
+			(x_coords, y_coords, z_coords) = create_data.pointFormatting(self.data)
 
 
 		cmap = None
@@ -208,17 +209,17 @@ class Solver():
 		return ax
 
 def radialkernel(x, y, r):
-	if (distance(x, y) < r):
+	if (create_data.distance(x, y) < r):
 		return 1
 	else:
 		return 0
 
 def gaussiankernel(x, y, std):
-	return np.exp(np.pow(distance(x, y) / std, 2) / -2)
+	return np.exp(np.pow(create_data.distance(x, y) / std, 2) / -2)
 
 # Example usage
 if __name__ == "__main__":
-	data = Data("line.json", stream=True)
+	data = create_data.Data("../inputoutput/data/line.json", stream=True)
 	n = len(data)
 
 	ungrounded = Solver(data)
