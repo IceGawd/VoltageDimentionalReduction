@@ -95,7 +95,7 @@ if __name__ == '__main__':
 
 	plt.xlabel("Points")
 	plt.ylabel("Time Taken (seconds)")
-	plt.title("Grounded vs. Points")
+	plt.title("Ungrounded vs. Points")
 	plt.legend()
 	plt.grid(True)
 
