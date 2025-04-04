@@ -143,10 +143,12 @@ class Solver():
 			prev_dist = dist
 			dist = create_data.distance(self.voltages, voltages)
 
-			print(prev_dist, dist)
+			# print(prev_dist, dist)
 
 			self.voltages = voltages
 			iterations += 1
+
+		# print(iterations)
 
 		if (self.universalGround):
 			self.voltages = self.voltages[:-1]
