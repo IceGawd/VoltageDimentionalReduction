@@ -5,6 +5,7 @@ from scipy.linalg import solve
 import threading
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
+import time
 
 class Landmark():
 	def __init__(self, index, voltage):
@@ -25,7 +26,7 @@ def createLandmarkClosestTo(data, point, voltage):
 
 class Solver():
 	def __init__(self, data):
-		self.data = data
+		self.data = data.data
 		self.landmarks = []
 		n = len(data)
 		self.weights = np.zeros([len(data), len(data)])
@@ -35,11 +36,8 @@ class Solver():
 		n = len(self.data)
 
 		for x in range(0, n - 1):
-			datax = self.data[x]
 			for y in range(x + 1, n):
-				datay = self.data[y]
-
-				v = kernel(datax, datay, *c)
+				v = kernel(data[x], data[y], *c)
 				# v = kernel(datax, datay, *c) / np.pow(n, 2)												# R = n^2/k, W = 1/R = k/n^2
 
 				self.weights[x][y] = v
@@ -57,14 +55,12 @@ class Solver():
 
 	def setPartitionWeights(self, kernel, partition, *c):
 		n = len(self.data)
-		# d = np.pow(len(partition.data), 2)
 
 		for x in range(0, n):
 			datax = self.data[x]
 			for y in range(x, n):
 				datay = self.data[y]
 
-				# v = kernel(datax, datay, *c) * (partition.point_counts[x] * partition.point_counts[y]) / d
 				v = kernel(datax, datay, *c) * partition.point_counts[x] * partition.point_counts[y]
 
 				self.weights[x][y] = v
@@ -261,7 +257,7 @@ def gaussiankernel(x, y, std):
 
 # Example usage
 if __name__ == "__main__":
-	data = create_data.Data("../inputoutput/data/line.json", stream=True)
+	data = create_data.Data("../inputoutput/data/line.json", stream=False)
 	n = len(data)
 
 	ungrounded = Solver(data)
@@ -276,12 +272,22 @@ if __name__ == "__main__":
 			X1.append(Landmark(index, 1))
 
 	# """
+	start = time.time()
+
 	ungrounded.setWeights(gaussiankernel, 0.3)
 	ungrounded.addLandmarks(X0)
 	ungrounded.addLandmarks(X1)
 	# voltages = ungrounded.compute_voltages()
+
+	end = time.time()
+
 	voltages = ungrounded.approximate_voltages(max_iters=100)
 	# """
+
+	end2 = time.time()
+
+	print(end - start)
+	print(end2 - end)
 
 	grounded = Solver(data)
 	grounded.setWeights(gaussiankernel, 0.03)
@@ -290,5 +296,8 @@ if __name__ == "__main__":
 	# grounded_voltage = grounded.compute_voltages()
 	grounded_voltage = grounded.approximate_voltages(max_iters=100)
 
-	ax = ungrounded.plot(color='r', label="Ungrounded Points", name="../inputoutput/matplotfigures/approxUngrounded.png")
-	ax = grounded.plot(color='b', label="Grounded Points", name="../inputoutput/matplotfigures/approxGrounded.png")
+	ax = ungrounded.plot(color='r', label="Ungrounded Points")
+	ax = grounded.plot(color='b', label="Grounded Points")
+
+	# ax = ungrounded.plot(color='r', label="Ungrounded Points", name="../inputoutput/matplotfigures/approxUngrounded.png")
+	# ax = grounded.plot(color='b', label="Grounded Points", name="../inputoutput/matplotfigures/approxGrounded.png")

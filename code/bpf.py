@@ -112,17 +112,22 @@ def bestParameterFinder(kernel, landmarks, data, metric=nInfUniform, minBound=-2
 		for c in cs:
 			for g in gs:
 				# print(c, g)
-				tempval = calculateFor(kernel, landmarks, data, metric, c, g)
+				try:
+					tempval = calculateFor(kernel, landmarks, data, metric, c, g)
 
-				# print(tempval)
-				if (val > tempval):
-					# print(c)
-					# print(g)
 					# print(tempval)
+					if (val > tempval):
+						# print(c)
+						# print(g)
+						# print(tempval)
 
-					bestc = c
-					bestg = g
-					val = tempval
+						bestc = c
+						bestg = g
+						val = tempval
+				except ValueError as e:
+					pass
+					# print("Invalid")
+
 
 		window_size /= granularity
 
