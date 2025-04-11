@@ -5,8 +5,8 @@ import voltage
 import matplotlib.pyplot as plt
 
 if __name__ == '__main__':
-	iters = 10
-	maximum = 750
+	iters = 50
+	maximum = 2000
 
 	# k = 100
 	# points = 10000
@@ -38,26 +38,23 @@ if __name__ == '__main__':
 			if point[0] > 2:
 				X1.append(voltage.Landmark(index, 1))
 
-
+		start = time.time()
 		ungrounded = voltage.Solver(data)
 		ungrounded.setWeights(voltage.gaussiankernel, 0.03)
 		ungrounded.addLandmarks(X0)
 		ungrounded.addLandmarks(X1)
 		ungrounded.compute_voltages()
-
-		start = time.time()
 		ungrounded_voltage = ungrounded.compute_voltages()
 		end = time.time()
 
 		compute_times.append(end - start)
 
+		start = time.time()
 		ungrounded = voltage.Solver(data)
 		ungrounded.setWeights(voltage.gaussiankernel, 0.03)
 		ungrounded.addLandmarks(X0)
 		ungrounded.addLandmarks(X1)
 		ungrounded.compute_voltages()
-
-		start = time.time()
 		ungrounded_voltage = ungrounded.approximate_voltages(max_iters=10)
 		end = time.time()
 
