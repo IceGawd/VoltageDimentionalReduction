@@ -239,6 +239,15 @@ class Data():
 		"""Plots the dataset."""
 		plotPoints(self.data, name)
 
+	def getNumpy(self):
+		if isinstance(self.data, np.ndarray):
+			return self.data
+		else:
+			temp = []
+			for x in self.data:
+				temp.append(x)
+			return np.array(temp)
+
 
 def stream_dataset_creator(output_file, function, seed, stream, *args):
 	"""Creates a dataset by passing in generator functions, allowing for streamed and not streamed dataset creation"""

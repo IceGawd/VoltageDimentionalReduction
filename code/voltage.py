@@ -26,7 +26,7 @@ def createLandmarkClosestTo(data, point, voltage):
 
 class Solver():
 	def __init__(self, data):
-		self.data = data.data
+		self.data = data
 		self.landmarks = []
 		n = len(data)
 		self.weights = np.zeros([len(data), len(data)])
@@ -35,13 +35,9 @@ class Solver():
 	def setWeights(self, kernel, *c):
 		n = len(self.data)
 
-		for x in range(0, n - 1):
-			for y in range(x + 1, n):
-				v = kernel(data[x], data[y], *c)
-				# v = kernel(datax, datay, *c) / np.pow(n, 2)												# R = n^2/k, W = 1/R = k/n^2
+		data = self.data.getNumpy()
 
-				self.weights[x][y] = v
-				self.weights[y][x] = v
+		self.weights[:n, :n] = kernel(data[None, :, :], data[:, None, :], *c)
 
 		self.normalizeWeights()
 
@@ -54,20 +50,16 @@ class Solver():
 			raise ValueError("Array contains NaN values!")
 
 	def setPartitionWeights(self, kernel, partition, *c):
-		n = len(self.data)
+		n = len(partition.centers)
+		centers = np.array(partition.centers)
+		counts = np.array(partition.point_counts).reshape(-1, 1)
 
-		for x in range(0, n):
-			datax = self.data[x]
-			for y in range(x, n):
-				datay = self.data[y]
+		K = kernel(centers[:, None], centers[None, :], *c)
 
-				v = kernel(datax, datay, *c) * partition.point_counts[x] * partition.point_counts[y]
+		W = K * (counts @ counts.T)
 
-				self.weights[x][y] = v
-				self.weights[y][x] = v
-
+		self.weights[:n, :n] = W
 		self.normalizeWeights()
-
 		return self.weights
 
 	def addLandmark(self, landmark):
@@ -247,13 +239,10 @@ class Solver():
 		return ax
 
 def radialkernel(x, y, r):
-	if (create_data.distance(x, y) <= r):
-		return 1
-	else:
-		return 0
+	return (np.linalg.norm(diffs, axis=-1) <= r).astype(float)
 
 def gaussiankernel(x, y, std):
-	return np.exp(np.pow(create_data.distance(x, y) / std, 2) / -2)
+	return np.exp(-(np.linalg.norm(x - y, axis=-1) ** 2) / (2 * std ** 2))
 
 # Example usage
 if __name__ == "__main__":
