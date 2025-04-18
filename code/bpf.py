@@ -9,162 +9,173 @@ import matplotlib.pyplot as plt
 
 dist = []
 
+class BestParameterFinder():
+	def nInfUniform(self, voltages):
+		voltages.sort()
+		uniform = np.array([x / (len(voltages) - 1) for x in range(len(voltages))])
 
-def nInfUniform(voltages):
-	voltages.sort()
-	uniform = np.array([x / (len(voltages) - 1) for x in range(len(voltages))])
+		return np.linalg.norm(abs(voltages - uniform))
 
-	return np.linalg.norm(abs(voltages - uniform))
+	def nInfExp(self, voltages, base=10):
+		global dist
 
-def nInfExp(voltages, base=10):
-	global dist
+		voltages.sort()
 
-	voltages.sort()
+		if (len(dist) != len(voltages)):
+			dist = np.array([np.pow(base, (x / (len(voltages) - 1)) - 1) for x in range(len(voltages))])
 
-	if (len(dist) != len(voltages)):
-		dist = np.array([np.pow(base, (x / (len(voltages) - 1)) - 1) for x in range(len(voltages))])
+		return np.linalg.norm(abs(voltages - dist))
 
-	return np.linalg.norm(abs(voltages - dist))
+	def median(self, voltages, value=0.5):
+		voltages.sort()
+		return abs(voltages[int(len(voltages) / 2)] - value)
 
-def median(voltages, value=0.5):
-	voltages.sort()
-	return abs(voltages[int(len(voltages) / 2)] - value)
+	def minimum(self, voltages, value=0.1):
+		voltages.sort()
+		return abs(voltages[0] - value)
 
-def minimum(voltages, value=0.1):
-	voltages.sort()
-	return abs(voltages[0] - value)
+	def minWithStd(self, voltages, value=0.1):
+		voltages.sort()
+		return abs(voltages[0] - value) / np.std(voltages)
 
-def minWithStd(voltages, value=0.1):
-	voltages.sort()
-	return abs(voltages[0] - value) / np.std(voltages)
+	def __init__(self, metric=nInfUniform):
+		self.metric = metric
 
-def calculateFor(kernel, landmarks, data, metric, c, p_g):
-	# print(type(data))
+	def calculateFor(self, landmarks, data, c, p_g, approx=False, approx_epsilon=None, approx_iters=None):
+		# print(type(data))
 
-	if (isinstance(data, create_data.Data)):
-		meanSolver = voltage.Solver(data)
-		meanSolver.setWeights(kernel, np.exp(c))
-		# print(meanSolver)
+		if (isinstance(data, create_data.Data)):
+			meanProblem = voltage.Problem(data)
+			meanProblem.setKernel(meanProblem.gaussiankernel)
+			meanProblem.setWeights(np.exp(c))
+			# print(meanProblem)
 
-	if (isinstance(data, kmeans.Partitions)):
-		partitions = data
+		if (isinstance(data, kmeans.Partitions)):
+			partitions = data
 
-		meanSolver = voltage.Solver(partition.centers)
-		meanSolver.setPartitionWeights(kernel, partition, np.exp(c))
-		# print(meanSolver)
+			meanProblem = voltage.Problem(partition.centers)
+			meanProblem.setKernel(meanProblem.gaussiankernel)
+			meanProblem.setPartitionWeights(partition, np.exp(c))
+			# print(meanProblem)
 
-	# print(meanSolver)
+		# print(meanProblem)
 
-	meanSolver.addUniversalGround(np.exp(p_g))
-	meanSolver.addLandmarks(landmarks)
+		meanProblem.addUniversalGround(np.exp(p_g))
+		meanProblem.addLandmarks(landmarks)
 
-	voltages = np.array(meanSolver.compute_voltages())
+		if (approx):
+			voltages = np.array(voltage.Solver(meanProblem).approximate_voltages(approx_epsilon, approx_iters))
+		else:
+			voltages = np.array(voltage.Solver(meanProblem).compute_voltages())
 
-	if (metric):
-		return metric(voltages)
-	else:
-		return voltages, meanSolver
+		if (self.metric):
+			return self.metric(self, voltages)
+		else:
+			return voltages, meanProblem
 
-def bestParameterFinder(kernel, landmarks, data, metric=nInfUniform, minBound=-25, maxBound=-1, granularity=5, epsilon=1):
-	"""
-	Finds the best parameters (C and P_G) for a solver based on voltage distribution minimization.
+	def bestParameterFinder(self, landmarks, data, minBound=-25, maxBound=-1, granularity=5, epsilon=1, approx=None):
+		"""
+		Finds the best parameters (C and P_G) for a solver based on voltage distribution minimization.
 
-	This function searches for optimal parameters `C` and `P_G` by iterating over exponent values in 
-	a specified range, computing voltages using a solver, and minimizing some metric
-	between the voltage distribution and a uniform distribution.
+		This function searches for optimal parameters `C` and `P_G` by iterating over exponent values in 
+		a specified range, computing voltages using a solver, and minimizing some metric
+		between the voltage distribution and a uniform distribution.
 
-	Parameters:
-	-----------
-	kernel : object
-		The kernel function or object used to compute partition weights.
-	landmarks : list
-		A list of landmark points used in the solver.
-	data : object
-		Either a data object or a partition object containing centers used in the solver.
-	nInfUniform : function (list of floating point values -> floating point value)
-		A function that is used to quantify if voltages are good or bad, the smaller the better
-	minBound : int, optional (default=1e-5)
-		The minimum value to consider for `C` and `P_g` as 10^minBound.
-	maxBound : int, optional (default=1e5)
-		The maximum value to consider for `C` and `P_g` as 10^maxBound.
+		Parameters:
+		-----------
+		kernel : object
+			The kernel function or object used to compute partition weights.
+		landmarks : list
+			A list of landmark points used in the solver.
+		data : object
+			Either a data object or a partition object containing centers used in the solver.
+		nInfUniform : function (list of floating point values -> floating point value)
+			A function that is used to quantify if voltages are good or bad, the smaller the better
+		minBound : int, optional (default=1e-5)
+			The minimum value to consider for `C` and `P_g` as 10^minBound.
+		maxBound : int, optional (default=1e5)
+			The maximum value to consider for `C` and `P_g` as 10^maxBound.
 
-	Returns:
-	--------
-	tuple
-		A tuple (bestC, bestG), where:
-		- bestC (float): The optimized value for parameter C.
-		- bestG (float): The optimized value for parameter P_g.
-	"""
+		Returns:
+		--------
+		tuple
+			A tuple (bestC, bestG), where:
+			- bestC (float): The optimized value for parameter C.
+			- bestG (float): The optimized value for parameter P_g.
+		"""
 
-	window_size = (maxBound - minBound) / 2
+		window_size = (maxBound - minBound) / 2
 
-	bestc = minBound + window_size
-	bestg = minBound + window_size
+		bestc = minBound + window_size
+		bestg = minBound + window_size
 
-	val = float('inf')
+		val = float('inf')
 
-	while window_size > epsilon:
-		print(window_size, np.exp(bestc), np.exp(bestg))
+		while window_size > epsilon:
+			print(window_size, np.exp(bestc), np.exp(bestg))
 
-		cs = [bestc + x * window_size / granularity for x in range(-granularity + 1, granularity)]
-		gs = [bestg + x * window_size / granularity for x in range(-granularity + 1, granularity)]
+			cs = [bestc + x * window_size / granularity for x in range(-granularity + 1, granularity)]
+			gs = [bestg + x * window_size / granularity for x in range(-granularity + 1, granularity)]
 
-		for c in cs:
-			for g in gs:
-				# print(c, g)
-				try:
-					tempval = calculateFor(kernel, landmarks, data, metric, c, g)
+			for c in cs:
+				for g in gs:
+					# print(c, g)
+					try:
+						if (approx == None):
+							tempval = self.calculateFor(landmarks, data, c, g)
+						else:
+							tempval = self.calculateFor(landmarks, data, c, g, approx=True, approx_iters=approx)							
 
-					# print(tempval)
-					if (val > tempval):
-						# print(c)
-						# print(g)
 						# print(tempval)
+						if (val > tempval):
+							# print(c)
+							# print(g)
+							# print(tempval)
 
-						bestc = c
-						bestg = g
-						val = tempval
-				except ValueError as e:
-					pass
-					# print("Invalid")
+							bestc = c
+							bestg = g
+							val = tempval
+					except ValueError as e:
+						pass
+						# print("Invalid")
 
 
-		window_size /= granularity
+			window_size /= granularity
 
-	return bestc, bestg
+		return np.exp(bestc), np.exp(bestg)
 
-def visualizations(voltages, fileStarter):
-	points = np.array(list(map(list, zip(*voltages))))
+	def visualizations(self, voltages, fileStarter):
+		points = np.array(list(map(list, zip(*voltages))))
 
-	# print(points.shape)
+		# print(points.shape)
 
-	# PCA
-	pca = PCA(n_components=2)
-	points_2d = pca.fit_transform(points)
+		# PCA
+		pca = PCA(n_components=2)
+		points_2d = pca.fit_transform(points)
 
-	# print(points_2d.shape)
+		# print(points_2d.shape)
 
-	plt.scatter(points_2d[:, 0], points_2d[:, 1], s=10)
-	plt.xlabel("PCA Component 1")
-	plt.ylabel("PCA Component 2")
-	plt.title("PCA Projection of Solver Outputs")
+		plt.scatter(points_2d[:, 0], points_2d[:, 1], s=10)
+		plt.xlabel("PCA Component 1")
+		plt.ylabel("PCA Component 2")
+		plt.title("PCA Projection of Solver Outputs")
 
-	plt.savefig(fileStarter + "_PCA.png")
-	plt.clf()
+		plt.savefig(fileStarter + "_PCA.png")
+		plt.clf()
 
-	# MDS
-	mds = MDS(n_components=2, random_state=42)
-	transformed_points = mds.fit_transform(points)
-	
-	plt.figure(figsize=(8, 6))
-	plt.scatter(transformed_points[:, 0], transformed_points[:, 1], c='blue', edgecolors='black')
-	
-	plt.xlabel("MDS Dimension 1")
-	plt.ylabel("MDS Dimension 2")
-	plt.title("Multidimensional Scaling (MDS) to 2D")
-	
-	plt.savefig(fileStarter + "_MDS.png")
-	plt.clf()
+		# MDS
+		mds = MDS(n_components=2, random_state=42)
+		transformed_points = mds.fit_transform(points)
+		
+		plt.figure(figsize=(8, 6))
+		plt.scatter(transformed_points[:, 0], transformed_points[:, 1], c='blue', edgecolors='black')
+		
+		plt.xlabel("MDS Dimension 1")
+		plt.ylabel("MDS Dimension 2")
+		plt.title("Multidimensional Scaling (MDS) to 2D")
+		
+		plt.savefig(fileStarter + "_MDS.png")
+		plt.clf()
 
 if __name__ == "__main__":
 	print("Loading data...")
@@ -186,14 +197,14 @@ if __name__ == "__main__":
 
 			fileStarter = "../inputoutput/matplotfigures/" + metric.__name__ + "_" + kernel.__name__
 
-			singlevoltage, meanSolver = calculateFor(kernel, landmarks, partitions, None, c, p_g)
+			singlevoltage, meanProblem = calculateFor(kernel, landmarks, partitions, None, c, p_g)
 			# print(singlevoltage)
 
 			voltages = [singlevoltage]
 			for landmark in allLandmarks:
 				voltages.append(calculateFor(kernel, [landmark], partitions, None, c, p_g)[0])
 
-			meanSolver.plot(colored=True, show=False, name=fileStarter + "_colored.png")
+			meanProblem.plot(colored=True, show=False, name=fileStarter + "_colored.png")
 			plt.clf()
 
 			# Histogram

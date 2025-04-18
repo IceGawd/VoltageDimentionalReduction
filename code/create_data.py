@@ -16,62 +16,97 @@ def select_random(array):
 	"""Selects a random element from an array."""
 	return array[int(len(array) * random.random())]
 
-def pointFormatting(points):
-	"""Formats points into coordinate lists for plotting."""
-	size = len(points[0])
-	x_coords = [point[0] for point in points]
-	z_coords = None
-	if size > 1:
-		y_coords = [point[1] for point in points]
-		if size > 2:
-			z_coords = [point[2] for point in points]
-	else:
-		y_coords = [0 for point in points]
-	return (x_coords, y_coords, z_coords)
+def dimentional_variation(dimentions):
+	"""Returns an np array that is full of random variables from -inf to inf based on the standard normal distribution"""
+	z_vals = []
+	for d in range(dimentions):
+		z_vals.append(stats.norm.ppf(random.random()))
 
-def plotPoints(points, name=None):
-	"""Plots a set of points in 2D or 3D."""
-	plotPointSets([points], name)
+	return np.array(z_vals)
 
-def plotPointSets(sets, name=None):
-	"""Plots multiple sets of points with different colors and markers."""
-	markers = ['o', 'v', '*']
-	color = ['r', 'g', 'b']
-	size = len(sets[0][0])
-	fig = plt.figure()
-	if size == 3:
-		ax = fig.add_subplot(111, projection='3d')
-	else:
-		ax = fig.add_subplot(111)
-	for i, points in enumerate(sets):
-		(x_coords, y_coords, z_coords) = pointFormatting(points)
-		if size == 3:
-			ax.scatter(x_coords, y_coords, z_coords, c=color[i], marker=markers[i], label='Points')
+def varied_point(mean, std):
+	return mean + std * dimentional_variation(len(mean))
+
+class Plotter():
+	"""Graphs the data into different formats"""
+	def pointFormatting(self, points):
+		"""Formats points into coordinate lists for plotting."""
+		size = len(points[0])
+		x_coords = [point[0] for point in points]
+		z_coords = None
+		if size > 1:
+			y_coords = [point[1] for point in points]
+			if size > 2:
+				z_coords = [point[2] for point in points]
 		else:
-			ax.scatter(x_coords, y_coords, c=color[i], marker=markers[i], label='Points')
-	ax.legend()
-	if name:
-		plt.savefig(name)
-	plt.show()
+			y_coords = [0 for point in points]
+		return (x_coords, y_coords, z_coords)
 
-def stream_save(output_file, data_generator, *args):
-	"""Saves data to a JSON file in a streaming manner."""
-	with open(output_file, "w") as f:
-		f.write("{\"data\": [\n")
-		first = True
-		length = 0
-		for array in data_generator(*args):
-			if not first:
-				f.write(", \n")
-			json.dump(list(array), f)
-			length += 1
-			first = False
-		f.write("], \n\"length\": " + str(length) + "}")
+	def plotPoints(self, points, name=None):
+		"""Plots a set of points in 2D or 3D."""
+		self.plotPointSets([points], name)
 
-def linear_generator(data):
-	"""Yields data points one by one."""
-	for d in data.tolist():
-		yield d
+	def plotPointSets(self, sets, name=None):
+		"""Plots multiple sets of points with different colors and markers."""
+		markers = ['o', 'v', '*']
+		color = ['r', 'g', 'b']
+		size = len(sets[0][0])
+		fig = plt.figure()
+		if size == 3:
+			ax = fig.add_subplot(111, projection='3d')
+		else:
+			ax = fig.add_subplot(111)
+		for i, points in enumerate(sets):
+			(x_coords, y_coords, z_coords) = self.pointFormatting(points)
+			if size == 3:
+				ax.scatter(x_coords, y_coords, z_coords, c=color[i], marker=markers[i], label='Points')
+			else:
+				ax.scatter(x_coords, y_coords, c=color[i], marker=markers[i], label='Points')
+		ax.legend()
+		if name:
+			plt.savefig(name)
+		plt.show()
+
+	def voltage_plot(self, solver, color='r', ax=None, show=True, label="", colored=False, name=None):
+		dim = len(solver.problem.data[0])
+
+		if (ax == None):
+			fig = plt.figure()
+
+			if ((dim + (not colored)) == 3):
+				ax = fig.add_subplot(111, projection="3d")
+			else:
+				ax = fig.add_subplot(111)
+
+		if (dim > 3):
+			pca = PCA(n_components=2)
+			points_2d = pca.fit_transform(solver.problem.data)
+			x_coords, y_coords, z_coords = points_2d[:, 0], points_2d[:, 1], None
+
+			dim = 2
+		else:
+			(x_coords, y_coords, z_coords) = self.pointFormatting(solver.problem.data)
+
+
+		cmap = None
+		c = color
+		args = [x_coords, y_coords, z_coords][:dim]
+		args.append(solver.voltages)
+		if colored:
+			cmap = 'viridis'
+			c = solver.voltages
+			args = args[:-1]
+
+		# print(c)
+		# print(args)
+		ax.scatter(*args, c=c, cmap=cmap, marker='o', label=label)
+
+		if (name):
+			plt.savefig(name)
+		if (show):
+			plt.show()
+
+		return ax
 
 class Data():
 	"""Class for handling and processing data sets."""
@@ -152,7 +187,9 @@ class Data():
 		return Data(subset)
 
 	def save_data_json(self, output_file):
-		stream_save(output_file, linear_generator, self.data)
+		fg = FileGenerator()
+		fg.setGenerator(fg.linear_generator)
+		fg.stream_save(output_file, self.data)
 
 	def save_data_pickle(self, output_file):
 		with open(output_file, 'wb') as f: 
@@ -227,9 +264,11 @@ class Data():
 
 	def save_data(self, output_file):
 		self.data_function(output_file, 1)
+		return self
 
 	def load_data(self, input_file):
 		self.data_function(input_file, 2)
+		return self
 
 	def get_random_point(self):
 		"""Returns a random point from the dataset."""
@@ -237,322 +276,290 @@ class Data():
 
 	def plot(self, name=None):
 		"""Plots the dataset."""
-		plotPoints(self.data, name)
+		Plotter().plotPoints(self.data, name)
 
 	def getNumpy(self):
 		if isinstance(self.data, np.ndarray):
+			# print(self.data.shape)
 			return self.data
 		else:
 			temp = []
 			for x in self.data:
-				temp.append(x)
+				temp.append(np.array(x))
+
+			# print(np.array(temp).shape)
 			return np.array(temp)
 
+class FileGenerator():
+	"""Generates files for saved data. Its own class because it is used by Data and DataCreator"""
+	def __init__(self):
+		pass
 
-def stream_dataset_creator(output_file, function, seed, stream, *args):
-	"""Creates a dataset by passing in generator functions, allowing for streamed and not streamed dataset creation"""
-	random.seed(seed)
+	def setGenerator(self, fn):
+		self.data_generator = fn
 
-	if (stream):
-		stream_save(output_file, function, *args)
-		data = Data(output_file, stream=True)
-	else:
-		data = []
+	def stream_save(self, output_file, *args):
+		"""Saves data to a JSON file in a streaming manner."""
+		with open(output_file, "w") as f:
+			f.write("{\"data\": [\n")
+			first = True
+			length = 0
+			for array in self.data_generator(*args):
+				if not first:
+					f.write(", \n")
+				json.dump(list(array), f)
+				length += 1
+				first = False
+			f.write("], \n\"length\": " + str(length) + "}")
 
-		for point in function(*args):
-			data.append(point)
+	def linear_generator(self, data):
+		"""Yields data points one by one."""
+		for d in data.tolist():
+			yield d
 
-		data = Data(data)
-		data.save_data(output_file)
+	def line_generator(self, start, end, points):
+		"""Generates points along a line in 1D space."""
+		for _ in range(points):
+			yield np.array([random.random() * (end - start) + start])
 
-	return data
+	def eigth_sphere_generator(self, radius, x_pos, y_pos, z_pos, points):
+		"""Generator for points on an eigth sphere"""
+		for p in range(points):			
+			z = random.random()						# Z value
+			angleXY = np.pi * random.random() / 2	# Angle in the XY plane
 
-def line_generator(start, end, points):
-	"""Generates points along a line in 1D space."""
-	for _ in range(points):
-		yield np.array([random.random() * (end - start) + start])
+			yield np.array([radius * np.sqrt(1 - z**2) * np.cos(angleXY) * (2 * x_pos - 1), radius * np.sqrt(1 - z**2) * np.sin(angleXY) * (2 * y_pos - 1), radius * z * (2 * z_pos - 1)])
 
-def create_dataset_line(output_file=None, start=0, end=1, points=1000, seed=42, stream=False):
-	"""Generates a dataset of a 1D line"""
-	return stream_dataset_creator(output_file, line_generator, seed, stream, start, end, points)
+	def triangle_generator(self, edges, points):
+		"""Generator for points on a triangle"""
+		base = np.array(edges[0])
+		edgeDiff1 = np.array(edges[1]) - base
+		edgeDiff2 = np.array(edges[2]) - base
+		for p in range(points):
+			d1 = random.random()
+			d2 = random.random()
 
-def create_dataset_square_edge(output_file=None, p1=(0,0), p2=(1,1), points=1000, seed=42):
-	"""Generates a dataset of the edge of a square"""
-	data = []
-	random.seed(seed)
+			if d1 + d2 > 1:
+				d1 = 1 - d1
+				d2 = 1 - d2
 
-	x_diff = p2[0] - p1[0]
-	y_diff = p2[1] - p1[1]
+			yield base + d1 * edgeDiff1 + d2 * edgeDiff2
 
-	for p in range(points):
-		r = random.random() * 4
-		side = int(r)
-		var = r - side
+	def strong_cluster_generator(self, internal_std, cluster_centers, points):
+		"""Generates points in a strong cluster"""
+		c = -1
+		for p in range(points):
+			if (p / points >= c / 100):
+				c += 1
+				# print(str(c) + "%")
 
-		x_side = side % 2
-		y_side = side >> 1
+			yield varied_point(select_random(cluster_centers), internal_std)
 
-		x_rev = 1 - x_side
-		y_rev = 1 - y_side
+	def spiral_generator(self, radius, center, rotations, height, points):
+		line = 2 * np.pi * rotations
+		heightPerRadian = height / line
 
-		variation = np.array([var * x_side * x_diff, var * x_rev * y_diff]) 	# Variations on the axis that draw the lines
-		side = np.array([x_rev  * y_side * x_diff, x_side * y_rev * y_diff])	# Move the line to the side it is drawing on
-		shift = np.array([p1[0], p1[1]])										# The shift to make the bottom left be p1
+		for p in range(points):
+			d = random.random() * line
+			yield np.array([np.cos(d), np.sin(d), heightPerRadian * d])
 
-		data.append(np.array(variation + side + shift))
+class DataCreator():
+	def __init__(self):
+		self.fg = FileGenerator()
 
-	data = Data(data)
-	data.save_data(output_file)
-
-	return data
-
-def create_dataset_square_fill(output_file=None, p1=(0,0), p2=(1,1), points=1000, seed=42):
-	"""Generates a dataset of a filled in square"""
-	data = []
-	random.seed(seed)
-
-	x_diff = p2[0] - p1[0]
-	y_diff = p2[1] - p1[1]
-
-	for p in range(points):
-		x_rand = random.random()
-		y_rand = random.random()
-
-		data.append(np.array([x_diff * x_rand + p1[0], y_diff * y_rand + p2[0]]))
-
-	data = Data(data)
-	data.save_data(output_file)
-
-	return data
-
-def eigth_sphere_generator(radius, x_pos, y_pos, z_pos, points):
-	"""Generator for points on an eigth sphere"""
-	for p in range(points):
-		z = random.random()						# Z value
-		angleXY = np.pi * random.random() / 2	# Angle in the XY plane
-
-		yield np.array([radius * np.sqrt(1 - z**2) * np.cos(angleXY) * (2 * x_pos - 1), radius * np.sqrt(1 - z**2) * np.sin(angleXY) * (2 * y_pos - 1), radius * z * (2 * z_pos - 1)])
-
-
-def create_dataset_eigth_sphere(output_file=None, radius=1, x_pos=True, y_pos=True, z_pos=True, points=1000, seed=42, stream=False):
-	"""Generates a dataset of an eigth sphere"""
-	return stream_dataset_creator(output_file, eigth_sphere_generator, seed, stream, radius, x_pos, y_pos, z_pos, points)
-
-def triangle_generator(edges, points):
-	base = np.array(edges[0])
-	edgeDiff1 = np.array(edges[1]) - base
-	edgeDiff2 = np.array(edges[2]) - base
-	for p in range(points):
-		d1 = random.random()
-		d2 = random.random()
-
-		if d1 + d2 > 1:
-			d1 = 1 - d1
-			d2 = 1 - d2
-
-		yield base + d1 * edgeDiff1 + d2 * edgeDiff2
-
-
-def create_dataset_triangle(output_file=None, edges=[[0, 0], [1, 1], [2, 0]], points=1000, seed=42, stream=False):
-	"""Generates a dataset of an eigth sphere"""
-	return stream_dataset_creator(output_file, triangle_generator, seed, stream, edges, points)
-
-
-def dimentional_variation(dimentions):
-	"""Returns an np array that is full of random variables from -inf to inf based on the standard normal distribution"""
-	z_vals = []
-	for d in range(dimentions):
-		z_vals.append(stats.norm.ppf(random.random()))
-
-	return np.array(z_vals)
-
-def varied_point(mean, std):
-	return mean + std * dimentional_variation(len(mean))
-
-def strong_cluster_generator(internal_std, cluster_centers, points):
-	"""Generates points in a strong cluster"""
-	c = -1
-	for p in range(points):
-		if (p / points >= c / 100):
-			c += 1
-			# print(str(c) + "%")
-
-		yield varied_point(select_random(cluster_centers), internal_std)
-
-
-def create_dataset_strong_clusters(output_file=None, internal_std=1, external_std=10, mean=[0, 0], clusters=10, points=1000, seed=42, stream=False):
-	"""Generates a strongly clustered datapoint by selecting cluster centers and variance in the clusters via normal distribution"""
-	data = []
-	random.seed(seed)
-
-	np_mean = np.array(mean)
-
-	cluster_centers = []
-	for c in range(clusters):
-		cluster_centers.append(varied_point(np_mean, external_std))
-
-	if (stream):
-		stream_save(output_file, strong_cluster_generator, internal_std, cluster_centers, points)
-		data = Data(output_file, stream=True)
-	else:
-		for p in strong_cluster_generator(internal_std, cluster_centers, points):
-			data.append(p)
-
-		data = Data(data)
-		data.save_data(output_file)
-
-	return data
-
-def rotate_into_dimention(data, higher_dim=3, seed=42):
-	"""Moves the data into a higher dimention and does rotations centered at the origin"""
-	rotation_matrix = np.identity(higher_dim)
-
-	if (seed != -1):
+	def stream_dataset_creator(self, output_file, function, seed, stream, *args):
+		"""Creates a dataset by passing in generator functions, allowing for streamed and not streamed dataset creation"""
 		random.seed(seed)
 
-	for x1 in range(0, higher_dim - 1):
-		for x2 in range(x1 + 1, higher_dim):
-			angle = 2 * np.pi * random.random()
+		if (stream):
+			self.fg.setGenerator(function)
+			self.fg.stream_save(output_file, *args)
+			data = Data(output_file, stream=True)
+		else:
+			data = []
 
-			rotateOnTheseAxes = np.identity(higher_dim)
-			rotateOnTheseAxes[x1, x1] = np.cos(angle)
-			rotateOnTheseAxes[x2, x2] = np.cos(angle)
-			rotateOnTheseAxes[x1, x2] = np.sin(angle)
-			rotateOnTheseAxes[x2, x1] = -np.sin(angle)
+			for point in function(*args):
+				data.append(point)
 
-			rotation_matrix = np.matmul(rotation_matrix, rotateOnTheseAxes)
+			data = Data(data)
+			data.save_data(output_file)
 
-	# print(rotation_matrix)
+		return data
 
-	data.data = list(data.data)
+	def create_dataset_line(self, output_file=None, start=0, end=1, points=1000, seed=42, stream=False):
+		"""Generates a dataset of a 1D line"""
+		return self.stream_dataset_creator(output_file, self.fg.line_generator, seed, stream, start, end, points)
 
-	for i in range(0, len(data)):
-		extendedPoint = np.zeros(higher_dim)
-		extendedPoint[:len(data[i])] = data[i]
+	def create_dataset_square_edge(self, output_file=None, p1=(0,0), p2=(1,1), points=1000, seed=42):
+		"""Generates a dataset of the edge of a square"""
+		data = []
+		random.seed(seed)
 
-		data[i] = np.matmul(rotation_matrix, extendedPoint)
+		x_diff = p2[0] - p1[0]
+		y_diff = p2[1] - p1[1]
 
-	data.data = np.array(data.data)
+		for p in range(points):
+			r = random.random() * 4
+			side = int(r)
+			var = r - side
 
-	return data
+			x_side = side % 2
+			y_side = side >> 1
 
-def distance(p1, p2):
-	# return np.sum(np.abs(p1 - p2))			# Manhattan distance 
-	return np.sqrt(np.sum(np.pow(p1 - p2, 2))) 	# Euclidian distance
+			x_rev = 1 - x_side
+			y_rev = 1 - y_side
 
-class Particle:
-	"""NOT USED: represents a weakly clustered datapoint"""
-	def __init__(self, pos_mean, pos_std, vel_mean, vel_std):
-		self.position = varied_point(pos_mean, pos_std)
-		self.velocity = varied_point(vel_mean, vel_std)
-	def force_vector(self, other_particle):
-		disposition = self.position - other_particle.position
-		return disposition / distance(self.position, other_particle.position)
+			variation = np.array([var * x_side * x_diff, var * x_rev * y_diff]) 	# Variations on the axis that draw the lines
+			side = np.array([x_rev  * y_side * x_diff, x_side * y_rev * y_diff])	# Move the line to the side it is drawing on
+			shift = np.array([p1[0], p1[1]])										# The shift to make the bottom left be p1
 
-def create_dataset_weak_clusters(output_file=None, std=10, mean=[0, 0], clusters=10, points=1000, iterations=10, seed=42):
-	"""NOT USED: makes weakly clustered data"""
-	random.seed(seed)
+			data.append(np.array(variation + side + shift))
 
-	np_mean = np.array(mean)
+		data = Data(data)
+		data.save_data(output_file)
 
-	nearest_force = points // clusters
-	particles = []
-	for p in range(points):
-		particles.append(Particle(mean, std, mean, 0))
+		return data
 
-	for i in range(iterations):
-		for p1 in particles:
-			distance_pairs = []
-			for p2 in particles:
-				distance_pairs.append([p2, distance(p1.position, p2.position)])
+	def create_dataset_square_fill(self, output_file=None, p1=(0,0), p2=(1,1), points=1000, seed=42):
+		"""Generates a dataset of a filled in square"""
+		data = []
+		random.seed(seed)
 
-			distance_pairs = sorted(distance_pairs, key=lambda x: x[1])
+		x_diff = p2[0] - p1[0]
+		y_diff = p2[1] - p1[1]
 
-			c = 0
-			for pair in distance_pairs:
-				if (np.abs(np.sum(p1.position - pair[0].position) != 0)):
-					if (c > nearest_force):
-						p1.velocity += pair[0].force_vector(p1)
-					else:
-						p1.velocity -= pair[0].force_vector(p1) / (clusters - 1)
+		for p in range(points):
+			x_rand = random.random()
+			y_rand = random.random()
 
-					c += 1
+			data.append(np.array([x_diff * x_rand + p1[0], y_diff * y_rand + p2[0]]))
 
+		data = Data(data)
+		data.save_data(output_file)
 
-		for p in particles:
-			# p.velocity /= nearest_force
-			p.velocity *= 0.9
-			p.position += p.velocity
+		return data
 
-		# print("Iteration #" + str(i + 1))
-		# print([p.position for p in particles])
-		# print([p.velocity for p in particles])
-	data = Data([p.position for p in particles])
-	data.save_data(output_file)
+	def create_dataset_eigth_sphere(self, output_file=None, radius=1, x_pos=True, y_pos=True, z_pos=True, points=1000, seed=42, stream=False):
+		"""Generates a dataset of an eigth sphere"""
+		return self.stream_dataset_creator(output_file, self.fg.eigth_sphere_generator, seed, stream, radius, x_pos, y_pos, z_pos, points)
 
-	return data
+	def create_dataset_triangle(self, output_file=None, edges=[[0, 0], [1, 1], [2, 0]], points=1000, seed=42, stream=False):
+		"""Generates a dataset of an eigth sphere"""
+		return self.stream_dataset_creator(output_file, self.fg.triangle_generator, seed, stream, edges, points)
 
-def spiral_generator(radius, center, rotations, height, points):
-	line = 2 * np.pi * rotations
-	heightPerRadian = height / line
+	def create_dataset_strong_clusters(self, output_file=None, internal_std=1, external_std=10, mean=[0, 0], clusters=10, points=1000, seed=42, stream=False):
+		"""Generates a strongly clustered datapoint by selecting cluster centers and variance in the clusters via normal distribution"""
+		data = []
+		random.seed(seed)
 
-	for p in range(points):
-		d = random.random() * line
-		yield np.array([np.cos(d), np.sin(d), heightPerRadian * d])
+		np_mean = np.array(mean)
 
-def create_dataset_spiral(output_file=None, radius=1, center=[0, 0], rotations=3, height=10, points=1000, seed=42, stream=False):
-	return stream_dataset_creator(output_file, spiral_generator, seed, stream, radius, center, rotations, height, points)
+		cluster_centers = []
+		for c in range(clusters):
+			cluster_centers.append(varied_point(np_mean, external_std))
+
+		if (stream):
+			self.fg.setGenerator(self.fg.strong_cluster_generator)
+			self.fg.stream_save(output_file, internal_std, cluster_centers, points)
+			data = Data(output_file, stream=True)
+		else:
+			for p in self.fg.strong_cluster_generator(internal_std, cluster_centers, points):
+				data.append(p)
+
+			data = Data(data)
+			data.save_data(output_file)
+
+		return data
+
+	def rotate_into_dimention(self, data, higher_dim=3, seed=42):
+		"""Moves the data into a higher dimention and does rotations centered at the origin"""
+		rotation_matrix = np.identity(higher_dim)
+
+		if (seed != -1):
+			random.seed(seed)
+
+		for x1 in range(0, higher_dim - 1):
+			for x2 in range(x1 + 1, higher_dim):
+				angle = 2 * np.pi * random.random()
+
+				rotateOnTheseAxes = np.identity(higher_dim)
+				rotateOnTheseAxes[x1, x1] = np.cos(angle)
+				rotateOnTheseAxes[x2, x2] = np.cos(angle)
+				rotateOnTheseAxes[x1, x2] = np.sin(angle)
+				rotateOnTheseAxes[x2, x1] = -np.sin(angle)
+
+				rotation_matrix = np.matmul(rotation_matrix, rotateOnTheseAxes)
+
+		# print(rotation_matrix)
+
+		data.data = list(data.data)
+
+		for i in range(0, len(data)):
+			extendedPoint = np.zeros(higher_dim)
+			extendedPoint[:len(data[i])] = data[i]
+
+			data[i] = np.matmul(rotation_matrix, extendedPoint)
+
+		data.data = np.array(data.data)
+
+		return data
+
+	def create_dataset_spiral(self, output_file=None, radius=1, center=[0, 0], rotations=3, height=10, points=1000, seed=42, stream=False):
+		return self.stream_dataset_creator(output_file, self.fg.spiral_generator, seed, stream, radius, center, rotations, height, points)
 
 if __name__ == '__main__':
+	creator = DataCreator()
+
 	print("Making line...")
-	line_points = create_dataset_line(output_file="../inputoutput/data/line.json", start=0, end=3, seed=time.time())
+	line_points = creator.create_dataset_line(output_file="../inputoutput/data/line.json", start=0, end=3, seed=time.time())
 
 	print("Making square edge...")
-	edge_points = create_dataset_square_edge(output_file="../inputoutput/data/square_edge.json", seed=time.time())
+	edge_points = creator.create_dataset_square_edge(output_file="../inputoutput/data/square_edge.json", seed=time.time())
 
 	print("Making square fill...")
-	square_points = create_dataset_square_fill(output_file="../inputoutput/data/square_fill.json", seed=time.time())
+	square_points = creator.create_dataset_square_fill(output_file="../inputoutput/data/square_fill.json", seed=time.time())
 
 	print("Making eigth sphere fill...")
-	create_dataset_eigth_sphere(output_file="../inputoutput/data/eigth_sphere.json", seed=time.time())
+	creator.create_dataset_eigth_sphere(output_file="../inputoutput/data/eigth_sphere.json", seed=time.time())
 
 	print("Making strong clusters...")
-	create_dataset_strong_clusters(output_file="../inputoutput/data/strong_clusters.json", seed=time.time())
+	creator.create_dataset_strong_clusters(output_file="../inputoutput/data/strong_clusters.json", seed=time.time())
 
 	print("Making spiral...")
-	create_dataset_spiral(output_file="../inputoutput/data/spiral.json", seed=time.time())
+	creator.create_dataset_spiral(output_file="../inputoutput/data/spiral.json", seed=time.time())
 
 	print("Making triangle...")
-	create_dataset_triangle(output_file="../inputoutput/data/triangle.json", seed=time.time())
+	creator.create_dataset_triangle(output_file="../inputoutput/data/triangle.json", seed=time.time())
 
 	print("Line in 3D")
-	rotate_into_dimention(line_points, seed=time.time()).save_data("../inputoutput/data/3d_line.json")
+	creator.rotate_into_dimention(line_points, seed=time.time()).save_data("../inputoutput/data/3d_line.json")
 
 	print("Square Fill in 3D")
-	rotate_into_dimention(square_points, seed=time.time()).save_data("../inputoutput/data/3d_square.json")
+	square_3d = creator.rotate_into_dimention(square_points, seed=time.time()).save_data("../inputoutput/data/3d_square.json")
 
 	print("Square Edge in 10D")
-	rotate_into_dimention(edge_points, higher_dim=10, seed=time.time()).save_data("../inputoutput/data/10d_square_edge.json")
+	creator.rotate_into_dimention(edge_points, higher_dim=10, seed=time.time()).save_data("../inputoutput/data/10d_square_edge.json")
+
+	# square_3d.plot()
 
 	"""
 	print("Large Line")
-	create_dataset_line(output_file="../inputoutput/data/large_line.json", points=1000000, seed=time.time(), stream=True)
+	creator.create_dataset_line(output_file="../inputoutput/data/large_line.json", points=1000000, seed=time.time(), stream=True)
 
 	print("Large Single Cluster")
-	create_dataset_strong_clusters(output_file="../inputoutput/data/large_single_cluster.json", clusters=1, points=1000000, seed=time.time(), stream=True)
+	creator.create_dataset_strong_clusters(output_file="../inputoutput/data/large_single_cluster.json", clusters=1, points=1000000, seed=time.time(), stream=True)
 
 	print("Large Many Clusters")
-	create_dataset_strong_clusters(output_file="../inputoutput/data/large_many_clusters.json", internal_std=100, external_std=1000, mean=[0, 0, 0], clusters=10000, points=1000000, seed=time.time(), stream=True)
+	creator.create_dataset_strong_clusters(output_file="../inputoutput/data/large_many_clusters.json", internal_std=100, external_std=1000, mean=[0, 0, 0], clusters=10000, points=1000000, seed=time.time(), stream=True)
 
 	print("Large eigth sphere")
-	create_dataset_eigth_sphere(output_file="../inputoutput/data/large_eigth_sphere.json", points=1000000, seed=time.time(), stream=True)
+	creator.create_dataset_eigth_sphere(output_file="../inputoutput/data/large_eigth_sphere.json", points=1000000, seed=time.time(), stream=True)
 
 	print("Large spiral")
-	create_dataset_spiral(output_file="../inputoutput/data/large_spiral.json", points=1000000, seed=time.time(), stream=True)
-	# """
+	creator.create_dataset_spiral(output_file="../inputoutput/data/large_spiral.json", points=1000000, seed=time.time(), stream=True)
 	print("Large triangle")
-	create_dataset_triangle(output_file="../inputoutput/data/large_triangle.json", points=1000000, seed=time.time(), stream=True)
-
+	creator.create_dataset_triangle(output_file="../inputoutput/data/large_triangle.json", points=1000000, seed=time.time(), stream=True)
+	# """
 
 	# data = Data("large_line.json", stream=True)
 	# for point in data:

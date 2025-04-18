@@ -1,24 +1,7 @@
-- Multidimensional Scaling vs PCA
-- MNIST
 - follow paper (diagram)
 - (intrinsic dimention + 1) landmarks
-- organize github (Code, Data+Images)
 - docstrings and readme
 
 
-- make more shapes
-- Metrics
-	- Min value near 0.1
-	- Median value near 0.5
-	- N Infinity Linear
-	- N Infinity 10^-x
-	- PCA Area Max
-
-- Displays
-	- Histogram
-	- Image
-	- PCA
-	- MDS
-
 bugs:
-- for loop only works with imported / streamed data?
+- for loop works only once for streamed data
