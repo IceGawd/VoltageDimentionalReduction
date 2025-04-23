@@ -46,14 +46,18 @@ class BestParameterFinder():
 
 		if (isinstance(data, create_data.Data)):
 			meanProblem = voltage.Problem(data)
+			meanProblem.timeStart()
 			meanProblem.setKernel(meanProblem.gaussiankernel)
+			# print("before")
 			meanProblem.setWeights(np.exp(c))
+			# print("after")
 			# print(meanProblem)
 
 		if (isinstance(data, kmeans.Partitions)):
 			partitions = data
 
 			meanProblem = voltage.Problem(partition.centers)
+			meanProblem.timeStart()
 			meanProblem.setKernel(meanProblem.gaussiankernel)
 			meanProblem.setPartitionWeights(partition, np.exp(c))
 			# print(meanProblem)
@@ -63,10 +67,16 @@ class BestParameterFinder():
 		meanProblem.addUniversalGround(np.exp(p_g))
 		meanProblem.addLandmarks(landmarks)
 
+		diff1 = meanProblem.timeEnd()
+		# print(diff1)
+
 		if (approx):
 			voltages = np.array(voltage.Solver(meanProblem).approximate_voltages(approx_epsilon, approx_iters))
 		else:
 			voltages = np.array(voltage.Solver(meanProblem).compute_voltages())
+
+		diff2 = meanProblem.timeEnd()
+		# print(diff2)
 
 		if (self.metric):
 			return self.metric(self, voltages)
