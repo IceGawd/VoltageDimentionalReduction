@@ -38,7 +38,7 @@ class BestParameterFinder():
 		voltages.sort()
 		return abs(voltages[0] - value) / np.std(voltages)
 
-	def __init__(self, metric=nInfUniform):
+	def __init__(self, metric=nInfExp):
 		self.metric = metric
 
 	def calculateFor(self, landmarks, data, c, p_g, approx=False, approx_epsilon=None, approx_iters=None):

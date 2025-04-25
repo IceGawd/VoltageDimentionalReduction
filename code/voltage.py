@@ -59,11 +59,20 @@ class Problem(kmeans.DistanceBased):
 	def setKernel(self, kernel):
 		self.kernel = kernel
 
-	def radialkernel(self, x, y, r):
-		return (np.linalg.norm(x - y, axis=-1) <= r).astype(float)
+	def efficientSquareDistance(self, data):
+		data_norm2 = np.sum(data**2, axis=1)
 
-	def gaussiankernel(self, x, y, std):
-		return np.exp(-(np.linalg.norm(x - y, axis=-1) ** 2) / (2 * std ** 2))
+		x_norm2 = data_norm2.reshape(-1, 1)				# shape: (n, 1)
+		y_norm2 = data_norm2.reshape(1, -1)				# shape: (1, n)
+		return x_norm2 + y_norm2 - 2 * data @ data.T	# shape: (n, n)
+
+	def radialkernel(self, data, r):
+		dist2 = self.efficientSquareDistance(data)
+		return (dist2 <= r**2).astype(float)
+	
+	def gaussiankernel(self, data, std):
+		dist2 = self.efficientSquareDistance(data)
+		return np.exp(-dist2 / (2 * std**2))
 
 	def setWeights(self, *c):
 		n = len(self.data)
@@ -72,7 +81,7 @@ class Problem(kmeans.DistanceBased):
 
 		# print(data.shape)
 
-		self.weights[:n, :n] = self.kernel(data[None, :, :], data[:, None, :], *c)
+		self.weights[:n, :n] = self.kernel(data, *c)
 
 		self.normalizeWeights()
 
