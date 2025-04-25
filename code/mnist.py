@@ -82,6 +82,7 @@ pgs = []
 
 param_finder = bpf.BestParameterFinder()
 
+"""
 for landmark in landmarks:
     c, p_g = param_finder.bestParameterFinder([landmark], data, minBound=-10, maxBound=20, granularity=3, epsilon=0.5, approx=10)
     print(c, p_g)
@@ -90,10 +91,9 @@ for landmark in landmarks:
 
 print(cs)
 print(pgs)
+"""
 
-
-c, p_g = param_finder.bestParameterFinder(landmarks, data, minBound=-10, maxBound=10, granularity=10, epsilon=0.5, approx=10)
-
+c, p_g = param_finder.bestParameterFinder(landmarks, data, minBound=-10, maxBound=10, granularity=3, epsilon=0.5, approx=10)
 
 voltages = []
 

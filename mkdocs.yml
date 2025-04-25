@@ -1,0 +1,12 @@
+site_name: Voltage Dimentionality Reduction
+theme:
+  name: material
+
+plugins:
+  - search
+  - mkdocstrings:
+      default_handler: python
+
+nav:
+  - Home: index.md
+  - Reference: reference.md
