@@ -1,7 +1,0 @@
-- follow paper (diagram)
-- (intrinsic dimention + 1) landmarks
-- docstrings and readme
-
-
-bugs:
-- for loop works only once for streamed data

@@ -38,8 +38,19 @@ class BestParameterFinder():
 		voltages.sort()
 		return abs(voltages[0] - value) / np.std(voltages)
 
-	def __init__(self, metric=nInfExp):
+	def expWithStd(self, voltages, base=10):
+		return self.nInfExp(voltages, base) / np.std(voltages)
+
+	def __init__(self, metric=expWithStd):
 		self.metric = metric
+		self.p_g = None
+		self.c = None
+
+	def setResistanceToGround(self, p_g):
+		self.p_g = np.log(p_g)
+
+	def setKernelParameter(self, c):
+		self.c = np.log(c)
 
 	def calculateFor(self, landmarks, data, c, p_g, approx=False, approx_epsilon=None, approx_iters=None):
 		# print(type(data))
@@ -126,6 +137,11 @@ class BestParameterFinder():
 
 			cs = [bestc + x * window_size / granularity for x in range(-granularity + 1, granularity)]
 			gs = [bestg + x * window_size / granularity for x in range(-granularity + 1, granularity)]
+
+			if self.c != None:
+				cs = [self.c]
+			if self.p_g != None:
+				gs = [self.p_g]
 
 			for c in cs:
 				for g in gs:
