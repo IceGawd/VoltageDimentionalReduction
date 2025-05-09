@@ -170,6 +170,9 @@ class BestParameterFinder():
 
 		return np.exp(bestc), np.exp(bestg)
 
+	def multiLandmarkBestParams(self, landmarks, data, start=0, epsilon=1, approx=None):
+		pass
+
 	def visualizations(self, voltages, fileStarter):
 		points = np.array(list(map(list, zip(*voltages))))
 
