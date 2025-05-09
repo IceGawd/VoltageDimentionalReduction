@@ -5,7 +5,22 @@ theme:
 plugins:
   - search
   - mkdocstrings:
-      default_handler: python
+      handlers:
+        python:
+          options:
+            filters:
+              - "!^__doc__$"
+              - "!^__dict__$"
+              - "!^__weakref__$"
+              - "!^__firstlineno__$"
+              - "!^__module__$"
+              - "!^__static_attributes__$"
+              - "!^__cached__$"
+              - "!^__file__$"
+              - "!^__name__$"
+              - "!^__package__$"
+            show_inherited_members: false
+            show_private_members: false
 
 nav:
   - Home: index.md
