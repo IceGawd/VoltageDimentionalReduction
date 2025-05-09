@@ -8,6 +8,7 @@ from mpl_toolkits.mplot3d import Axes3D
 import scipy.stats as stats
 import time
 import types
+from typing import List, Tuple, Optional, Any
 
 def select_random(array: list) -> any:
 	"""
@@ -51,6 +52,7 @@ def varied_point(mean: np.ndarray, std: float) -> np.ndarray:
 		np.ndarray: A randomly varied point.
 	"""
 	return mean + std * dimentional_variation(len(mean))
+
 
 class Plotter:
 	"""
@@ -179,6 +181,13 @@ class Plotter:
 class Data():
 	"""Class for handling and processing data sets."""
 	def __init__(self, arg=None, stream=False):
+		"""
+		Initializes the Data object from a list, file path, or raw data.
+
+		Args:
+			arg (Union[list, str, Any]): The input data or path to data file.
+			stream (bool): Whether to use streaming mode for large files.
+		"""
 		self.stream = stream
 
 		if isinstance(arg, list):
@@ -198,12 +207,25 @@ class Data():
 			self.data = arg
 			self.length = len(self.data)
 
-	# Len can run on Data
 	def __len__(self):
+		"""
+		Returns the length of the dataset.
+
+		Returns:
+			int: The number of data points.
+		"""
 		return self.length
 
-	# Data can be get indexed
 	def __getitem__(self, index):
+		"""
+		Allows indexing into the dataset.
+
+		Args:
+			index (int): Index of the desired data point.
+
+		Returns:
+			np.ndarray: The data point at the given index.
+		"""
 		if (self.stream):
 			if (index < self.i):
 				self.data = self.stream_data_json(self.input_file)
@@ -218,13 +240,23 @@ class Data():
 		else:
 			return self.data[index]
 
-	# """
 	def __setitem__(self, index, value):
-		self.data[index] = value
-	# """
+		"""
+		Sets a value in the dataset at a specified index.
 
-	# Make Data able to be for looped
+		Args:
+			index (int): The index to modify.
+			value (Any): The new value to set.
+		"""
+		self.data[index] = value
+
 	def __iter__(self):
+		"""
+		Returns an iterator over the dataset for use in for-loops.
+
+		Returns:
+			Iterator: An iterator over the dataset.
+		"""
 		if (hasattr(self, 'input_file')):
 			self.streaming_data = self.stream_data_json(self.input_file)
 			next(self.streaming_data)
@@ -234,6 +266,15 @@ class Data():
 		return self
 
 	def __next__(self):
+		"""
+		Retrieves the next data point in an iteration.
+
+		Returns:
+			np.ndarray: The next data point.
+
+		Raises:
+			StopIteration: If the end of the dataset is reached.
+		"""
 		try:
 			if (hasattr(self, 'input_file')):
 				return np.array(next(self.streaming_data))
@@ -248,22 +289,51 @@ class Data():
 			raise
 
 	def getSubSet(self, indexList):
-		"""Returns a subset of the data given a list of indices."""
+		"""
+		Returns a subset of the data given a list of indices.
+
+		Args:
+			indexList (list[int]): List of indices to extract.
+
+		Returns:
+			Data: A new Data object containing the selected subset.
+		"""
 		subset = []
 		for index in indexList:
 			subset.append(self.data[index])
 		return Data(subset)
 
 	def save_data_json(self, output_file):
+		"""
+		Saves the dataset to a JSON file.
+
+		Args:
+			output_file (str): Path to the output file.
+		"""
 		fg = FileGenerator()
 		fg.setGenerator(fg.linear_generator)
 		fg.stream_save(output_file, self.data)
 
 	def save_data_pickle(self, output_file):
+		"""
+		Saves the dataset to a pickle file.
+
+		Args:
+			output_file (str): Path to the output file.
+		"""
 		with open(output_file, 'wb') as f: 
 			pickle.dump(self.data, f) 
 
 	def load_data_json(self, input_file):
+		"""
+		Loads the dataset from a JSON file.
+
+		Args:
+			input_file (str): Path to the input file.
+
+		Returns:
+			list[np.ndarray]: The loaded data.
+		"""
 		with open(input_file, 'r') as f:
 			self.input_file = input_file
 
@@ -276,6 +346,15 @@ class Data():
 			return self.data
 
 	def load_data_pickle(self, input_file):
+		"""
+		Loads the dataset from a pickle file.
+
+		Args:
+			input_file (str): Path to the input file.
+
+		Returns:
+			Any: The loaded data.
+		"""
 		with open(input_file, 'r') as f:
 			self.input_file = input_file
 			self.data = pickle.load(f)
@@ -283,7 +362,15 @@ class Data():
 			return self.data
 
 	def stream_data_json(self, input_file):
-		"""Stream the dataset if its saved in a json file"""
+		"""
+		Streams data from a JSON file one entry at a time.
+
+		Args:
+			input_file (str): Path to the input JSON file.
+
+		Yields:
+			np.ndarray: A single data point from the dataset.
+		"""
 		with open(input_file, 'rb') as f:
 			f.seek(0, 2)
 			position = f.tell()
@@ -319,7 +406,16 @@ class Data():
 	file_function_pairs = [["json", save_data_json, load_data_json], ["pkl", save_data_pickle, load_data_pickle]]
 
 	def data_function(self, file, save_or_load):
-		"""Used for saving and loading the dataset"""
+		"""
+		Routes file operation to appropriate function based on file extension.
+
+		Args:
+			file (str): File path.
+			save_or_load (int): 1 for save, 2 for load.
+
+		Returns:
+			Optional[Any]: The result of the load operation if applicable.
+		"""
 		if (file == None):
 			return
 
@@ -331,22 +427,56 @@ class Data():
 					return ffp[save_or_load](self, file)
 
 	def save_data(self, output_file):
+		"""
+		Saves the dataset to a file, choosing format by extension.
+
+		Args:
+			output_file (str): Path to the output file.
+
+		Returns:
+			Data: Self (for chaining).
+		"""
 		self.data_function(output_file, 1)
 		return self
 
 	def load_data(self, input_file):
+		"""
+		Loads the dataset from a file, choosing format by extension.
+
+		Args:
+			input_file (str): Path to the input file.
+
+		Returns:
+			Data: Self (for chaining).
+		"""
 		self.data_function(input_file, 2)
 		return self
 
 	def get_random_point(self):
-		"""Returns a random point from the dataset."""
+		"""
+		Returns a randomly selected point from the dataset.
+
+		Returns:
+			np.ndarray: A random data point.
+		"""
 		return select_random(self.data)
 
 	def plot(self, name=None):
-		"""Plots the dataset."""
+		"""
+		Plots the dataset using matplotlib.
+
+		Args:
+			name (Optional[str]): File path to save the plot, if specified.
+		"""
 		Plotter().plotPoints(self.data, name)
 
 	def getNumpy(self):
+		"""
+		Ensures that the dataset is returned as a NumPy array.
+
+		Returns:
+			np.ndarray: Dataset as a NumPy array.
+		"""
 		if isinstance(self.data, np.ndarray):
 			# print(self.data.shape)
 			return self.data
@@ -359,414 +489,414 @@ class Data():
 			return np.array(temp)
 
 class FileGenerator:
-    """
-    Generates files for saved data.
+	"""
+	Generates files for saved data.
 
-    This class is designed to assist in saving generated datasets in a streaming
-    fashion. It provides several built-in generators to create synthetic datasets
-    for use with `Data` and `DataCreator` classes.
-    """
+	This class is designed to assist in saving generated datasets in a streaming
+	fashion. It provides several built-in generators to create synthetic datasets
+	for use with `Data` and `DataCreator` classes.
+	"""
 
-    def __init__(self):
-        """Initializes the FileGenerator."""
-        pass
+	def __init__(self):
+		"""Initializes the FileGenerator."""
+		pass
 
-    def setGenerator(self, fn):
-        """
-        Sets the generator function to be used when saving data.
+	def setGenerator(self, fn):
+		"""
+		Sets the generator function to be used when saving data.
 
-        Args:
-            fn (Callable): A generator function that yields data points.
-        """
-        self.data_generator = fn
+		Args:
+			fn (Callable): A generator function that yields data points.
+		"""
+		self.data_generator = fn
 
-    def stream_save(self, output_file: str, *args):
-        """
-        Saves data to a JSON file in a streaming manner.
+	def stream_save(self, output_file: str, *args):
+		"""
+		Saves data to a JSON file in a streaming manner.
 
-        Args:
-            output_file (str): Path to the file where data will be saved.
-            *args: Arguments to pass to the generator function.
+		Args:
+			output_file (str): Path to the file where data will be saved.
+			*args: Arguments to pass to the generator function.
 
-        Returns:
-            None
-        """
-        with open(output_file, "w") as f:
-            f.write("{\"data\": [\n")
-            first = True
-            length = 0
-            for array in self.data_generator(*args):
-                if not first:
-                    f.write(", \n")
-                json.dump(list(array), f)
-                length += 1
-                first = False
-            f.write("], \n\"length\": " + str(length) + "}")
+		Returns:
+			None
+		"""
+		with open(output_file, "w") as f:
+			f.write("{\"data\": [\n")
+			first = True
+			length = 0
+			for array in self.data_generator(*args):
+				if not first:
+					f.write(", \n")
+				json.dump(list(array), f)
+				length += 1
+				first = False
+			f.write("], \n\"length\": " + str(length) + "}")
 
-    def linear_generator(self, data: np.ndarray):
-        """
-        Yields data points one by one from a NumPy array.
+	def linear_generator(self, data: np.ndarray):
+		"""
+		Yields data points one by one from a NumPy array.
 
-        Args:
-            data (np.ndarray): Input data.
+		Args:
+			data (np.ndarray): Input data.
 
-        Yields:
-            np.ndarray: Single data points from the array.
-        """
-        for d in data.tolist():
-            yield d
+		Yields:
+			np.ndarray: Single data points from the array.
+		"""
+		for d in data.tolist():
+			yield d
 
-    def line_generator(self, start: float, end: float, points: int):
-        """
-        Generates points along a line in 1D space.
+	def line_generator(self, start: float, end: float, points: int):
+		"""
+		Generates points along a line in 1D space.
 
-        Args:
-            start (float): Starting point of the line.
-            end (float): Ending point of the line.
-            points (int): Number of points to generate.
+		Args:
+			start (float): Starting point of the line.
+			end (float): Ending point of the line.
+			points (int): Number of points to generate.
 
-        Yields:
-            np.ndarray: Single-point arrays sampled along the line.
-        """
-        for _ in range(points):
-            yield np.array([random.random() * (end - start) + start])
+		Yields:
+			np.ndarray: Single-point arrays sampled along the line.
+		"""
+		for _ in range(points):
+			yield np.array([random.random() * (end - start) + start])
 
-    def eigth_sphere_generator(self, radius: float, x_pos: int, y_pos: int, z_pos: int, points: int):
-        """
-        Generates points on an eighth of a sphere surface.
+	def eigth_sphere_generator(self, radius: float, x_pos: int, y_pos: int, z_pos: int, points: int):
+		"""
+		Generates points on an eighth of a sphere surface.
 
-        Args:
-            radius (float): Radius of the sphere.
-            x_pos (int): Hemisphere direction for X (0 or 1).
-            y_pos (int): Hemisphere direction for Y (0 or 1).
-            z_pos (int): Hemisphere direction for Z (0 or 1).
-            points (int): Number of points to generate.
+		Args:
+			radius (float): Radius of the sphere.
+			x_pos (int): Hemisphere direction for X (0 or 1).
+			y_pos (int): Hemisphere direction for Y (0 or 1).
+			z_pos (int): Hemisphere direction for Z (0 or 1).
+			points (int): Number of points to generate.
 
-        Yields:
-            np.ndarray: Points on the eighth sphere surface.
-        """
-        for _ in range(points):
-            z = random.random()
-            angleXY = np.pi * random.random() / 2
-            yield np.array([
-                radius * np.sqrt(1 - z**2) * np.cos(angleXY) * (2 * x_pos - 1),
-                radius * np.sqrt(1 - z**2) * np.sin(angleXY) * (2 * y_pos - 1),
-                radius * z * (2 * z_pos - 1)
-            ])
+		Yields:
+			np.ndarray: Points on the eighth sphere surface.
+		"""
+		for _ in range(points):
+			z = random.random()
+			angleXY = np.pi * random.random() / 2
+			yield np.array([
+				radius * np.sqrt(1 - z**2) * np.cos(angleXY) * (2 * x_pos - 1),
+				radius * np.sqrt(1 - z**2) * np.sin(angleXY) * (2 * y_pos - 1),
+				radius * z * (2 * z_pos - 1)
+			])
 
-    def triangle_generator(self, edges: list, points: int):
-        """
-        Generates points uniformly within a triangle defined by three vertices.
+	def triangle_generator(self, edges: list, points: int):
+		"""
+		Generates points uniformly within a triangle defined by three vertices.
 
-        Args:
-            edges (list): A list of three points (each a list or np.ndarray) defining the triangle.
-            points (int): Number of points to generate.
+		Args:
+			edges (list): A list of three points (each a list or np.ndarray) defining the triangle.
+			points (int): Number of points to generate.
 
-        Yields:
-            np.ndarray: Points uniformly sampled inside the triangle.
-        """
-        base = np.array(edges[0])
-        edgeDiff1 = np.array(edges[1]) - base
-        edgeDiff2 = np.array(edges[2]) - base
-        for _ in range(points):
-            d1 = random.random()
-            d2 = random.random()
-            if d1 + d2 > 1:
-                d1 = 1 - d1
-                d2 = 1 - d2
-            yield base + d1 * edgeDiff1 + d2 * edgeDiff2
+		Yields:
+			np.ndarray: Points uniformly sampled inside the triangle.
+		"""
+		base = np.array(edges[0])
+		edgeDiff1 = np.array(edges[1]) - base
+		edgeDiff2 = np.array(edges[2]) - base
+		for _ in range(points):
+			d1 = random.random()
+			d2 = random.random()
+			if d1 + d2 > 1:
+				d1 = 1 - d1
+				d2 = 1 - d2
+			yield base + d1 * edgeDiff1 + d2 * edgeDiff2
 
-    def strong_cluster_generator(self, internal_std: float, cluster_centers: list, points: int):
-        """
-        Generates clustered points around multiple centers with specified standard deviation.
+	def strong_cluster_generator(self, internal_std: float, cluster_centers: list, points: int):
+		"""
+		Generates clustered points around multiple centers with specified standard deviation.
 
-        Args:
-            internal_std (float): Standard deviation within each cluster.
-            cluster_centers (list): A list of cluster center points.
-            points (int): Number of points to generate.
+		Args:
+			internal_std (float): Standard deviation within each cluster.
+			cluster_centers (list): A list of cluster center points.
+			points (int): Number of points to generate.
 
-        Yields:
-            np.ndarray: Points sampled from the clusters.
-        """
-        c = -1
-        for p in range(points):
-            if (p / points >= c / 100):
-                c += 1
-            yield varied_point(select_random(cluster_centers), internal_std)
+		Yields:
+			np.ndarray: Points sampled from the clusters.
+		"""
+		c = -1
+		for p in range(points):
+			if (p / points >= c / 100):
+				c += 1
+			yield varied_point(select_random(cluster_centers), internal_std)
 
-    def spiral_generator(self, radius: float, center: list, rotations: int, height: float, points: int):
-        """
-        Generates points forming a 3D spiral (helix).
+	def spiral_generator(self, radius: float, center: list, rotations: int, height: float, points: int):
+		"""
+		Generates points forming a 3D spiral (helix).
 
-        Args:
-            radius (float): Radius of the spiral.
-            center (list): Center offset of the spiral (not used directly in current implementation).
-            rotations (int): Number of full 360° turns.
-            height (float): Total height of the spiral.
-            points (int): Number of points to generate.
+		Args:
+			radius (float): Radius of the spiral.
+			center (list): Center offset of the spiral (not used directly in current implementation).
+			rotations (int): Number of full 360° turns.
+			height (float): Total height of the spiral.
+			points (int): Number of points to generate.
 
-        Yields:
-            np.ndarray: Points along the spiral.
-        """
-        line = 2 * np.pi * rotations
-        heightPerRadian = height / line
-        for _ in range(points):
-            d = random.random() * line
-            yield np.array([
-                radius * np.cos(d),
-                radius * np.sin(d),
-                heightPerRadian * d
-            ])
+		Yields:
+			np.ndarray: Points along the spiral.
+		"""
+		line = 2 * np.pi * rotations
+		heightPerRadian = height / line
+		for _ in range(points):
+			d = random.random() * line
+			yield np.array([
+				radius * np.cos(d),
+				radius * np.sin(d),
+				heightPerRadian * d
+			])
 
 class DataCreator:
-    """
-    A utility class to create various synthetic datasets for testing and analysis.
-    Interfaces with FileGenerator to optionally stream data to file.
+	"""
+	A utility class to create various synthetic datasets for testing and analysis.
+	Interfaces with FileGenerator to optionally stream data to file.
 
-    Attributes:
-        fg (FileGenerator): An instance of FileGenerator used for generating data points.
-    """
+	Attributes:
+		fg (FileGenerator): An instance of FileGenerator used for generating data points.
+	"""
 
-    def __init__(self):
-        self.fg = FileGenerator()
+	def __init__(self):
+		self.fg = FileGenerator()
 
-    def stream_dataset_creator(self, output_file: str, function: callable, seed: int, stream: bool, *args) -> 'Data':
-        """
-        Creates a dataset using the specified generator function, supporting streamed or non-streamed output.
+	def stream_dataset_creator(self, output_file: str, function: callable, seed: int, stream: bool, *args) -> 'Data':
+		"""
+		Creates a dataset using the specified generator function, supporting streamed or non-streamed output.
 
-        Args:
-            output_file (str): File path to save the dataset.
-            function (callable): Generator function to create data points.
-            seed (int): Random seed for reproducibility.
-            stream (bool): If True, streams data directly to the file.
-            *args: Additional arguments passed to the generator function.
+		Args:
+			output_file (str): File path to save the dataset.
+			function (callable): Generator function to create data points.
+			seed (int): Random seed for reproducibility.
+			stream (bool): If True, streams data directly to the file.
+			*args: Additional arguments passed to the generator function.
 
-        Returns:
-            Data: The created dataset, either streamed or in-memory.
-        """
-        random.seed(seed)
+		Returns:
+			Data: The created dataset, either streamed or in-memory.
+		"""
+		random.seed(seed)
 
-        if stream:
-            self.fg.setGenerator(function)
-            self.fg.stream_save(output_file, *args)
-            data = Data(output_file, stream=True)
-        else:
-            data = [point for point in function(*args)]
-            data = Data(data)
-            data.save_data(output_file)
+		if stream:
+			self.fg.setGenerator(function)
+			self.fg.stream_save(output_file, *args)
+			data = Data(output_file, stream=True)
+		else:
+			data = [point for point in function(*args)]
+			data = Data(data)
+			data.save_data(output_file)
 
-        return data
+		return data
 
-    def create_dataset_line(self, output_file: str = None, start: float = 0, end: float = 1, points: int = 1000, seed: int = 42, stream: bool = False) -> 'Data':
-        """
-        Creates a 1D line dataset.
+	def create_dataset_line(self, output_file: str = None, start: float = 0, end: float = 1, points: int = 1000, seed: int = 42, stream: bool = False) -> 'Data':
+		"""
+		Creates a 1D line dataset.
 
-        Args:
-            output_file (str): File path to save the dataset.
-            start (float): Starting point of the line.
-            end (float): Ending point of the line.
-            points (int): Number of data points.
-            seed (int): Random seed.
-            stream (bool): Whether to stream to file.
+		Args:
+			output_file (str): File path to save the dataset.
+			start (float): Starting point of the line.
+			end (float): Ending point of the line.
+			points (int): Number of data points.
+			seed (int): Random seed.
+			stream (bool): Whether to stream to file.
 
-        Returns:
-            Data: The generated dataset.
-        """
-        return self.stream_dataset_creator(output_file, self.fg.line_generator, seed, stream, start, end, points)
+		Returns:
+			Data: The generated dataset.
+		"""
+		return self.stream_dataset_creator(output_file, self.fg.line_generator, seed, stream, start, end, points)
 
-    def create_dataset_square_edge(self, output_file: str = None, p1: tuple = (0, 0), p2: tuple = (1, 1), points: int = 1000, seed: int = 42) -> 'Data':
-        """
-        Creates a dataset of points along the edges of a square.
+	def create_dataset_square_edge(self, output_file: str = None, p1: tuple = (0, 0), p2: tuple = (1, 1), points: int = 1000, seed: int = 42) -> 'Data':
+		"""
+		Creates a dataset of points along the edges of a square.
 
-        Args:
-            output_file (str): File path to save the dataset.
-            p1 (tuple): Bottom-left corner.
-            p2 (tuple): Top-right corner.
-            points (int): Number of data points.
-            seed (int): Random seed.
+		Args:
+			output_file (str): File path to save the dataset.
+			p1 (tuple): Bottom-left corner.
+			p2 (tuple): Top-right corner.
+			points (int): Number of data points.
+			seed (int): Random seed.
 
-        Returns:
-            Data: The generated dataset.
-        """
-        data = []
-        random.seed(seed)
+		Returns:
+			Data: The generated dataset.
+		"""
+		data = []
+		random.seed(seed)
 
-        x_diff = p2[0] - p1[0]
-        y_diff = p2[1] - p1[1]
+		x_diff = p2[0] - p1[0]
+		y_diff = p2[1] - p1[1]
 
-        for _ in range(points):
-            r = random.random() * 4
-            side = int(r)
-            var = r - side
+		for _ in range(points):
+			r = random.random() * 4
+			side = int(r)
+			var = r - side
 
-            x_side = side % 2
-            y_side = side >> 1
+			x_side = side % 2
+			y_side = side >> 1
 
-            x_rev = 1 - x_side
-            y_rev = 1 - y_side
+			x_rev = 1 - x_side
+			y_rev = 1 - y_side
 
-            variation = np.array([var * x_side * x_diff, var * x_rev * y_diff])
-            offset = np.array([x_rev * y_side * x_diff, x_side * y_rev * y_diff])
-            shift = np.array(p1)
+			variation = np.array([var * x_side * x_diff, var * x_rev * y_diff])
+			offset = np.array([x_rev * y_side * x_diff, x_side * y_rev * y_diff])
+			shift = np.array(p1)
 
-            data.append(variation + offset + shift)
+			data.append(variation + offset + shift)
 
-        data = Data(data)
-        data.save_data(output_file)
-        return data
+		data = Data(data)
+		data.save_data(output_file)
+		return data
 
-    def create_dataset_square_fill(self, output_file: str = None, p1: tuple = (0, 0), p2: tuple = (1, 1), points: int = 1000, seed: int = 42) -> 'Data':
-        """
-        Creates a dataset of points filling a square area.
+	def create_dataset_square_fill(self, output_file: str = None, p1: tuple = (0, 0), p2: tuple = (1, 1), points: int = 1000, seed: int = 42) -> 'Data':
+		"""
+		Creates a dataset of points filling a square area.
 
-        Args:
-            output_file (str): File path to save the dataset.
-            p1 (tuple): Bottom-left corner.
-            p2 (tuple): Top-right corner.
-            points (int): Number of data points.
-            seed (int): Random seed.
+		Args:
+			output_file (str): File path to save the dataset.
+			p1 (tuple): Bottom-left corner.
+			p2 (tuple): Top-right corner.
+			points (int): Number of data points.
+			seed (int): Random seed.
 
-        Returns:
-            Data: The generated dataset.
-        """
-        data = []
-        random.seed(seed)
+		Returns:
+			Data: The generated dataset.
+		"""
+		data = []
+		random.seed(seed)
 
-        x_diff = p2[0] - p1[0]
-        y_diff = p2[1] - p1[1]
+		x_diff = p2[0] - p1[0]
+		y_diff = p2[1] - p1[1]
 
-        for _ in range(points):
-            x_rand = random.random()
-            y_rand = random.random()
-            data.append(np.array([x_diff * x_rand + p1[0], y_diff * y_rand + p1[1]]))
+		for _ in range(points):
+			x_rand = random.random()
+			y_rand = random.random()
+			data.append(np.array([x_diff * x_rand + p1[0], y_diff * y_rand + p1[1]]))
 
-        data = Data(data)
-        data.save_data(output_file)
-        return data
+		data = Data(data)
+		data.save_data(output_file)
+		return data
 
-    def create_dataset_eigth_sphere(self, output_file: str = None, radius: float = 1, x_pos: bool = True, y_pos: bool = True, z_pos: bool = True, points: int = 1000, seed: int = 42, stream: bool = False) -> 'Data':
-        """
-        Creates a dataset on an eighth of a sphere.
+	def create_dataset_eigth_sphere(self, output_file: str = None, radius: float = 1, x_pos: bool = True, y_pos: bool = True, z_pos: bool = True, points: int = 1000, seed: int = 42, stream: bool = False) -> 'Data':
+		"""
+		Creates a dataset on an eighth of a sphere.
 
-        Args:
-            output_file (str): File path to save the dataset.
-            radius (float): Radius of the sphere.
-            x_pos (bool): Use positive x.
-            y_pos (bool): Use positive y.
-            z_pos (bool): Use positive z.
-            points (int): Number of data points.
-            seed (int): Random seed.
-            stream (bool): Whether to stream to file.
+		Args:
+			output_file (str): File path to save the dataset.
+			radius (float): Radius of the sphere.
+			x_pos (bool): Use positive x.
+			y_pos (bool): Use positive y.
+			z_pos (bool): Use positive z.
+			points (int): Number of data points.
+			seed (int): Random seed.
+			stream (bool): Whether to stream to file.
 
-        Returns:
-            Data: The generated dataset.
-        """
-        return self.stream_dataset_creator(output_file, self.fg.eigth_sphere_generator, seed, stream, radius, x_pos, y_pos, z_pos, points)
+		Returns:
+			Data: The generated dataset.
+		"""
+		return self.stream_dataset_creator(output_file, self.fg.eigth_sphere_generator, seed, stream, radius, x_pos, y_pos, z_pos, points)
 
-    def create_dataset_triangle(self, output_file: str = None, edges: list = [[0, 0], [1, 1], [2, 0]], points: int = 1000, seed: int = 42, stream: bool = False) -> 'Data':
-        """
-        Creates a dataset of points on a triangle.
+	def create_dataset_triangle(self, output_file: str = None, edges: list = [[0, 0], [1, 1], [2, 0]], points: int = 1000, seed: int = 42, stream: bool = False) -> 'Data':
+		"""
+		Creates a dataset of points on a triangle.
 
-        Args:
-            output_file (str): File path to save the dataset.
-            edges (list): Three vertices of the triangle.
-            points (int): Number of data points.
-            seed (int): Random seed.
-            stream (bool): Whether to stream to file.
+		Args:
+			output_file (str): File path to save the dataset.
+			edges (list): Three vertices of the triangle.
+			points (int): Number of data points.
+			seed (int): Random seed.
+			stream (bool): Whether to stream to file.
 
-        Returns:
-            Data: The generated dataset.
-        """
-        return self.stream_dataset_creator(output_file, self.fg.triangle_generator, seed, stream, edges, points)
+		Returns:
+			Data: The generated dataset.
+		"""
+		return self.stream_dataset_creator(output_file, self.fg.triangle_generator, seed, stream, edges, points)
 
-    def create_dataset_strong_clusters(self, output_file: str = None, internal_std: float = 1, external_std: float = 10, mean: list = [0, 0], clusters: int = 10, points: int = 1000, seed: int = 42, stream: bool = False) -> 'Data':
-        """
-        Creates a clustered dataset with multiple clusters.
+	def create_dataset_strong_clusters(self, output_file: str = None, internal_std: float = 1, external_std: float = 10, mean: list = [0, 0], clusters: int = 10, points: int = 1000, seed: int = 42, stream: bool = False) -> 'Data':
+		"""
+		Creates a clustered dataset with multiple clusters.
 
-        Args:
-            output_file (str): File path to save the dataset.
-            internal_std (float): Standard deviation inside a cluster.
-            external_std (float): Spread of cluster centers.
-            mean (list): Mean location for generating cluster centers.
-            clusters (int): Number of clusters.
-            points (int): Number of data points.
-            seed (int): Random seed.
-            stream (bool): Whether to stream to file.
+		Args:
+			output_file (str): File path to save the dataset.
+			internal_std (float): Standard deviation inside a cluster.
+			external_std (float): Spread of cluster centers.
+			mean (list): Mean location for generating cluster centers.
+			clusters (int): Number of clusters.
+			points (int): Number of data points.
+			seed (int): Random seed.
+			stream (bool): Whether to stream to file.
 
-        Returns:
-            Data: The generated dataset.
-        """
-        data = []
-        random.seed(seed)
-        np_mean = np.array(mean)
+		Returns:
+			Data: The generated dataset.
+		"""
+		data = []
+		random.seed(seed)
+		np_mean = np.array(mean)
 
-        cluster_centers = [varied_point(np_mean, external_std) for _ in range(clusters)]
+		cluster_centers = [varied_point(np_mean, external_std) for _ in range(clusters)]
 
-        if stream:
-            self.fg.setGenerator(self.fg.strong_cluster_generator)
-            self.fg.stream_save(output_file, internal_std, cluster_centers, points)
-            data = Data(output_file, stream=True)
-        else:
-            for p in self.fg.strong_cluster_generator(internal_std, cluster_centers, points):
-                data.append(p)
-            data = Data(data)
-            data.save_data(output_file)
+		if stream:
+			self.fg.setGenerator(self.fg.strong_cluster_generator)
+			self.fg.stream_save(output_file, internal_std, cluster_centers, points)
+			data = Data(output_file, stream=True)
+		else:
+			for p in self.fg.strong_cluster_generator(internal_std, cluster_centers, points):
+				data.append(p)
+			data = Data(data)
+			data.save_data(output_file)
 
-        return data
+		return data
 
-    def rotate_into_dimention(self, data: 'Data', higher_dim: int = 3, seed: int = 42) -> 'Data':
-        """
-        Rotates dataset into a higher dimensional space using random rotations.
+	def rotate_into_dimention(self, data: 'Data', higher_dim: int = 3, seed: int = 42) -> 'Data':
+		"""
+		Rotates dataset into a higher dimensional space using random rotations.
 
-        Args:
-            data (Data): The dataset to rotate.
-            higher_dim (int): Dimension to rotate into.
-            seed (int): Random seed.
+		Args:
+			data (Data): The dataset to rotate.
+			higher_dim (int): Dimension to rotate into.
+			seed (int): Random seed.
 
-        Returns:
-            Data: The rotated dataset.
-        """
-        rotation_matrix = np.identity(higher_dim)
-        if seed != -1:
-            random.seed(seed)
+		Returns:
+			Data: The rotated dataset.
+		"""
+		rotation_matrix = np.identity(higher_dim)
+		if seed != -1:
+			random.seed(seed)
 
-        for x1 in range(higher_dim - 1):
-            for x2 in range(x1 + 1, higher_dim):
-                angle = 2 * np.pi * random.random()
-                rot = np.identity(higher_dim)
-                rot[x1, x1] = np.cos(angle)
-                rot[x2, x2] = np.cos(angle)
-                rot[x1, x2] = np.sin(angle)
-                rot[x2, x1] = -np.sin(angle)
-                rotation_matrix = np.matmul(rotation_matrix, rot)
+		for x1 in range(higher_dim - 1):
+			for x2 in range(x1 + 1, higher_dim):
+				angle = 2 * np.pi * random.random()
+				rot = np.identity(higher_dim)
+				rot[x1, x1] = np.cos(angle)
+				rot[x2, x2] = np.cos(angle)
+				rot[x1, x2] = np.sin(angle)
+				rot[x2, x1] = -np.sin(angle)
+				rotation_matrix = np.matmul(rotation_matrix, rot)
 
-        data.data = list(data.data)
-        for i in range(len(data)):
-            extended = np.zeros(higher_dim)
-            extended[:len(data[i])] = data[i]
-            data[i] = np.matmul(rotation_matrix, extended)
+		data.data = list(data.data)
+		for i in range(len(data)):
+			extended = np.zeros(higher_dim)
+			extended[:len(data[i])] = data[i]
+			data[i] = np.matmul(rotation_matrix, extended)
 
-        data.data = np.array(data.data)
-        return data
+		data.data = np.array(data.data)
+		return data
 
-    def create_dataset_spiral(self, output_file: str = None, radius: float = 1, center: list = [0, 0], rotations: int = 3, height: float = 10, points: int = 1000, seed: int = 42, stream: bool = False) -> 'Data':
-        """
-        Creates a 3D spiral dataset.
+	def create_dataset_spiral(self, output_file: str = None, radius: float = 1, center: list = [0, 0], rotations: int = 3, height: float = 10, points: int = 1000, seed: int = 42, stream: bool = False) -> 'Data':
+		"""
+		Creates a 3D spiral dataset.
 
-        Args:
-            output_file (str): File path to save the dataset.
-            radius (float): Radius of the spiral.
-            center (list): Center offset.
-            rotations (int): Number of rotations.
-            height (float): Height of the spiral.
-            points (int): Number of data points.
-            seed (int): Random seed.
-            stream (bool): Whether to stream to file.
+		Args:
+			output_file (str): File path to save the dataset.
+			radius (float): Radius of the spiral.
+			center (list): Center offset.
+			rotations (int): Number of rotations.
+			height (float): Height of the spiral.
+			points (int): Number of data points.
+			seed (int): Random seed.
+			stream (bool): Whether to stream to file.
 
-        Returns:
-            Data: The generated dataset.
-        """
-        return self.stream_dataset_creator(output_file, self.fg.spiral_generator, seed, stream, radius, center, rotations, height, points)
+		Returns:
+			Data: The generated dataset.
+		"""
+		return self.stream_dataset_creator(output_file, self.fg.spiral_generator, seed, stream, radius, center, rotations, height, points)
 
 if __name__ == '__main__':
 	creator = DataCreator()

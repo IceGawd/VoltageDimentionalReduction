@@ -8,6 +8,7 @@ import threading
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
 import time
+from typing import List, Tuple, Optional, Any, Callable, Union
 
 class Landmark:
 	"""

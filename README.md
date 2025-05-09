@@ -15,12 +15,6 @@ git clone https://github.com/IceGawd/VoltageDimentionalReduction.git
 cd VoltageDimentionalReduction
 ```
 
-Install the required dependencies:
-
-```bash
-pip install -r requirements.txt
-```
-
 ### Usage
 
 Check the jupyter notebooks to see example usage for the GloVe encodings and the MNIST
