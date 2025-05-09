@@ -137,7 +137,7 @@ class Partitions(DistanceBased):
 			index (int): the index of the point
 
 		Returns:
-			list: All the points whose closest point is data[index]
+			List[np.ndarray]: All the points whose closest point is data[index]
 
 		"""
 		closest = []

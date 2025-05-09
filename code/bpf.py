@@ -6,181 +6,160 @@ import numpy as np
 from sklearn.decomposition import PCA
 from sklearn.manifold import MDS
 import matplotlib.pyplot as plt
+from typing import Callable, List, Optional, Union
 
-dist = []
 
-class BestParameterFinder():
-	def nInfUniform(self, voltages):
+dist: List[float] = []
+
+class BestParameterFinder:
+	def __init__(self, metric: Optional[Callable[["BestParameterFinder", np.ndarray], float]] = None):
+		self.metric = metric or self.expWithStd
+		self.p_g: Optional[float] = None
+		self.c: Optional[float] = None
+
+	def nInfUniform(self, voltages: np.ndarray) -> float:
 		voltages.sort()
 		uniform = np.array([x / (len(voltages) - 1) for x in range(len(voltages))])
-
 		return np.linalg.norm(abs(voltages - uniform))
 
-	def nInfExp(self, voltages, base=10):
+	def nInfExp(self, voltages: np.ndarray, base: float = 10) -> float:
 		global dist
-
 		voltages.sort()
-
-		if (len(dist) != len(voltages)):
-			dist = np.array([np.pow(base, (x / (len(voltages) - 1)) - 1) for x in range(len(voltages))])
-
+		if len(dist) != len(voltages):
+			dist = np.array([np.power(base, (x / (len(voltages) - 1)) - 1) for x in range(len(voltages))])
 		return np.linalg.norm(abs(voltages - dist))
 
-	def median(self, voltages, value=0.5):
+	def median(self, voltages: np.ndarray, value: float = 0.5) -> float:
 		voltages.sort()
 		return abs(voltages[int(len(voltages) / 2)] - value)
 
-	def minimum(self, voltages, value=0.1):
+	def minimum(self, voltages: np.ndarray, value: float = 0.1) -> float:
 		voltages.sort()
 		return abs(voltages[0] - value)
 
-	def minWithStd(self, voltages, value=0.1):
+	def minWithStd(self, voltages: np.ndarray, value: float = 0.1) -> float:
 		voltages.sort()
 		return abs(voltages[0] - value) / np.std(voltages)
 
-	def expWithStd(self, voltages, base=10):
+	def expWithStd(self, voltages: np.ndarray, base: float = 10) -> float:
 		return self.nInfExp(voltages, base) / np.std(voltages)
 
-	def __init__(self, metric=expWithStd):
-		self.metric = metric
-		self.p_g = None
-		self.c = None
-
-	def setResistanceToGround(self, p_g):
+	def setResistanceToGround(self, p_g: float) -> None:
 		self.p_g = np.log(p_g)
 
-	def setKernelParameter(self, c):
+	def setKernelParameter(self, c: float) -> None:
 		self.c = np.log(c)
 
-	def calculateFor(self, landmarks, data, c, p_g, approx=False, approx_epsilon=None, approx_iters=None):
-		# print(type(data))
+	def calculateFor(
+		self,
+		landmarks: List,
+		data: Union[create_data.Data, kmeans.Partitions],
+		c: float,
+		p_g: float,
+		approx: bool = False,
+		approx_epsilon: Optional[float] = None,
+		approx_iters: Optional[int] = None
+	) -> Union[float, tuple[np.ndarray, voltage.Problem]]:
 
-		if (isinstance(data, create_data.Data)):
+		if isinstance(data, create_data.Data):
 			meanProblem = voltage.Problem(data)
 			meanProblem.timeStart()
 			meanProblem.setKernel(meanProblem.gaussiankernel)
-			# print("before")
 			meanProblem.setWeights(np.exp(c))
-			# print("after")
-			# print(meanProblem)
 
-		if (isinstance(data, kmeans.Partitions)):
+		elif isinstance(data, kmeans.Partitions):
 			partitions = data
-
-			meanProblem = voltage.Problem(partition.centers)
+			meanProblem = voltage.Problem(partitions.centers)
 			meanProblem.timeStart()
 			meanProblem.setKernel(meanProblem.gaussiankernel)
-			meanProblem.setPartitionWeights(partition, np.exp(c))
-			# print(meanProblem)
+			meanProblem.setPartitionWeights(partitions, np.exp(c))
 
-		# print(meanProblem)
+		else:
+			raise ValueError("Unsupported data type")
 
 		meanProblem.addUniversalGround(np.exp(p_g))
 		meanProblem.addLandmarks(landmarks)
 
-		diff1 = meanProblem.timeEnd()
-		# print(diff1)
+		meanProblem.timeEnd()
 
-		if (approx):
+		if approx:
 			voltages = np.array(voltage.Solver(meanProblem).approximate_voltages(approx_epsilon, approx_iters))
 		else:
 			voltages = np.array(voltage.Solver(meanProblem).compute_voltages())
 
-		diff2 = meanProblem.timeEnd()
-		# print(diff2)
+		meanProblem.timeEnd()
 
-		if (self.metric):
+		if self.metric:
 			return self.metric(self, voltages)
 		else:
 			return voltages, meanProblem
 
-	def bestParameterFinder(self, landmarks, data, minBound=-25, maxBound=-1, granularity=5, epsilon=1, approx=None):
+	def bestParameterFinder(
+		self,
+		landmarks: List,
+		data: Union[create_data.Data, kmeans.Partitions],
+		minBound: float = -25,
+		maxBound: float = -1,
+		granularity: int = 5,
+		epsilon: float = 1,
+		approx: Optional[int] = None
+	) -> tuple[float, float]:
 		"""
 		Finds the best parameters (C and P_G) for a solver based on voltage distribution minimization.
-
-		This function searches for optimal parameters `C` and `P_G` by iterating over exponent values in 
-		a specified range, computing voltages using a solver, and minimizing some metric
-		between the voltage distribution and a uniform distribution.
 		"""
-
 		window_size = (maxBound - minBound) / 2
-
 		bestc = minBound + window_size
 		bestg = minBound + window_size
-
 		val = float('inf')
 
 		while window_size > epsilon:
-			print(window_size, np.exp(bestc), np.exp(bestg))
-
 			cs = [bestc + x * window_size / granularity for x in range(-granularity + 1, granularity)]
 			gs = [bestg + x * window_size / granularity for x in range(-granularity + 1, granularity)]
 
-			if self.c != None:
+			if self.c is not None:
 				cs = [self.c]
-			if self.p_g != None:
+			if self.p_g is not None:
 				gs = [self.p_g]
 
 			for c in cs:
 				for g in gs:
-					# print(c, g)
 					try:
-						if (approx == None):
+						if approx is None:
 							tempval = self.calculateFor(landmarks, data, c, g)
 						else:
-							tempval = self.calculateFor(landmarks, data, c, g, approx=True, approx_iters=approx)							
+							tempval = self.calculateFor(landmarks, data, c, g, approx=True, approx_iters=approx)
 
-						# print(tempval)
-						if (val > tempval):
-							# print(c)
-							# print(g)
-							# print(tempval)
-
-							bestc = c
-							bestg = g
+						if val > tempval:
+							bestc, bestg = c, g
 							val = tempval
-					except ValueError as e:
+					except ValueError:
 						pass
-						# print("Invalid")
-
 
 			window_size /= granularity
 
 		return np.exp(bestc), np.exp(bestg)
 
-	def multiLandmarkBestParams(self, landmarks, data, start=0, epsilon=1, approx=None):
-		pass
-
-	def visualizations(self, voltages, fileStarter):
+	def visualizations(self, voltages: List[np.ndarray], fileStarter: str) -> None:
 		points = np.array(list(map(list, zip(*voltages))))
 
-		# print(points.shape)
-
-		# PCA
 		pca = PCA(n_components=2)
 		points_2d = pca.fit_transform(points)
-
-		# print(points_2d.shape)
 
 		plt.scatter(points_2d[:, 0], points_2d[:, 1], s=10)
 		plt.xlabel("PCA Component 1")
 		plt.ylabel("PCA Component 2")
 		plt.title("PCA Projection of Solver Outputs")
-
 		plt.savefig(fileStarter + "_PCA.png")
 		plt.clf()
 
-		# MDS
 		mds = MDS(n_components=2, random_state=42)
 		transformed_points = mds.fit_transform(points)
-		
+
 		plt.figure(figsize=(8, 6))
 		plt.scatter(transformed_points[:, 0], transformed_points[:, 1], c='blue', edgecolors='black')
-		
 		plt.xlabel("MDS Dimension 1")
 		plt.ylabel("MDS Dimension 2")
 		plt.title("Multidimensional Scaling (MDS) to 2D")
-		
 		plt.savefig(fileStarter + "_MDS.png")
 		plt.clf()
 
