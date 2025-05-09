@@ -157,6 +157,7 @@ class Partitions(DistanceBased):
 		return closest
 
 	def plot(self, color='r', marker='o', ax=None, name=None):
+		"""Plot the kmeans"""
 		plot = create_data.Plotter()
 
 		size = len(self.centers[0])
@@ -186,7 +187,7 @@ class Partitions(DistanceBased):
 		plt.show()
 		# plotPointSets([self.data, self.centers])
 
-class DistanceApproximator(DistanceBased):
+class DimentionApproximator(DistanceBased):
 	def __init__(self, data):
 		self.data = data
 		super().__init__()
@@ -221,6 +222,6 @@ if __name__ == '__main__':
 	partitions.k_means(10, seed=time.time())
 	# partitions.plot()
 
-	approxer = DistanceApproximator(data)
+	approxer = DimentionApproximator(data)
 
 	print("Approx Intrinsic Dimention: " + str(approxer.approx_dimention(seed=time.time())))
