@@ -101,13 +101,6 @@ class BestParameterFinder():
 		This function searches for optimal parameters `C` and `P_G` by iterating over exponent values in 
 		a specified range, computing voltages using a solver, and minimizing some metric
 		between the voltage distribution and a uniform distribution.
-
-		Args:
-			a (float): A number representing the first addend in the addition.
-			b (float): A number representing the second addend in the addition.
-
-		Returns:
-			float: A number representing the arithmetic sum of `a` and `b`.
 		"""
 
 		window_size = (maxBound - minBound) / 2

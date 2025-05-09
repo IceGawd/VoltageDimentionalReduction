@@ -10,271 +10,277 @@ import matplotlib.pyplot as plt
 import time
 
 class Landmark:
-    """
-    Represents a location in the dataset where a voltage will be applied.
+	"""
+	Represents a location in the dataset where a voltage will be applied.
 
-    The `index` can refer either to an individual datapoint or a partition center.
-    """
+	The `index` can refer either to an individual datapoint or a partition center.
+	"""
 
-    def __init__(self, index, voltage):
-        """
-        Initializes a Landmark.
+	def __init__(self, index: int, voltage: float) -> None:
+		"""
+		Initializes a Landmark.
 
-        Args:
-            index (int): Index of the datapoint or partition center.
-            voltage (float): Voltage to be applied at the specified index.
-        """
-        self.index = index
-        self.voltage = voltage
+		Args:
+			index (int): Index of the datapoint or partition center.
+			voltage (float): Voltage to be applied at the specified index.
+		"""
+		self.index = index
+		self.voltage = voltage
 
-    @staticmethod
-    def createLandmarkClosestTo(data, point, voltage, distanceFn=None, ignore=[]):
-        """
-        Creates a Landmark at the index of the datapoint in `data` closest to `point`.
+	@staticmethod
+	def createLandmarkClosestTo(
+		data: List[Any],
+		point: Any,
+		voltage: float,
+		distanceFn: Optional[object] = None,
+		ignore: List[int] = []
+	) -> "Landmark":
+		"""
+		Creates a Landmark at the index of the datapoint in `data` closest to `point`.
 
-        Args:
-            data (List[Any]): The dataset to search over.
-            point (Any): The reference point to find the closest datapoint to.
-            voltage (float): The voltage to assign to the resulting Landmark.
-            distanceFn (Optional[object]): A distance function with a `.distance(a, b)` method.
-                                           Defaults to `kmeans.DistanceBased()` if None.
-            ignore (List[int], optional): List of indices to skip during the search. Defaults to empty list.
+		Args:
+			data (List[Any]): The dataset to search over.
+			point (Any): The reference point to find the closest datapoint to.
+			voltage (float): The voltage to assign to the resulting Landmark.
+			distanceFn (Optional[object]): A distance function with a `.distance(a, b)` method.
+										   Defaults to `kmeans.DistanceBased()` if None.
+			ignore (List[int], optional): List of indices to skip during the search. Defaults to empty list.
 
-        Returns:
-            Landmark: A Landmark instance corresponding to the closest datapoint.
-        """
-        if distanceFn is None:
-            distanceFn = kmeans.DistanceBased()
+		Returns:
+			Landmark: A Landmark instance corresponding to the closest datapoint.
+		"""
+		if distanceFn is None:
+			distanceFn = kmeans.DistanceBased()
 
-        most_central_index = 0
-        mindist = distanceFn.distance(data[0], point)
+		most_central_index = 0
+		mindist = distanceFn.distance(data[0], point)
 
-        for index in range(1, len(data)):
-            if index in ignore:
-                continue
+		for index in range(1, len(data)):
+			if index in ignore:
+				continue
 
-            dist = distanceFn.distance(data[index], point)
-            if dist < mindist:
-                most_central_index = index
-                mindist = dist
+			dist = distanceFn.distance(data[index], point)
+			if dist < mindist:
+				most_central_index = index
+				mindist = dist
 
-        return Landmark(most_central_index, voltage)
-
-import time
-import numpy as np
-import kmeans
+		return Landmark(most_central_index, voltage)
 
 class Problem(kmeans.DistanceBased):
-    """
-    Represents the clustering/graph problem to be solved, 
-    extending a distance-based kernel with landmarks and weights.
-    """
+	"""
+	Represents the clustering/graph problem to be solved, 
+	extending a distance-based kernel with landmarks and weights.
+	"""
 
-    def __init__(self, data):
-        """
-        Initializes the Problem instance.
+	def __init__(self, data: Any) -> None:
+		"""
+		Initializes the Problem instance.
 
-        Args:
-            data: An object containing your dataset. Must support len(data) 
-                  and data.getNumpy() to return an (n, d) numpy array.
-        """
-        super().__init__()
-        self.data = data
-        self.landmarks = []
-        n = len(data)
-        self.weights = np.zeros([n, n])
-        self.universalGround = False
+		Args:
+			data: An object containing your dataset. Must support len(data) 
+				  and data.getNumpy() to return an (n, d) numpy array.
+		"""
+		super().__init__()
+		self.data = data
+		self.landmarks = []
+		n = len(data)
+		self.weights = np.zeros([n, n])
+		self.universalGround = False
 
-    def timeStart(self):
-        """
-        Records the current time to measure elapsed intervals.
-        """
-        self.start = time.time()
+	def timeStart(self) -> None:
+		"""
+		Records the current time to measure elapsed intervals.
+		"""
+		self.start = time.time()
 
-    def timeEnd(self, replace=True):
-        """
-        Computes the elapsed time since the last timeStart().
+	def timeEnd(self, replace: bool = True) -> float:
+		"""
+		Computes the elapsed time since the last timeStart().
 
-        Args:
-            replace (bool): If True, resets the start time to now.
+		Args:
+			replace (bool): If True, resets the start time to now.
 
-        Returns:
-            float: Seconds elapsed since last start.
-        """
-        cur_time = time.time()
-        diff = cur_time - self.start
-        if replace:
-            self.start = cur_time
-        return diff
+		Returns:
+			float: Seconds elapsed since last start.
+		"""
+		cur_time = time.time()
+		diff = cur_time - self.start
+		if replace:
+			self.start = cur_time
+		return diff
 
-    def setKernel(self, kernel):
-        """
-        Sets the kernel function to use for weight computations.
+	def setKernel(self, kernel: Callable[..., np.ndarray]) -> None:
+		"""
+		Sets the kernel function to use for weight computations.
 
-        Args:
-            kernel (callable): A function or callable object with signature
-                               kernel(X, Y, *params) → ndarray of shape (|X|, |Y|).
-        """
-        self.kernel = kernel
+		Args:
+			kernel (callable): A function or callable object with signature
+							   kernel(X, Y, *params) → ndarray of shape (|X|, |Y|).
+		"""
+		self.kernel = kernel
 
-    def efficientSquareDistance(self, data):
-        """
-        Computes the pairwise squared Euclidean distances of the rows in `data`.
+	def efficientSquareDistance(self, data: np.ndarray) -> np.ndarray:
+		"""
+		Computes the pairwise squared Euclidean distances of the rows in `data`.
 
-        Uses the identity ‖x−y‖² = ‖x‖² + ‖y‖² − 2 x·y for efficiency.
+		Uses the identity ‖x−y‖² = ‖x‖² + ‖y‖² − 2 x·y for efficiency.
 
-        Args:
-            data (ndarray): Array of shape (n, d).
+		Args:
+			data (ndarray): Array of shape (n, d).
 
-        Returns:
-            ndarray: Matrix of shape (n, n) where entry (i, j) is squared distance.
-        """
-        data_norm2 = np.sum(data**2, axis=1)
-        x_norm2 = data_norm2.reshape(-1, 1)
-        y_norm2 = data_norm2.reshape(1, -1)
-        return x_norm2 + y_norm2 - 2 * data @ data.T
+		Returns:
+			ndarray: Matrix of shape (n, n) where entry (i, j) is squared distance.
+		"""
+		data_norm2 = np.sum(data**2, axis=1)
+		x_norm2 = data_norm2.reshape(-1, 1)
+		y_norm2 = data_norm2.reshape(1, -1)
+		return x_norm2 + y_norm2 - 2 * data @ data.T
 
-    def radialkernel(self, data, r):
-        """
-        Builds a binary (0/1) radial kernel: 1 if distance ≤ r, else 0.
+	def radialkernel(self, data: np.ndarray, r: float) -> np.ndarray:
+		"""
+		Builds a binary (0/1) radial kernel: 1 if distance ≤ r, else 0.
 
-        Args:
-            data (ndarray): Array of shape (n, d).
-            r (float): Radius threshold.
+		Args:
+			data (ndarray): Array of shape (n, d).
+			r (float): Radius threshold.
 
-        Returns:
-            ndarray: Adjacency-like matrix (n×n) of 0/1 floats.
-        """
-        dist2 = self.efficientSquareDistance(data)
-        return (dist2 <= r**2).astype(float)
+		Returns:
+			ndarray: Adjacency-like matrix (n×n) of 0/1 floats.
+		"""
+		dist2 = self.efficientSquareDistance(data)
+		return (dist2 <= r**2).astype(float)
 
-    def gaussiankernel(self, data, std):
-        """
-        Builds a Gaussian (RBF) kernel matrix.
+	def gaussiankernel(self, data: np.ndarray, std: float) -> np.ndarray:
+		"""
+		Builds a Gaussian (RBF) kernel matrix.
 
-        Args:
-            data (ndarray): Array of shape (n, d).
-            std (float): Standard deviation parameter for the Gaussian.
+		Args:
+			data (ndarray): Array of shape (n, d).
+			std (float): Standard deviation parameter for the Gaussian.
 
-        Returns:
-            ndarray: Kernel matrix of shape (n, n).
-        """
-        dist2 = self.efficientSquareDistance(data)
-        return np.exp(-dist2 / (2 * std**2))
+		Returns:
+			ndarray: Kernel matrix of shape (n, n).
+		"""
+		dist2 = self.efficientSquareDistance(data)
+		return np.exp(-dist2 / (2 * std**2))
 
-    def setWeights(self, *c):
-        """
-        Computes and normalizes the weight matrix on the original data.
+	def setWeights(self, *c: Any) -> np.ndarray:
+		"""
+		Computes and normalizes the weight matrix on the original data.
 
-        Args:
-            *c: Parameters to pass into the currently set kernel function.
+		Args:
+			*c: Parameters to pass into the currently set kernel function.
 
-        Returns:
-            ndarray: The normalized weight matrix (n×n).
-        """
-        data_np = self.data.getNumpy()
-        n = len(self.data)
-        self.weights[:n, :n] = self.kernel(data_np, *c)
-        self.normalizeWeights()
-        return self.weights
+		Returns:
+			ndarray: The normalized weight matrix (n×n).
+		"""
+		data_np = self.data.getNumpy()
+		n = len(self.data)
+		self.weights[:n, :n] = self.kernel(data_np, *c)
+		self.normalizeWeights()
+		return self.weights
 
-    def normalizeWeights(self):
-        """
-        Normalizes each row of the weight matrix to sum to 1.
+	def normalizeWeights(self) -> None:
+		"""
+		Normalizes each row of the weight matrix to sum to 1.
 
-        Raises:
-            ValueError: If any row sums to zero, resulting in NaNs.
-        """
-        self.weights = self.weights / self.weights.sum(axis=1, keepdims=True)
-        if np.isnan(self.weights).any():
-            raise ValueError("Array contains NaN values!")
+		Raises:
+			ValueError: If any row sums to zero, resulting in NaNs.
+		"""
+		self.weights = self.weights / self.weights.sum(axis=1, keepdims=True)
+		if np.isnan(self.weights).any():
+			raise ValueError("Array contains NaN values!")
 
-    def setPartitionWeights(self, partition, *c):
-        """
-        Computes and normalizes weights based on cluster centers and sizes.
+	def setPartitionWeights(self, partition: Any, *c: Any) -> np.ndarray:
+		"""
+		Computes and normalizes weights based on cluster centers and sizes.
 
-        Args:
-            partition: An object with attributes `centers` (list of points)
-                       and `point_counts` (counts per center).
-            *c: Parameters to pass into the kernel function.
+		Args:
+			partition: An object with attributes `centers` (list of points)
+					   and `point_counts` (counts per center).
+			*c: Parameters to pass into the kernel function.
 
-        Returns:
-            ndarray: The normalized weight matrix for the partition block.
-        """
-        centers = np.array(partition.centers)
-        counts = np.array(partition.point_counts).reshape(-1, 1)
-        K = self.kernel(centers[:, None], centers[None, :], *c)
-        W = K * (counts @ counts.T)
-        n = len(centers)
-        self.weights[:n, :n] = W
-        self.normalizeWeights()
-        return self.weights
+		Returns:
+			ndarray: The normalized weight matrix for the partition block.
+		"""
+		centers = np.array(partition.centers)
+		counts = np.array(partition.point_counts).reshape(-1, 1)
+		K = self.kernel(centers[:, None], centers[None, :], *c)
+		W = K * (counts @ counts.T)
+		n = len(centers)
+		self.weights[:n, :n] = W
+		self.normalizeWeights()
+		return self.weights
 
-    def addUniversalGround(self, p_g=0.01):
-        """
-        Adds (or updates) a 'universal ground' node connected uniformly to all others.
+	def addUniversalGround(self, p_g: float = 0.01) -> np.ndarray:
+		"""
+		Adds (or updates) a 'universal ground' node connected uniformly to all others.
 
-        Args:
-            p_g (float): Total ground connection probability to distribute.
+		Args:
+			p_g (float): Total ground connection probability to distribute.
 
-        Returns:
-            ndarray: The updated normalized weight matrix including the ground node.
-        """
-        if self.universalGround:
-            n = self.weights.shape[0] - 1
-            for x in range(n):
-                self.weights[x, n] = p_g / n
-                self.weights[n, x] = p_g / n
-        else:
-            self.universalGround = True
-            n = self.weights.shape[0]
-            newW = np.zeros([n + 1, n + 1])
-            newW[:n, :n] = self.weights
-            for x in range(n):
-                newW[x, n] = p_g / n
-                newW[n, x] = p_g / n
-            self.weights = newW
-            self.addLandmark(Landmark(n, 0))
-        self.normalizeWeights()
-        return self.weights
+		Returns:
+			ndarray: The updated normalized weight matrix including the ground node.
+		"""
+		if self.universalGround:
+			n = self.weights.shape[0] - 1
+			for x in range(n):
+				self.weights[x, n] = p_g / n
+				self.weights[n, x] = p_g / n
+		else:
+			self.universalGround = True
+			n = self.weights.shape[0]
+			newW = np.zeros([n + 1, n + 1])
+			newW[:n, :n] = self.weights
+			for x in range(n):
+				newW[x, n] = p_g / n
+				newW[n, x] = p_g / n
+			self.weights = newW
+			self.addLandmark(Landmark(n, 0))
+		self.normalizeWeights()
+		return self.weights
 
-    def addLandmark(self, landmark):
-        """
-        Adds a single Landmark to the problem.
+	def addLandmark(self, landmark: Landmark) -> None:
+		"""
+		Adds a single Landmark to the problem.
 
-        Args:
-            landmark (Landmark): The landmark instance to append.
-        """
-        self.landmarks.append(landmark)
+		Args:
+			landmark (Landmark): The landmark instance to append.
+		"""
+		self.landmarks.append(landmark)
 
-    def addLandmarks(self, landmarks):
-        """
-        Adds multiple Landmark instances to the problem.
+	def addLandmarks(self, landmarks: List[Landmark]) -> None:
+		"""
+		Adds multiple Landmark instances to the problem.
 
-        Args:
-            landmarks (List[Landmark]): List of landmarks to append.
-        """
-        self.landmarks += landmarks
+		Args:
+			landmarks (List[Landmark]): List of landmarks to append.
+		"""
+		self.landmarks += landmarks
 
-    def addLandmarksInRange(self, minRange, maxRange, voltage):
-        """
-        Adds landmarks for all data points within a given coordinate range.
+	def addLandmarksInRange(
+		self, minRange: Union[List[float], np.ndarray],
+		maxRange: Union[List[float], np.ndarray],
+		voltage: float
+	) -> List[Landmark]:
+		"""
+		Adds landmarks for all data points within a given coordinate range.
 
-        Args:
-            minRange (array-like): Minimum bounds per dimension.
-            maxRange (array-like): Maximum bounds per dimension.
-            voltage (float): Voltage to apply at each new landmark.
+		Args:
+			minRange (array-like): Minimum bounds per dimension.
+			maxRange (array-like): Maximum bounds per dimension.
+			voltage (float): Voltage to apply at each new landmark.
 
-        Returns:
-            List[Landmark]: The list of newly added landmarks.
-        """
-        adding = []
-        data_np = self.data.getNumpy()
-        for idx, point in enumerate(data_np):
-            if np.all(point >= minRange) and np.all(point <= maxRange):
-                adding.append(Landmark(idx, voltage))
-        self.addLandmarks(adding)
-        return adding
+		Returns:
+			List[Landmark]: The list of newly added landmarks.
+		"""
+		adding = []
+		data_np = self.data.getNumpy()
+		for idx, point in enumerate(data_np):
+			if np.all(point >= minRange) and np.all(point <= maxRange):
+				adding.append(Landmark(idx, voltage))
+		self.addLandmarks(adding)
+		return adding
 
 class Solver(kmeans.DistanceBased):
 	"""Solves a given Problem"""
