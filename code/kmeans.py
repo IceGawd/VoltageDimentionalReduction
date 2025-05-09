@@ -36,6 +36,8 @@ class Partitions(DistanceBased):
 		super().__init__()
 
 	def k_means_plus_plus(self, k):
+		"""The old k-means++ algorithm before using sci-kit"""
+
 		# print(self.data.data)
 		self.centers = [create_data.select_random(self.data)]
 
@@ -63,6 +65,7 @@ class Partitions(DistanceBased):
 		return self.centers
 
 	def k_means(self, k, seed=42, savePointAssignments=False):
+		"""Runs k-means and saves the centers and point counts. With option to save pointAssignments for voronoi drawing"""
 		if (seed == -1):
 			kmeans = KMeans(n_clusters=k, init="k-means++").fit(self.data)
 		else:
@@ -86,6 +89,8 @@ class Partitions(DistanceBased):
 		# self.voronoi = Voronoi(self.centers)
 
 	def my_k_means(self, k, seed=42, savePointAssignments=False):
+		"""The old k-means algorithm"""
+
 		if (seed != -1):
 			random.seed(seed)
 		
@@ -125,6 +130,16 @@ class Partitions(DistanceBased):
 		self.voronoi = Voronoi(self.centers)
 
 	def getClosestPoints(self, index):
+		"""
+		Finds the points whose closest points are the point indicated by the index
+
+		Args:
+			index (int): the index of the point
+
+		Returns:
+			list: All the points whose closest point is data[index]
+
+		"""
 		closest = []
 		for i, point in enumerate(self.data):
 			min_index = 0
