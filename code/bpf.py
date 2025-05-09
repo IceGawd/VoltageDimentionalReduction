@@ -102,27 +102,12 @@ class BestParameterFinder():
 		a specified range, computing voltages using a solver, and minimizing some metric
 		between the voltage distribution and a uniform distribution.
 
-		Parameters:
-		-----------
-		kernel : object
-			The kernel function or object used to compute partition weights.
-		landmarks : list
-			A list of landmark points used in the solver.
-		data : object
-			Either a data object or a partition object containing centers used in the solver.
-		nInfUniform : function (list of floating point values -> floating point value)
-			A function that is used to quantify if voltages are good or bad, the smaller the better
-		minBound : int, optional (default=1e-5)
-			The minimum value to consider for `C` and `P_g` as 10^minBound.
-		maxBound : int, optional (default=1e5)
-			The maximum value to consider for `C` and `P_g` as 10^maxBound.
+		Args:
+			a (float): A number representing the first addend in the addition.
+			b (float): A number representing the second addend in the addition.
 
 		Returns:
-		--------
-		tuple
-			A tuple (bestC, bestG), where:
-			- bestC (float): The optimized value for parameter C.
-			- bestG (float): The optimized value for parameter P_g.
+			float: A number representing the arithmetic sum of `a` and `b`.
 		"""
 
 		window_size = (maxBound - minBound) / 2
