@@ -18,15 +18,16 @@ jobs:
 
     - name: Install dependencies
       run: |
-        pip install mkdocs==1.1.2 mkdocs-material mkdocstrings[python]
+        pip install mkdocs mkdocs-material mkdocstrings[python]
 
     - name: Configure Git
       run: |
         git config --global credential.helper ""
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
+        git remote set-url origin https://IceGawd:${{ secrets.GH_PAT }}@github.com/IceGawd/VoltageDimentionalReduction.git
 
     - name: Deploy with MkDocs
       run: mkdocs gh-deploy --force
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GH_PAT }}
