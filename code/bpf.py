@@ -17,8 +17,8 @@ class BestParameterFinder:
 		Initializes the BestParameterFinder.
 
 		Args:
-			metric (Optional[Callable[[BestParameterFinder, np.ndarray], float]]):
-				A custom metric function. Defaults to `expWithStd`.
+		    metric (Optional[Callable[[BestParameterFinder, np.ndarray], float]]):
+		    A custom metric function. Defaults to `expWithStd`.
 		"""
 		self.metric = metric or self.expWithStd
 		self.p_g: Optional[float] = None
@@ -143,8 +143,11 @@ class BestParameterFinder:
 
 		Args:
 			landmarks (List): Landmarks to add to the problem.
-			data (Union[create_data.Data, kmeans.Partitions]): Input data.
-			c (float): Kernel parameter (log space).
+			data Input Data. One of two types:
+                            * create_data.Data    ##A?##
+                            * kmeans.Partitions   weighted centroids corresponding to a
+                                                  k-means partition of the space 
+			c (float): Kernel parameter (log space). ##What does log-space mean?##
 			p_g (float): Resistance to ground (log space).
 			approx (bool): Whether to use approximation. Defaults to False.
 			approx_epsilon (Optional[float]): Epsilon value for approximation.
@@ -186,7 +189,13 @@ class BestParameterFinder:
 			return self.metric(voltages)
 		else:
 			return voltages, meanProblem
-
+        # def setKernelWidth(
+        #                 data: kMeans.Partitions,
+        #                 k: int = 10) -> float:
+        #         """ Set kernel width using nearest neighbors """
+        #         centers=data.data
+        #         print("size of centers=",centers.shape)
+        
 	def bestParameterFinder(
 		self,
 		landmarks: List,
