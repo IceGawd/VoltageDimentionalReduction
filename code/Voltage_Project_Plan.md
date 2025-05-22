@@ -1,4 +1,5 @@
 # Description
+This project is by Yoav Freund's Lab: yfreund@ucsd.edu
 
 The goal of this project is to create an efficient implementation of
 the voltage-maps idea as described in the paper "Structure from
@@ -60,7 +61,7 @@ The main classes are:
 
 * Experience in data analysis
 * Curiosity and drive.
-* Ability to discuss the papers above, starting with Doyle and Snell.
+* Ability to discuss the papers above, starting with the first 20 pages of Doyle and Snell.
 * Writing well organized, well documented efficient and readable python code.
 * Numpy, Pandas, Scipy. Array operations rather than for loops.
 * jupyter notebooks.
