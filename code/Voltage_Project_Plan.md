@@ -58,7 +58,10 @@ The main classes are:
 
 ## Skills required
 
-* Writing well organized, efficient and readable python code.
+* Experience in data analysis
+* Curiosity and drive.
+* Ability to discuss the papers above, starting with Doyle and Snell.
+* Writing well organized, well documented efficient and readable python code.
 * Numpy, Pandas, Scipy. Array operations rather than for loops.
 * jupyter notebooks.
 * GitHub, including creating and merging branches.
