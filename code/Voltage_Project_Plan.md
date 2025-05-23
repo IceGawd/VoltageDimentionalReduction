@@ -55,7 +55,7 @@ The main classes are:
 * **Kmeans**: given a data file, uses streaming to generate a weighted set
   of points (a partition).
 * **Visualization**: create 2D visualizations of the voltage map
-
+* **Map**: a collection of solutions which defines the location of each point
 
 ## Skills required
 
