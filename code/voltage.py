@@ -146,7 +146,7 @@ class Problem(kmeans.DistanceBased):
 			r (float): Radius threshold.
 
 		Returns:
-			ndarray: Adjacency-like matrix (n×n) of 0/1 floats.
+			ndarray: Adjacency-like matrix (n × n) of 0/1 floats.
 		"""
 		dist2 = self.efficientSquareDistance(data)
 		return (dist2 <= r**2).astype(float)
@@ -165,6 +165,15 @@ class Problem(kmeans.DistanceBased):
 		dist2 = self.efficientSquareDistance(data)
 		return np.exp(-dist2 / (2 * std**2))
 
+	def clearWeights(self):
+		n = len(self.data)
+
+		self.weights = np.zeros([n, n])
+		if (self.universalGround):
+			self.landmarks = self.landmarks[:-1]
+
+		self.universalGround = False
+
 	def setWeights(self, *c: Any) -> np.ndarray:
 		"""
 		Computes and normalizes the weight matrix on the original data.
@@ -173,7 +182,7 @@ class Problem(kmeans.DistanceBased):
 			*c: Parameters to pass into the currently set kernel function.
 
 		Returns:
-			ndarray: The normalized weight matrix (n×n).
+			ndarray: The normalized weight matrix (n × n).
 		"""
 		data_np = self.data.getNumpy()
 		n = len(self.data)
@@ -183,14 +192,32 @@ class Problem(kmeans.DistanceBased):
 
 	def normalizeWeights(self) -> None:
 		"""
-		Normalizes each row of the weight matrix to sum to 1.
+		Normalizes each row of the weight matrix so that when the diagonal is set to 1,
+		the entire row sums to 1.
 
 		Raises:
-			ValueError: If any row sums to zero, resulting in NaNs.
+			ValueError: If any row cannot be normalized properly.
 		"""
-		self.weights = self.weights / self.weights.sum(axis=1, keepdims=True)
+		np.fill_diagonal(self.weights, 0.0)  # Step 1: Zero the diagonals
+
+		row_sums = self.weights.sum(axis=1, keepdims=True)
+		adjustment = 1.0 - row_sums  # How much we need to assign to the diagonal
+
+		# Avoid division by zero and raise an error if a row sum is already >= 1
+		if (adjustment < 0).any():
+			raise ValueError("Row sums exceed 1. Cannot normalize with diagonal set to 1.")
+		
+		# Normalize the off-diagonal values to leave room for the diagonal = 1
+		with np.errstate(invalid='raise'):
+			try:
+				self.weights = self.weights * (adjustment / row_sums)
+			except FloatingPointError:
+				raise ValueError("Normalization failed due to division by zero or invalid values.")
+
+		np.fill_diagonal(self.weights, 1.0)  # Step 3: Set diagonals to 1
+
 		if np.isnan(self.weights).any():
-			raise ValueError("Array contains NaN values!")
+			raise ValueError("Array contains NaN values after normalization!")
 
 	def setPartitionWeights(self, partition: Any, *c: Any) -> np.ndarray:
 		"""
