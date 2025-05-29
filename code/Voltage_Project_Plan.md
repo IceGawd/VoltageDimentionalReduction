@@ -61,7 +61,7 @@ The main classes are:
 
 * Experience in data analysis
 * Curiosity and drive.
-* Ability to discuss the papers above, starting with the first 20 pages of Doyle and Snell.
+* Read the first 23 pages of Doyle and Snell, solved the problems up to 1.2.8 and is able to discuss the text and explain the solutions.
 * Writing well organized, well documented efficient and readable python code.
 * Numpy, Pandas, Scipy. Array operations rather than for loops.
 * jupyter notebooks.
