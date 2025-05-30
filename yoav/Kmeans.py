@@ -2,7 +2,7 @@ import numpy as np
 import faiss
 import os
 import argparse
-
+import config
 # ------------------- Reader -------------------
 class ParseException(Exception):
     pass
@@ -88,7 +88,7 @@ class StreamingKMeansPlusPlusFAISS:
         centroids (List[np.ndarray]): List of current centroids.
     """
 
-    def __init__(self, args,d, Z, max_centroids):
+    def __init__(self, d, Z):
         """
         Initializes the streaming k-means++ class.
 
@@ -100,8 +100,7 @@ class StreamingKMeansPlusPlusFAISS:
         self.centroids = []
         self.d = d
         self.Z = Z
-        self.max_centroids = max_centroids
-        self.args=args
+        self.max_centroids = config.params.max_centroids
 
     def _build_faiss_index(self):
         """
@@ -112,7 +111,7 @@ class StreamingKMeansPlusPlusFAISS:
         """
         if not self.centroids:
             return None
-        if self.args.normalize_dist:
+        if config.params.normalize_dist:
             faiss.normalize_L2(self.d)
         index = faiss.IndexFlatL2(self.d)
         index.add(np.stack(self.centroids))
@@ -163,7 +162,7 @@ class StreamingKMeansPlusPlusFAISS:
         return np.stack(self.centroids) if self.centroids else np.empty((0, self.d), dtype=np.float32)
 
 # ------------------- Streaming_Kmeans----------
-def Streaming_Kmeans(args):
+def Streaming_Kmeans():
 
     """
     Main function to perform streaming k-means++ with FAISS.
@@ -180,23 +179,22 @@ def Streaming_Kmeans(args):
         batch-size (int): Size of streaming batches (default=1000).
         output (str): Output file for centroids (.npy format).
 
-    Example call:
-    Streaming_Kmeans({'file_path':'data/MNIST.txt','max_centroids':100})
+    parameters are passed through aconfig
     """
 
-    reader = Reader(args.file_path)
+    reader = Reader(config.params.file_path)
 
     # Step 1: Estimate Z from an initial buffer
     buffer = []
     centroid = None
     d = None
 
-    for batch in reader.stream_batches(args.batch_size):
+    for batch in reader.stream_batches(config.params.batch_size):
         if centroid is None:
             centroid = batch[np.random.randint(len(batch))]
             d = batch.shape[1]
         buffer.append(batch)
-        if sum(len(b) for b in buffer) >= args.init_size:
+        if sum(len(b) for b in buffer) >= config.params.init_size:
             break
 
     buffer = np.vstack(buffer)
@@ -210,10 +208,10 @@ def Streaming_Kmeans(args):
     print(f"\nEstimated Z = {Z:.4f}")
 
     # Step 2: Streaming centroid selection
-    skmeans = StreamingKMeansPlusPlusFAISS(args,d=d, Z=Z, max_centroids=args.max_centroids)
+    skmeans = StreamingKMeansPlusPlusFAISS(d=d, Z=Z)
     skmeans.centroids.append(centroid)  # seed with the first point
 
-    for batch in reader.stream_batches(args.batch_size):
+    for batch in reader.stream_batches(config.params.batch_size):
         norms = np.linalg.norm(batch, axis=1, keepdims=True)
         batch = batch / np.maximum(norms, 1e-10)  # normalize, avoid divide-by-zero
         skmeans.update(batch)
@@ -234,7 +232,8 @@ def main():
     parser.add_argument("--output", type=str, default="streaming_centroids.npy", help="Output .npy file")
     args = parser.parse_args()
 
-    skmeans=Streaming_Kmeans(args)
+    config.params=args
+    skmeans=Streaming_Kmeans()
 
     centroids = skmeans.get_centroids()
     print(f"\nFinal number of centroids: {centroids.shape[0]}")
