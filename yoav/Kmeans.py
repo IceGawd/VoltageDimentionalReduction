@@ -4,6 +4,25 @@ import os
 import argparse
 
 # ------------------- Reader -------------------
+class ParseException(Exception):
+    pass
+
+def readvec(file):
+    line = file.readline()
+    if not line:
+        return None
+    parts = line.strip().split(',')
+    if len(parts) < 2:
+        raise ParseException(parts)
+    try:
+        vec = np.array([float(x) for x in parts[1:]], dtype=np.float32)
+        return vec
+    except ValueError:
+        return None  # Skip lines with bad floats
+
+    except ValueError:
+        raise ParseException(parts)
+
 class Reader:
     """
     Reads a text file containing vectors line-by-line and yields batches of vectors.
@@ -26,6 +45,7 @@ class Reader:
         self.file = open(file_path, 'r', encoding='utf-8')
         self.counter = 0
 
+
     def stream_batches(self, batch_size):
         """
         Generator that yields batches of vectors as NumPy arrays.
@@ -39,20 +59,12 @@ class Reader:
         while True:
             vectors = []
             for _ in range(batch_size):
-                line = self.file.readline()
-                if not line:
-                    break
-                parts = line.strip().split()
-                if len(parts) < 2:
-                    continue
-                try:
-                    vec = np.array([float(x) for x in parts[1:]], dtype=np.float32)
+                vec=readvec(self.file)
+                if not vec is None:
                     vectors.append(vec)
                     self.counter += 1
                     if self.counter % 1000 == 0:
                         print(f"\rRead {self.counter} vectors", end='', flush=True)
-                except ValueError:
-                    continue  # Skip lines with bad floats
             if not vectors:
                 break
             yield np.stack(vectors)
@@ -76,7 +88,7 @@ class StreamingKMeansPlusPlusFAISS:
         centroids (List[np.ndarray]): List of current centroids.
     """
 
-    def __init__(self, d, Z, max_centroids):
+    def __init__(self, args,d, Z, max_centroids):
         """
         Initializes the streaming k-means++ class.
 
@@ -89,6 +101,7 @@ class StreamingKMeansPlusPlusFAISS:
         self.d = d
         self.Z = Z
         self.max_centroids = max_centroids
+        self.args=args
 
     def _build_faiss_index(self):
         """
@@ -99,6 +112,8 @@ class StreamingKMeansPlusPlusFAISS:
         """
         if not self.centroids:
             return None
+        if self.args.normalize_dist:
+            faiss.normalize_L2(self.d)
         index = faiss.IndexFlatL2(self.d)
         index.add(np.stack(self.centroids))
         return index
@@ -147,9 +162,9 @@ class StreamingKMeansPlusPlusFAISS:
         """
         return np.stack(self.centroids) if self.centroids else np.empty((0, self.d), dtype=np.float32)
 
+# ------------------- Streaming_Kmeans----------
+def Streaming_Kmeans(args):
 
-# ------------------- Main ---------------------
-def main():
     """
     Main function to perform streaming k-means++ with FAISS.
 
@@ -158,20 +173,16 @@ def main():
         2. Select centroids incrementally using streaming batches.
         3. Save final centroids to a .npy file.
 
-    Command-line Arguments:
+    Arguments are given as a dictionary:
         file_path (str): Path to input file with vectors.
-        --max-centroids (int): Max number of centroids (default=1000).
-        --init-size (int): Number of initial points to estimate Z (default=10000).
-        --batch-size (int): Size of streaming batches (default=1000).
-        --output (str): Output file for centroids (.npy format).
+        max-centroids (int): Max number of centroids (default=1000).
+        init-size (int): Number of initial points to estimate Z (default=10000).
+        batch-size (int): Size of streaming batches (default=1000).
+        output (str): Output file for centroids (.npy format).
+
+    Example call:
+    Streaming_Kmeans({'file_path':'data/MNIST.txt','max_centroids':100})
     """
-    parser = argparse.ArgumentParser(description="Streaming k-means++ with FAISS")
-    parser.add_argument("file_path", help="Path to a text file of vectors (word + floats)")
-    parser.add_argument("--max-centroids", type=int, default=1000, help="Maximum number of centroids")
-    parser.add_argument("--init-size", type=int, default=10000, help="Number of points to estimate Z")
-    parser.add_argument("--batch-size", type=int, default=1000, help="Batch size for streaming")
-    parser.add_argument("--output", type=str, default="streaming_centroids.npy", help="Output .npy file")
-    args = parser.parse_args()
 
     reader = Reader(args.file_path)
 
@@ -195,12 +206,11 @@ def main():
     index = faiss.IndexFlatL2(d)
     index.add(centroid.reshape(1, -1))
     D, _ = index.search(buffer, 1)
-    print(D)
     Z = np.percentile(D[:, 0], 99)
     print(f"\nEstimated Z = {Z:.4f}")
 
     # Step 2: Streaming centroid selection
-    skmeans = StreamingKMeansPlusPlusFAISS(d=d, Z=Z, max_centroids=args.max_centroids)
+    skmeans = StreamingKMeansPlusPlusFAISS(args,d=d, Z=Z, max_centroids=args.max_centroids)
     skmeans.centroids.append(centroid)  # seed with the first point
 
     for batch in reader.stream_batches(args.batch_size):
@@ -209,6 +219,22 @@ def main():
         skmeans.update(batch)
 
     reader.close()
+
+    return skmeans
+
+
+# ------------------- Main ---------------------
+def main():
+    parser = argparse.ArgumentParser(description="Streaming k-means++ with FAISS")
+    parser.add_argument("file_path", help="Path to a text file of vectors (word + floats)")
+    parser.add_argument("--normalize_dist", action="store_true",help="normalize vectors to L_2=1 before calculating distances")
+    parser.add_argument("--max-centroids", type=int, default=1000, help="Maximum number of centroids")
+    parser.add_argument("--init-size", type=int, default=10000, help="Number of points to estimate Z")
+    parser.add_argument("--batch-size", type=int, default=1000, help="Batch size for streaming")
+    parser.add_argument("--output", type=str, default="streaming_centroids.npy", help="Output .npy file")
+    args = parser.parse_args()
+
+    skmeans=Streaming_Kmeans(args)
 
     centroids = skmeans.get_centroids()
     print(f"\nFinal number of centroids: {centroids.shape[0]}")

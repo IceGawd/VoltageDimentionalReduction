@@ -86,3 +86,6 @@ class Problem:
                 [ground_row, np.array([[1.0 / self.r]])]
             ])
             return kernel_with_ground
+
+
+        
