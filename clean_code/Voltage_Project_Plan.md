@@ -9,7 +9,7 @@ Andreas Oslandsbotn available from Arxiv.
 Another paper that is important for understanding this project is 
 Doyle and Snell "Random walks and electric networks"
 
-The Structure from Voltage paper proposes an logarithm for analyzing
+The Structure from Voltage paper proposes an algorithm for analyzing
 a data cloud in a metric space and to
 use this map to generate two dimensional visualizations of parts of
 this data cloud. The work is based on the seminal work of Belkin and

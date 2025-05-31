@@ -11,7 +11,7 @@ def readvec(file):
     line = file.readline()
     if not line:
         return None
-    parts = line.strip().split(',')
+    parts = line.strip().split()
     if len(parts) < 2:
         raise ParseException(parts)
     try:
@@ -111,10 +111,11 @@ class StreamingKMeansPlusPlusFAISS:
         """
         if not self.centroids:
             return None
+        stack_centroids=np.stack(self.centroids)
         if config.params.normalize_dist:
-            faiss.normalize_L2(self.d)
+            faiss.normalize_L2(stack_centroids)
         index = faiss.IndexFlatL2(self.d)
-        index.add(np.stack(self.centroids))
+        index.add(stack_centroids)
         return index
 
     def _compute_distances_squared(self, X, index):
@@ -147,6 +148,8 @@ class StreamingKMeansPlusPlusFAISS:
         accept_mask = (rand_vals < probs) & (d2 > 0)
 
         for x in X_batch[accept_mask]:
+            if config.params.normalize_dist:
+                x = x / np.linalg.norm(x)
             if len(self.centroids) < self.max_centroids:
                 self.centroids.append(x.copy())
             else:
@@ -159,10 +162,14 @@ class StreamingKMeansPlusPlusFAISS:
         Returns:
             np.ndarray: Centroids of shape (num_centroids, d)
         """
-        return np.stack(self.centroids) if self.centroids else np.empty((0, self.d), dtype=np.float32)
+        centroids = np.stack(self.centroids) if self.centroids else np.empty((0, self.d), dtype=np.float32)
+        if config.params.normalize_dist and centroids.shape[0] > 0:
+            norms = np.linalg.norm(centroids, axis=1, keepdims=True)
+            centroids = centroids / np.maximum(norms, 1e-10)
+        return centroids
 
 # ------------------- Streaming_Kmeans----------
-def Streaming_Kmeans():
+def Streaming_Kmeans(filepath):
 
     """
     Main function to perform streaming k-means++ with FAISS.
@@ -172,48 +179,81 @@ def Streaming_Kmeans():
         2. Select centroids incrementally using streaming batches.
         3. Save final centroids to a .npy file.
 
-    Arguments are given as a dictionary:
-        file_path (str): Path to input file with vectors.
-        max-centroids (int): Max number of centroids (default=1000).
-        init-size (int): Number of initial points to estimate Z (default=10000).
-        batch-size (int): Size of streaming batches (default=1000).
-        output (str): Output file for centroids (.npy format).
-
-    parameters are passed through aconfig
+    parameters are passed through config.params, see listing of parameters in argparse section.
     """
+    reader = Reader(filepath)
 
-    reader = Reader(config.params.file_path)
-
-    # Step 1: Estimate Z from an initial buffer
+    # Step 1: Read initial buffer of vectors for Z estimation
     buffer = []
-    centroid = None
     d = None
-
+    total_needed = config.params.init_size
+    collected = 0
     for batch in reader.stream_batches(config.params.batch_size):
-        if centroid is None:
-            centroid = batch[np.random.randint(len(batch))]
+        if d is None:
             d = batch.shape[1]
+        if collected + len(batch) > total_needed:
+            batch = batch[:total_needed - collected]
         buffer.append(batch)
-        if sum(len(b) for b in buffer) >= config.params.init_size:
+        collected += len(batch)
+        if collected >= total_needed:
             break
 
     buffer = np.vstack(buffer)
-    buffer /= np.linalg.norm(buffer, axis=1, keepdims=True)
+    if config.params.normalize_dist:
+        faiss.normalize_L2(buffer)
 
-    centroid = centroid / np.linalg.norm(centroid)
+    # Compute all pairwise distances using FAISS and set Z to the maximal distance
     index = faiss.IndexFlatL2(d)
-    index.add(centroid.reshape(1, -1))
-    D, _ = index.search(buffer, 1)
-    Z = np.percentile(D[:, 0], 99)
-    print(f"\nEstimated Z = {Z:.4f}")
+    index.add(buffer)
+    D, _ = index.search(buffer, buffer.shape[0])  # D[i, j] is the squared L2 distance from buffer[i] to buffer[j]
+    np.fill_diagonal(D, -np.inf)
+    Z = np.sqrt(np.max(D))  # Take sqrt because FAISS returns squared distances
+    print(f"\nEstimated Z (max pairwise distance, FAISS) = {Z:.4f}")
+    print(f"minimum distance in buffer = {np.sqrt(np.min(D[D > 0])):.4f}")
+
+    # Print 0.1% and 99% percentiles of the non-diagonal values in D
+    D_flat = D[D > 0]  # Exclude zeros (self-distances)
+    p01 = np.sqrt(np.percentile(D_flat, 0.1))
+    p99 = np.sqrt(np.percentile(D_flat, 99))
+    print(f"0.1% percentile distance in buffer = {p01:.4f}")
+    print(f"99% percentile distance in buffer = {p99:.4f}")
+
+    # Plot histogram of pairwise distances in D_flat and overlay with nearest neighbor distances
+    import matplotlib.pyplot as plt
+    plt.figure(figsize=(8, 4))
+    # Histogram of all pairwise distances (normalized to be a distribution)
+    plt.hist(np.sqrt(D_flat), bins=100, color='blue', alpha=0.5, label='All Pairwise Distances', density=True)
+    # Histogram of nearest neighbor distances (normalized to be a distribution)
+    D_no_diag = D.copy()
+    np.fill_diagonal(D_no_diag, np.inf)
+    nn1_distances = np.sqrt(np.partition(D_no_diag, 1, axis=1)[:, 1])  # 1st nearest neighbor (not self)
+    nn2_distances = np.sqrt(np.partition(D_no_diag, 2, axis=1)[:, 2])  # 2nd nearest neighbor
+    nn3_distances = np.sqrt(np.partition(D_no_diag, 3, axis=1)[:, 3])  # 3rd nearest neighbor
+    nn10_distances = np.sqrt(np.partition(D_no_diag, 10, axis=1)[:, 10])  # 10th nearest neighbor
+    plt.hist(nn1_distances, bins=100, color='red', alpha=0.5, label='1st Nearest Neighbor', density=True)
+    plt.hist(nn2_distances, bins=100, color='green', alpha=0.5, label='2nd Nearest Neighbor', density=True)
+    plt.hist(nn3_distances, bins=100, color='orange', alpha=0.5, label='3rd Nearest Neighbor', density=True)
+    plt.hist(nn10_distances, bins=100, color='purple', alpha=0.5, label='10th Nearest Neighbor', density=True)
+    plt.title('Histogram of Pairwise and k-th Nearest Neighbor Distances in Buffer')
+    plt.xlabel('Distance')
+    plt.ylabel('Density')
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
 
     # Step 2: Streaming centroid selection
+    # For seeding, pick a random vector from the buffer
+    centroid = buffer[np.random.randint(len(buffer))]
     skmeans = StreamingKMeansPlusPlusFAISS(d=d, Z=Z)
+    if config.params.normalize_dist:
+        centroid = centroid.reshape(1, -1)
+        faiss.normalize_L2(centroid)
+        centroid = centroid[0]
     skmeans.centroids.append(centroid)  # seed with the first point
 
     for batch in reader.stream_batches(config.params.batch_size):
-        norms = np.linalg.norm(batch, axis=1, keepdims=True)
-        batch = batch / np.maximum(norms, 1e-10)  # normalize, avoid divide-by-zero
+        if config.params.normalize_dist:
+            faiss.normalize_L2(batch)
         skmeans.update(batch)
 
     reader.close()
@@ -227,14 +267,30 @@ def main():
     parser.add_argument("file_path", help="Path to a text file of vectors (word + floats)")
     parser.add_argument("--normalize_dist", action="store_true",help="normalize vectors to L_2=1 before calculating distances")
     parser.add_argument("--max-centroids", type=int, default=1000, help="Maximum number of centroids")
-    parser.add_argument("--init-size", type=int, default=10000, help="Number of points to estimate Z")
+    parser.add_argument("--init-size", type=int, default=1000, help="Number of points to estimate Z")
     parser.add_argument("--batch-size", type=int, default=1000, help="Batch size for streaming")
     parser.add_argument("--output", type=str, default="streaming_centroids.npy", help="Output .npy file")
     args = parser.parse_args()
 
     config.params=args
-    skmeans=Streaming_Kmeans()
-
+    filepath = args.file_path
+    if not os.path.exists(filepath):
+        raise FileNotFoundError(f"Input file {filepath} does not exist.")
+    if not filepath.endswith('.txt'):
+        raise ValueError(f"Output directory {os.path.dirname(args.output)} does not exist.")
+    if args.max_centroids <= 0:
+        raise ValueError("max-centroids must be a positive integer.")
+    if args.init_size <= 0:
+        raise ValueError("init-size must be a positive integer.")
+    if args.batch_size <= 0:
+        raise ValueError("batch-size must be a positive integer.")
+    if args.normalize_dist:
+        print("Normalizing vectors to L2=1 before distance calculations.")
+    else:
+        print("Using raw vectors without normalization for distance calculations.")
+    
+    skmeans=Streaming_Kmeans(filepath)
+ 
     centroids = skmeans.get_centroids()
     print(f"\nFinal number of centroids: {centroids.shape[0]}")
     np.save(args.output, centroids)
