@@ -58,7 +58,7 @@ class Problem:
             for j_idx, dist in zip(indices[i][1:], distances[i][1:]):  # skip self (first entry)
                 # Unweighted NN
                 weight = 1.0 / k
-                # Weighted within nearest neighbor
+                # Weighted within nearest neighbor, optional, if we want to use a gaussian kernel
                 # weight = np.exp(-dist ** 2 / (self.c ** 2))
                 kernel[i, j_idx] = weight
                 kernel[j_idx, i] = weight  # symmetric
@@ -69,6 +69,7 @@ class Problem:
     
         # Convert kernel to CSR and build full matrix
         kernel = kernel.tocsr()
+        self.graph = kernel # exports graph for use by rg_optimizer
         
         if sparse:
             # Build (n+1)x(n+1) matrix
