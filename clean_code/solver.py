@@ -3,69 +3,60 @@ import problem
 
 from typing import List
 import numpy as np
-from scipy.sparse.linalg import cg
-from scipy.sparse import csr_matrix
+from scipy.linalg import solve
 
 class Solver:
-    """
-    Solves for voltage distributions across a set of points in a resistance network.
+	"""
+	Solves for voltage distributions across a set of points in a resistance network.
 
-    Given a problem with defined resistances and a set of landmarks with fixed voltages,
-    this class computes the approximate voltages at all other points.
+	Given a problem with defined resistances and a set of landmarks with fixed voltages,
+	this class computes the approximate voltages at all other points.
 
-    Attributes:
-        problem (Problem): The resistance network model.
-    """
+	Attributes:
+		problem (Problem): The resistance network model.
+	"""
 
-    def __init__(self, problem: problem.Problem):
-        """
-        Initializes the solver with a given problem.
+	def __init__(self, problem: problem.Problem):
+		"""
+		Initializes the solver with a given problem.
 
-        Args:
-            problem (Problem): The problem instance defining the resistance matrix.
-        """
-        self.problem = problem
+		Args:
+			problem (Problem): The problem instance defining the resistance matrix.
+		"""
+		self.problem = problem
 
-    def approximate_voltages(self, landmarks: List[landmark.Landmark], max_iters: int = 100) -> np.ndarray:
-        """
-        Computes approximate voltages for all points in the network given landmark constraints.
+	def compute_voltages(self, k: int = 10):
+		"""
+		Computes and returns the voltages for the given problem
 
-        Args:
-            landmarks (List[Landmark]): List of Landmark instances with indices and voltage values.
-            max_iters (int): Maximum number of iterations for the solver.
+		Returns:
+			voltages (List[float]): The voltages corresponding to each point in set of points
+		"""
 
-        Returns:
-            np.ndarray: Array of voltages of size (n,) where n is the number of points.
-        """
-        n = self.problem.points.shape[0]
-        R = self.problem.calcResistanceMatrix()  # (n+1)x(n+1) matrix
-        R = R.tocsr() if not isinstance(R, csr_matrix) else R
+		weights = self.problem.calcResistanceMatrix(k)
 
-        R_n = R[:-1, :-1]
-        ground_column = R[:-1, -1].toarray().flatten()
+		n = weights.shape[0]
+		
+		constrained_nodes =   [l.index for l in self.problem.landmarks]
+		unconstrained_nodes = [i for i in range(n) if i not in constrained_nodes]
+		
+		b = np.zeros(n)
+		for landmark in self.problem.landmarks:
+			for y in range(0, n):
+				b[y] += landmark.voltage * weights[y][landmark.index]
+		
+		A_unconstrained = np.identity(len(unconstrained_nodes)) - weights[np.ix_(unconstrained_nodes, unconstrained_nodes)]
+		b_unconstrained = b[unconstrained_nodes]
+		v_unconstrained = solve(A_unconstrained, b_unconstrained)
 
-        # Initialize voltage vector and fixed mask
-        V = np.zeros(n)
-        fixed_mask = np.zeros(n, dtype=bool)
-        fixed_values = {}
+		self.voltages = np.zeros(n)
 
-        for landmark in landmarks:
-            fixed_mask[landmark.index] = True
-            fixed_values[landmark.index] = landmark.voltage
-            V[landmark.index] = landmark.voltage
+		for landmark in self.problem.landmarks:
+			self.voltages[landmark.index] = landmark.voltage
 
-        # Identify free indices and adjust linear system
-        free_indices = np.where(~fixed_mask)[0]
-        A = R_n[free_indices][:, free_indices]
+		self.voltages[unconstrained_nodes] = v_unconstrained
+		
+		if (self.problem.universalGround):
+			self.voltages = self.voltages[:-1]
 
-        b = ground_column[free_indices].copy()
-        if any(fixed_mask):
-            fixed_indices = np.where(fixed_mask)[0]
-            fixed_vector = np.array([fixed_values[i] for i in fixed_indices])
-            b -= R_n[free_indices][:, fixed_indices] @ fixed_vector
-
-        # Solve the system
-        V_free, _ = cg(A, b, maxiter=max_iters)
-        V[free_indices] = V_free
-
-        return V
+		return self.voltages
