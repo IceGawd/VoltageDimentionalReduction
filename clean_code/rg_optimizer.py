@@ -9,6 +9,8 @@ This module provides a function to search for the best value of r by minimizing 
 import numpy as np
 from typing import Callable, Any
 
+import solver
+
 class rg_optimizer:
     """
     Class for optimizing the ground resistance parameter r in a Problem instance.
@@ -53,7 +55,7 @@ class rg_optimizer:
 
         def compute_avg_voltage(r):
             self.problem.r = r
-            v = self.problem.calcVoltage(landmark, r)
+            v = solver.Solver(self.problem)
             return np.mean(v[indices])
 
         best_r = None

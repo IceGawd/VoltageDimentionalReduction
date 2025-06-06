@@ -11,6 +11,7 @@ class Problem:
 
 	Attributes:
 		points (SetOfPoints): The points object.
+		landmarks (List[Landmark])
 		c (float): Kernel width parameter used in the Gaussian kernel.
 		r (float): Resistance to ground.
 	"""
@@ -32,7 +33,7 @@ class Problem:
 		self.points = points
 		self.r = r
 
-	def calcResistanceMatrix(self, k: int = 10) -> np.ndarray:
+	def calcResistanceMatrix(self, k: int = 10, universalGround: bool = True) -> np.ndarray:
 		"""
 		Calculates the (n+1)x(n+1) row-normalized resistance matrix using k-nearest neighbors.
 
@@ -57,20 +58,23 @@ class Problem:
 
 		for i in range(n):
 			for j in indices[i][1:]:					# skip the point itself
-				kernel[i, j] += weight
-				kernel[j, i] += weight					# keep it symmetric
+				kernel[i, j] += weight * self.points.weights[i] * self.points.weights[j] 
+				kernel[j, i] += weight * self.points.weights[j] * self.points.weights[i]	# keep it symmetric
 
 		# Constant connection to the ground node
-		connectivity = 1.0 / self.r						# self.r must be defined elsewhere
-		ground_col = np.full((n, 1), connectivity, dtype=float)
-		ground_row = ground_col.T						# (1 × n)
+		if (universalGround):
+			connectivity = kernel.sum() / (self.r * n * n)
+			ground_col = np.full((n, 1), connectivity, dtype=float)
+			ground_row = ground_col.T						# (1 × n)
 
-		# Assemble full (n+1) × (n+1) matrix
-		top    = np.hstack((kernel, ground_col))		# (n × (n+1))
-		bottom = np.hstack((ground_row, [[connectivity]]))
-		full   = np.vstack((top, bottom))				# ((n+1) × (n+1))
+			# Assemble full (n+1) × (n+1) matrix
+			top    = np.hstack((kernel, ground_col))		# (n × (n+1))
+			bottom = np.hstack((ground_row, [[0]]))
+			full   = np.vstack((top, bottom))				# ((n+1) × (n+1))
+		else:
+			full = kernel
 
 		# Normalize so each row sums to 0 with diagonals 1
 		row_sums = full.sum(axis=1, keepdims=True)
 		weights = full / row_sums
-		return np.identity(n + 1) - weights
+		return np.identity(weights.shape[0]) - weights

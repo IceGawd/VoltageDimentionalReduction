@@ -25,38 +25,46 @@ class Solver:
 		"""
 		self.problem = problem
 
-	def compute_voltages(self, k: int = 10):
+	def compute_voltages(self, landmarks: List["Landmark"], k: int = 10, universalGround: bool = True):
 		"""
 		Computes and returns the voltages for the given problem
+
+		Args:
+			landmarks (List["Landmark"]): The landmarks to consider when computing voltages
 
 		Returns:
 			voltages (List[float]): The voltages corresponding to each point in set of points
 		"""
 
-		weights = self.problem.calcResistanceMatrix(k)
-
+		weights = self.problem.calcResistanceMatrix(k, universalGround)
 		n = weights.shape[0]
+
+		if (universalGround):
+			landmarks.append(landmark.Landmark(n - 1, 0))
 		
-		constrained_nodes =   [l.index for l in self.problem.landmarks]
+		constrained_nodes =   [l.index for l in landmarks]
 		unconstrained_nodes = [i for i in range(n) if i not in constrained_nodes]
 		
 		b = np.zeros(n)
-		for landmark in self.problem.landmarks:
+		for lm in landmarks:
 			for y in range(0, n):
-				b[y] += landmark.voltage * weights[y][landmark.index]
+				b[y] -= lm.voltage * weights[y][lm.index]
 		
-		A_unconstrained = np.identity(len(unconstrained_nodes)) - weights[np.ix_(unconstrained_nodes, unconstrained_nodes)]
+		A_unconstrained = weights[np.ix_(unconstrained_nodes, unconstrained_nodes)]
 		b_unconstrained = b[unconstrained_nodes]
+
+		# print(A_unconstrained, b_unconstrained)
+
 		v_unconstrained = solve(A_unconstrained, b_unconstrained)
 
 		self.voltages = np.zeros(n)
 
-		for landmark in self.problem.landmarks:
-			self.voltages[landmark.index] = landmark.voltage
+		for lm in landmarks:
+			self.voltages[lm.index] = lm.voltage
 
 		self.voltages[unconstrained_nodes] = v_unconstrained
 		
-		if (self.problem.universalGround):
+		if (universalGround):
 			self.voltages = self.voltages[:-1]
 
 		return self.voltages
