@@ -76,7 +76,7 @@ class Reader:
                     vectors.append(vec)
                     labels.append(label)
                     self.counter += 1
-                    if self.counter % 1000 == 0:
+                    if self.counter % config.params['batch_size'] == 0:
                         print(f"\rRead {self.counter} vectors", end='', flush=True)
             if not vectors:
                 break
@@ -90,7 +90,7 @@ class Reader:
 
 
 # ------------- Streaming KMeans++ --------------
-class StreamingKMeansPlusPlusFAISS:
+class StreamingKMeansPlusPlus:
     """
     Implements streaming k-means++ centroid selection using FAISS for efficient distance computation.
 
@@ -98,10 +98,9 @@ class StreamingKMeansPlusPlusFAISS:
         d (int): Dimensionality of vectors.
         Z (float): Scaling constant for sampling probability.
         max_centroids (int): Maximum number of centroids to retain.
-        centroids (List[np.ndarray]): List of current centroids.
     """
 
-    def __init__(self, d, Z):
+    def __init__(self, d, max_dist2,min_dist2,index):
         """
         Initializes the streaming k-means++ class.
 
@@ -109,27 +108,17 @@ class StreamingKMeansPlusPlusFAISS:
             d (int): Vector dimensionality.
             Z (float): Normalization constant for sampling.
             max_centroids (int): Maximum number of centroids to store.
+            index (faiss.IndexFlatL2): FAISS index for efficient distance computation.
         """
-        self.centroids = []
         self.d = d
-        self.Z = Z
+        self.Z = max_dist2 - min_dist2  # Normalization constant for sampling probabilities
+        self.shift= min_dist2  # Shift to ensure non-negative distances
+    
         self.max_centroids = config.params['max_centroids']
+        assert type(index) == faiss.IndexFlatL2, "Index must be of type faiss.IndexFlatL2"
+        self.index = index
+     
 
-    def _build_faiss_index(self):
-        """
-        Builds a FAISS index over current centroids.
-
-        Returns:
-            faiss.IndexFlatL2: FAISS index with current centroids or None if empty.
-        """
-        if not self.centroids:
-            return None
-        stack_centroids=np.stack(self.centroids)
-        if config.params['normalize_vecs']:
-            faiss.normalize_L2(stack_centroids)
-        index = faiss.IndexFlatL2(self.d)
-        index.add(stack_centroids)
-        return index
 
     def _compute_distances_squared(self, X, index):
         """
@@ -142,10 +131,11 @@ class StreamingKMeansPlusPlusFAISS:
         Returns:
             np.ndarray: Squared distances for each point in X.
         """
-        if index is None or index.ntotal == 0:
-            return np.full(X.shape[0], np.inf, dtype=np.float32)
-        D, _ = index.search(X, 1)
-        return D[:, 0]
+        if self.index is None or self.index.ntotal == 0:
+            print("Index is empty, returning infinity distances.")
+            return None
+        D, I = self.index.search(X, k=1) # D[i, 0] is the squared distance from X[i] to the nearest centroid
+        return D[:, 0], I[:, 0]  # Return only the squared distances and indices of nearest centroids   
 
     def update(self, X_batch):
         """
@@ -154,20 +144,25 @@ class StreamingKMeansPlusPlusFAISS:
         Args:
             X_batch (np.ndarray): Normalized batch of vectors.
         """
-        index = self._build_faiss_index()
-        d2 = self._compute_distances_squared(X_batch, index)
-        probs = d2 / self.Z
-        rand_vals = np.random.rand(X_batch.shape[0])
-        accept_mask = (rand_vals < probs) & (d2 > 0)
+                
+        needed_centroids = self.max_centroids - self.index.ntotal
+        
+        d2,I = self._compute_distances_squared(X_batch, self.index)
+        if needed_centroids>0:
+            ratio=(d2-self.shift) / self.Z  # Shift distances 
+            probs = np.minimum(np.maximum(ratio, 0), 1)  # Ensure probabilities are in [0, 1]
+            #print('probs=',np.mean(probs))
+            rand_vals = np.random.rand(X_batch.shape[0])
+            accept_mask = (rand_vals < probs) & (d2 > 0)
 
-        for x in X_batch[accept_mask]:
+            X=np.stack(X_batch[accept_mask])
+            if self.index.ntotal + X.shape[0] > self.max_centroids:
+                X = X[:self.max_centroids - self.index.ntotal]
             if config.params['normalize_vecs']:
-                x = x / np.linalg.norm(x)
-            if len(self.centroids) < self.max_centroids:
-                self.centroids.append(x.copy())
-            else:
-                break
-
+                X = X / np.linalg.norm(X,axis=1, keepdims=True)
+            self.index.add(X)  # Add new vectors to the index          
+            print(f"\nnumber of centroids: {self.index.ntotal}, max_centroids: {self.max_centroids}")
+        
     def get_centroids(self):
         """
         Returns the current list of centroids as a NumPy array.
@@ -175,11 +170,9 @@ class StreamingKMeansPlusPlusFAISS:
         Returns:
             np.ndarray: Centroids of shape (num_centroids, d)
         """
-        centroids = np.stack(self.centroids) if self.centroids else np.empty((0, self.d), dtype=np.float32)
-        if config.params['normalize_vecs'] and centroids.shape[0] > 0:
-            norms = np.linalg.norm(centroids, axis=1, keepdims=True)
-            centroids = centroids / np.maximum(norms, 1e-10)
-        return centroids
+        return self.index.reconstruct_n(0, self.index.ntotal)
+
+
 
 # ------------------- Streaming_Kmeans----------
 def Streaming_Kmeans(filepath):
@@ -190,13 +183,16 @@ def Streaming_Kmeans(filepath):
     Steps:
         1. Estimate normalization constant Z from an initial buffer.
         2. Select centroids incrementally using streaming batches.
-        3. Save final centroids to a .npy file.
+        3. update centroids using a streaming version of the Kmeans algorithm
+        4. Save final centroids to a .npy file.
 
     parameters are passed through config.params, see listing of parameters in argparse section.
     """
     reader = Reader(filepath)
 
     # Step 1: Read initial buffer of vectors for Z estimation
+    ######################################
+
     buffer = []
     d = None
     total_needed = config.params['init_size']
@@ -213,35 +209,71 @@ def Streaming_Kmeans(filepath):
 
     buffer = np.vstack(buffer)
     if config.params['normalize_vecs']:
-        faiss.normalize_L2(buffer)
+        buffer= buffer / np.linalg.norm(buffer, axis=1, keepdims=True)
 
     # Compute all pairwise distances using FAISS and set Z to the maximal distance
-    index = faiss.IndexFlatL2(d)
+    index = faiss.IndexFlatL2(d)  # this should be the one and only place that FAISS in initialized, otherwise there are problems with 
+                                  # Initializing openMP more than once
     index.add(buffer)
     D, _ = index.search(buffer, buffer.shape[0])  # D[i, j] is the squared L2 distance from buffer[i] to buffer[j]
     np.fill_diagonal(D, -np.inf)
-    Z = np.sqrt(np.max(D))  # Take sqrt because FAISS returns squared distances
-    print(f"\nEstimated Z (max pairwise distance, FAISS) = {Z:.4f}")
-    print(f"minimum distance in buffer = {np.sqrt(np.min(D[D > 0])):.4f}")
+    max_dist2 = np.max(D[d>0])  # max of square distances
+    min_dist2 = np.min(D[D > 0])  # Minimum distance in the buffer (excluding self-distances)
+    print(f"\nEstimated max pairwise distance squared, FAISS) = {max_dist2:.4f}")
+    print(f" Estimated minimum distance squared = {min_dist2:.4f}")
 
     # Step 2: Streaming centroid selection
+    ######################################
     # For seeding, pick a random vector from the buffer
-    centroid = buffer[np.random.randint(len(buffer))]
-    skmeans = StreamingKMeansPlusPlusFAISS(d=d, Z=Z)
-    if config.params['normalize_vecs']:
-        centroid = centroid.reshape(1, -1)
-        faiss.normalize_L2(centroid)
-        centroid = centroid[0]
-    skmeans.centroids.append(centroid)  # seed with the first point
-
+    centroids = buffer[:10,:]
+    index.reset()  # Reset index to ensure it's empty
+    index.add(centroids)  # Add the initial centroid to the index
+    print(index.ntotal, "vectors in index after adding initial centroid")
+    skmeans = StreamingKMeansPlusPlus(d=d, max_dist2=max_dist2, min_dist2=min_dist2,index=index)
+    
     for vectors, _ in reader.stream_batches(config.params['batch_size']):
         if config.params['normalize_vecs']:
-            faiss.normalize_L2(vectors)
+            vectors=vectors/ np.linalg.norm(vectors, axis=1, keepdims=True)
+        
         skmeans.update(vectors)
+        if(index.ntotal >= config.params['max_centroids']):
+            print(f"Reached maximum number of centroids: {index.ntotal}")
+            break
 
+    # Step 3. update centroids using a streaming version of the Kmeans algorithm
+    ######################################
+    centroids = skmeans.get_centroids()
+    counters=np.ones(centroids.shape[0], dtype=np.int32)  # Initialize counters for each centroid
+    total_d2 = 0    # Initialize total distance squared to zero
+    initial_mean_d2=0
+    total_count = 0  # Total number of vectors processed
+     
+    for vectors, _ in reader.stream_batches(config.params['batch_size']):
+        if config.params['normalize_vecs']:
+            vectors=vectors/ np.linalg.norm(vectors, axis=1, keepdims=True)
+        D,vec_assignments= skmeans._compute_distances_squared(vectors, index)
+        #count and average the vectors assigned to each centroid using numpy
+        unique_values,counts=np.unique(vec_assignments, return_counts=True)
+        for i, count in zip(unique_values, counts):
+            if count > 0:
+                # Update the centroid with the new vectors
+                centroids[i] = (centroids[i] * counters[i] + np.sum(vectors[vec_assignments == i], axis=0)) \
+                                / (counters[i] + count)
+                counters[i] += count
+                total_d2 += np.sum(D[vec_assignments == i])  # Sum of squared distances for this centroid
+                total_count += count
+        mean_d2= total_d2 / total_count if total_count > 0 else 0
+        if initial_mean_d2 == 0:
+            initial_mean_d2 = mean_d2
+        print('mean d2=', mean_d2,end='')
+        skmeans.index.reset()  # Reset index to ensure it's empty
+        skmeans.index.add(centroids)  # Add the final centroids to the index
+
+    # Close the reader 
+    print("\nClosing reader...")
     reader.close()
 
-    return skmeans,D
+    return centroids, counters, initial_mean_d2, mean_d2
 
 
 # ------------------- Main ---------------------
@@ -257,6 +289,14 @@ def main():
     args = parser.parse_args()
 
     config.params=vars(args)
+    print("Configuration parameters:")
+    for key, value in config.params.items():
+        if type(value) is str:
+            value = re.sub(r'\s+', ' ', value)
+            value=f"'{value}'"
+        print(f"config.params['{key}']= {value}")
+        
+    # Validate input parameters
     filepath = args.file_path
     if not os.path.exists(filepath):
         raise FileNotFoundError(f"Input file {filepath} does not exist.")
@@ -271,12 +311,20 @@ def main():
     else:
         print("Using raw vectors without normalization for distance calculations.")
     
-    skmeans,_=Streaming_Kmeans(filepath)
- 
-    centroids = skmeans.get_centroids()
-    print(f"\nFinal number of centroids: {centroids.shape[0]}")
-    np.save(args.output, centroids)
-    print(f"Centroids saved to {args.output}")
+    centroids,counters,inital_mean_d2,mean_d2=Streaming_Kmeans(filepath)
+     
+    # Finalization and saving
+    print(f"\nNumber of centroids in index after finalization: {centroids.shape[0]}")
+    print('Initial mean squared distance:', inital_mean_d2)
+    print('Final mean squared distance:', mean_d2)
+    # Save the final centroids to a .npy file
+    if config.params['output'] is not None:
+        np.savez(config.params['output'], centroids=centroids, counters=counters)
+        print(f"Centroids saved to {config.params['output']}")
+    else:
+        print("No output file specified, centroids not saved.")
+
+
 
 
 if __name__ == "__main__":
