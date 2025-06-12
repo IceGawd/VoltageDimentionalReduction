@@ -44,28 +44,27 @@ X = X / 255.0
 y=0 # just a patch to make things run, as we do not use labels in this example
 #av: TODO replace compressed_set with point_set
 # define set of points on which we will work
-compressed_set = setofpoints.SetOfPoints(points=X[:1000])
+point_set = setofpoints.SetOfPoints(points=X[:1000])
 
 #av: TODO choose landmarks randoomly or greeedily
-#Special for MNist : 
+# Special for MNist : 
 # Select one sample per digit to serve as a landmark
 landmarks = []
 import random
 for digit in range(10):
-    
     landmarks.append(landmark.Landmark(random.randint(0, centroids.shape[0]),1.0))
 
-##av: todo add method to Problem that find a good r using binary search
-mnist_problem = problem.Problem(compressed_set, r=1)
+mnist_problem = problem.Problem(point_set, r=1)
+mnist_problem.optimize(landmarks, k=2, r=0.5)
 
 # Initialize the map
 voltage_map = voltagemap.VoltageMap()
 
 # Compute voltages for each landmark and store in the map
 for lm in landmarks:
-    mnist_solver = solver.Solver(problem=mnist_problem)
-    voltages = mnist_solver.compute_voltages(k=2, landmarks=[lm])   # error here is that lm is not a landmark object, but a numpy array
-    voltage_map.add_solution(landmark_index=lm.index, voltages=voltages)
+	mnist_solver = solver.Solver(problem=mnist_problem)
+	voltages = mnist_solver.compute_voltages(k=2, landmarks=[lm])
+	voltage_map.add_solution(landmark_index=lm.index, voltages=voltages)
 
 #av: TODO call some visualizations, that store the figure into a file.
-
+visualization.Visualization.plot_mds_digits([2, 3, 4, 5, 7, 8, 9], voltage_map, point_set, y[:1000], alpha_actual=0.5, out_file="../inputoutput/matplotfigures/mnist_mds.png")
