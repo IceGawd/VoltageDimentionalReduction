@@ -14,23 +14,35 @@ from sklearn.datasets import fetch_openml
 
 import importlib
 
-import kmeans
 import landmark
 import voltagemap
 import problem
 import solver
 import visualization
 import setofpoints
-# yoav: TODO get rid of number of cores problem
-# yoav: TODO: read points using streaming Kmeans
+import kmeans
+import config
 
-## Loading mnist data, no kmeans
-mnist = fetch_openml('mnist_784', version=1, as_frame=False)
-X, y = mnist.data, mnist.target.astype(np.int64)
+
+print("Streaming K-means on MNIST dataset")
+
+config.params['file_path']= '../data/mnist.csv'
+config.params['split_char']= ','
+config.params['normalize_vecs']= False
+config.params['max_centroids']= 1000
+config.params['init_size']= 1000
+config.params['batch_size']= 10000
+config.params['output']= 'streaming_centroids.npy'
+
+centroids,counters,inital_mean_d2,mean_d2=kmeans.Streaming_Kmeans(config.params['file_path'])
+
+X=np.stack(centroids)
+print('X.shape=',X.shape)
 
 # Normalize pixel values to [0, 1]
 X = X / 255.0
-
+y=0 # just a patch to make things run, as we do not use labels in this example
+#av: TODO replace compressed_set with point_set
 # define set of points on which we will work
 point_set = setofpoints.SetOfPoints(points=X[:1000])
 
@@ -38,10 +50,9 @@ point_set = setofpoints.SetOfPoints(points=X[:1000])
 # Special for MNist : 
 # Select one sample per digit to serve as a landmark
 landmarks = []
+import random
 for digit in range(10):
-	indices = np.where(y == digit)[0]
-	# Choose the first occurrence as the landmark
-	landmarks.append(landmark.Landmark.createLandmarkClosestTo(point_set, X[indices[0]], 1))
+    landmarks.append(landmark.Landmark(random.randint(0, centroids.shape[0]),1.0))
 
 mnist_problem = problem.Problem(point_set, r=1)
 mnist_problem.optimize(landmarks, k=2, r=0.5)
