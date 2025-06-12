@@ -29,16 +29,16 @@ class SetOfPoints:
 		if weights is None:
 			weights = np.ones(points.shape[0])
 
-		weights /= np.sum(weights)        
-		
-		if weights.ndim != 1:
+		new_weights = weights / np.sum(weights)
+		self.weights = new_weights
+
+		if self.weights.ndim != 1:
 			raise ValueError("Weights array must be 1-dimensional (n,).")
-		if points.shape[0] != weights.shape[0]:
+		if points.shape[0] != self.weights.shape[0]:
 			raise ValueError("Number of points and number of weights must be the same.")
 
 		self.points = points
 		self.shape = points.shape
-		self.weights = weights
 
 	def get_point(self, index: int) -> Tuple[np.ndarray, float]:
 		"""

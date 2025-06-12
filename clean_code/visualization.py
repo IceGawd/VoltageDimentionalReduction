@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+from sklearn.decomposition import PCA
 from sklearn.manifold import MDS
 from typing import List
 
@@ -12,6 +13,10 @@ class Visualization:
 
 	Primarily intended to visualize outputs from the Solver.
 	"""
+
+	@staticmethod
+	def plot_mds():
+		pass
 
 	@staticmethod
 	def plot_mds_digits(selected_digits, voltages, data, correct, n_outliers=10, alpha_actual=1, percent_size=0.02, out_file=None):
@@ -30,7 +35,7 @@ class Visualization:
 		"""
 
 		voltages = np.array(voltages.voltage_maps)
-		
+
 		indices= [i for i, label in enumerate(correct) if label in selected_digits]
 		filtered_voltages = voltages[np.ix_(selected_digits, indices)]
 		points = np.array(list(map(list, zip(*filtered_voltages))))
@@ -39,13 +44,13 @@ class Visualization:
 		filtered_labels = np.array([correct[i] for i in indices])
 
 		# Step 1: Run MDS on voltages    
-		mds = MDS(n_components=2, random_state=42)
+		mds = MDS(n_components=2)
 		transformed_points = mds.fit_transform(points)
 
 		# Step 2: Remove outliers
 		center = np.mean(transformed_points, axis=0)
 		distances = np.linalg.norm(transformed_points - center, axis=1)
-		outlier_indices = np.argsort(distances)[-len(selected_digits):]
+		outlier_indices = np.argsort(distances)[-n_outliers:]
 		mask = np.ones(len(transformed_points), dtype=bool)
 		mask[outlier_indices] = False
 		inlier_points = transformed_points[mask]
@@ -71,7 +76,9 @@ class Visualization:
 
 			label = filtered_labels[i]
 			color = np.array(digit_colors[label])
-			
+			if (np.max(voltages[:, i]) > 0.9):
+				color = np.array([1, 1, 1])
+
 			# Create RGBA image
 			rgb_image = np.zeros((28, 28, 4))
 			for c in range(3):
