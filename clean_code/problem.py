@@ -19,7 +19,7 @@ class Problem:
 		r (float): Resistance to ground.
 	"""
 
-	def __init__(self, points: setofpoints.SetOfPoints, r: float):
+	def __init__(self, points: setofpoints.SetOfPoints, r=1.0):
 		"""
 		Initializes a Problem instance.
 
@@ -35,6 +35,9 @@ class Problem:
 
 		self.points = points
 		self.r = r
+
+		self.Rmat= None  # Resistance matrix
+		self.G = None   # Graph representation of the resistance network
 
 	def calcResistanceMatrix(self, k: int = 10, universalGround: bool = True) -> np.ndarray:
 		"""
@@ -83,49 +86,45 @@ class Problem:
 		return np.identity(weights.shape[0]) - weights
 
 	def optimize(self, 
-		landmarks: List[landmark.Landmark], 
+		landmark: landmark.Landmark, 
 		target_avg_voltage: float = 0.1, 
 		accuracy: float = 0.1, 
 		radius: int = 3, 
-		r_min: float = 0.01, 
-		r_max: float = 100, 
 		max_iter: int = 30, 
-		k: int = 10):
+		k: int = 10) -> tuple[float, np.ndarray]:
 		"""
 		Finds the value of r (ground resistance) that makes the average voltage within a given radius
-		as close as possible to the target average voltage, using binary search.
+		as close as possible to the target average voltage, using binary search. returns the best r found and the voltages.
 
 		Args:
+			landmark (Landmark): The landmark node.
 			target_avg_voltage (float): The target average voltage in the neighborhood.
 			accuracy (float): Relative accuracy for stopping criterion.
 			radius (int): Number of graph hops within which to compute the average voltage.
-			r_min (float): Minimum r value to consider.
-			r_max (float): Maximum r value to consider.
 			max_iter (int): Maximum number of binary search iterations.
 		"""
 		# Build resistance graph once (exclude ground node)
-		R = self.calcResistanceMatrix()
-		G = nx.from_numpy_array(R[:-1, :-1])  # Exclude ground node for graph connectivity
+		if self.Rmat is None:
+			self.Rmat = self.calcResistanceMatrix(k=k, universalGround=True)
+			self.Graph = nx.from_numpy_array(self.Rmat[:-1, :-1])  # Exclude ground node for graph connectivity
 
 		# Find all nodes within 'radius' hops of the landmark
-		indices = []
-		for landmark in landmarks:
-			lengths = nx.single_source_shortest_path_length(G, landmark.index, cutoff=radius)
-			indices.extend(list(lengths.keys()))
 
-		indices = np.array(indices)
+		lengths = nx.single_source_shortest_path_length(self.Graph, landmark.index, cutoff=radius)
+		indices=np.array(list(lengths.keys()))
 
+		r_init=indices.shape[0] #initial guess for r based on the number of neighbors within radius radius
+		left, right = r_init/10,r_init*10  # Initial search range for r
 		best_r = None
 		best_loss = float('inf')
-		left, right = r_min, r_max
 
 		for i in range(max_iter):
 			r_try = np.exp((np.log(left) + np.log(right)) / 2)
 			self.r = r_try  # Update problem resistance
-			# print(r_try)
+			print(i,r_try)
 
 			volt_solver = solver.Solver(self)
-			voltages = volt_solver.compute_voltages(landmarks, k=k)
+			voltages = volt_solver.compute_voltages(landmark, k=k)
 			neighborhood_avg = np.mean(voltages[indices])
 			rel_error = abs(neighborhood_avg - target_avg_voltage)
 
@@ -144,3 +143,5 @@ class Problem:
 				right = r_try
 
 		self.r = best_r
+		return best_r, voltages
+	
