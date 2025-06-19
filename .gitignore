@@ -1,1 +1,3 @@
 *.pyc
+data
+inputoutput/data/mnist.csv

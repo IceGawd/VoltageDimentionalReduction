@@ -69,4 +69,4 @@ for lm in landmarks:
 print(np.array(voltage_map.voltage_maps).shape)
 
 #av: TODO call some visualizations, that store the figure into a file.
-visualization.Visualization.plot_mds_digits([0], voltage_map, point_set, np.zeros(1000), alpha_actual=0.5, n_outliers=900, out_file="../inputoutput/matplotfigures/mnist_mds.png")
+visualization.Visualization.plot_mds_unlabeled(voltage_map, point_set, alpha_actual=0.5, out_file="../inputoutput/matplotfigures/mnist_mds.png")
