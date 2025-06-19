@@ -1,6 +1,7 @@
 import setofpoints
 import landmark
 import solver
+import config
 
 import numpy as np
 from scipy.spatial.distance import cdist
@@ -36,7 +37,7 @@ class Problem:
 		self.points = points
 		self.r = r
 
-	def calcResistanceMatrix(self, k: int = 10, universalGround: bool = True) -> np.ndarray:
+	def calcResistanceMatrix(self, universalGround: bool = True) -> np.ndarray:
 		"""
 		Calculates the (n+1)x(n+1) row-normalized resistance matrix using k-nearest neighbors.
 
@@ -52,12 +53,12 @@ class Problem:
 		n = X.shape[0]
 
 		# k-NN search (k+1 because the first neighbor is the point itself)
-		nbrs = NearestNeighbors(n_neighbors=k + 1, algorithm='auto').fit(X)
+		nbrs = NearestNeighbors(n_neighbors=config.params['k-nearest-neighbors'] + 1, algorithm='auto').fit(X)
 		_, indices = nbrs.kneighbors(X)
 
 		# Dense kernel (n × n)
 		kernel = np.zeros((n, n), dtype=float)
-		weight = 1.0 / k
+		weight = 1.0 / config.params['k-nearest-neighbors']
 
 		for i in range(n):
 			for j in indices[i][1:]:					# skip the point itself
@@ -85,12 +86,11 @@ class Problem:
 	def optimize(self, 
 		landmarks: List[landmark.Landmark], 
 		target_avg_voltage: float = 0.1, 
-		accuracy: float = 0.1, 
+		accuracy: float = 0.01, 
 		radius: int = 3, 
 		r_min: float = 0.01, 
 		r_max: float = 100, 
-		max_iter: int = 30, 
-		k: int = 10):
+		max_iter: int = 30):
 		"""
 		Finds the value of r (ground resistance) that makes the average voltage within a given radius
 		as close as possible to the target average voltage, using binary search.
@@ -125,7 +125,7 @@ class Problem:
 			# print(r_try)
 
 			volt_solver = solver.Solver(self)
-			voltages = volt_solver.compute_voltages(landmarks, k=k)
+			voltages = volt_solver.compute_voltages(landmarks)
 			neighborhood_avg = np.mean(voltages[indices])
 			rel_error = abs(neighborhood_avg - target_avg_voltage)
 

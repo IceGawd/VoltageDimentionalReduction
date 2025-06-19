@@ -1,5 +1,6 @@
 import landmark
 import problem
+import config
 
 from typing import List
 import numpy as np
@@ -25,7 +26,7 @@ class Solver:
 		"""
 		self.problem = problem
 
-	def compute_voltages(self, landmarks: List["Landmark"], k: int = 10, universalGround: bool = True):
+	def compute_voltages(self, landmarks: List["Landmark"], universalGround: bool = True):
 		"""
 		Computes and returns the voltages for the given problem
 
@@ -36,7 +37,7 @@ class Solver:
 			voltages (List[float]): The voltages corresponding to each point in set of points
 		"""
 
-		weights = self.problem.calcResistanceMatrix(k, universalGround)
+		weights = self.problem.calcResistanceMatrix(universalGround)
 		n = weights.shape[0]
 
 		if (universalGround):

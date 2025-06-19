@@ -3,6 +3,7 @@ from typing import Union, Optional, List, Any, Tuple, Callable, Dict
 from itertools import product
 import pandas
 import matplotlib.pyplot as plt
+import random
 
 from scipy.sparse.linalg import cg
 from sklearn.neighbors import NearestNeighbors
@@ -23,16 +24,16 @@ import setofpoints
 import kmeans
 import config
 
-
 print("Streaming K-means on MNIST dataset")
 
-config.params['file_path']= '../data/mnist.csv'
-config.params['split_char']= ','
-config.params['normalize_vecs']= False
-config.params['max_centroids']= 1000
-config.params['init_size']= 1000
-config.params['batch_size']= 10000
-config.params['output']= 'streaming_centroids.npy'
+config.params['file_path'] = '../data/mnist.csv'
+config.params['split_char'] = ','
+config.params['normalize_vecs'] = False
+config.params['max_centroids'] = 1000
+config.params['init_size'] = 1000
+config.params['batch_size'] = 10000
+config.params['output'] = 'streaming_centroids.npy'
+config.params['k-nearest-neighbors'] = 2
 
 centroids,counters,inital_mean_d2,mean_d2=kmeans.Streaming_Kmeans(config.params['file_path'])
 
@@ -50,12 +51,12 @@ point_set = setofpoints.SetOfPoints(points=X)
 # Special for MNist : 
 # Select one sample per digit to serve as a landmark
 landmarks = []
-import random
-for digit in range(3):
-	landmarks.append(landmark.Landmark(random.randint(0, centroids.shape[0]),1.0))
 
-mnist_problem = problem.Problem(point_set, r=1)
-mnist_problem.optimize(landmarks, k=4, target_avg_voltage=0.5)
+for digit in range(10):
+	landmarks.append(landmark.Landmark(random.randint(0, centroids.shape[0]), 1.0))
+
+mnist_problem = problem.Problem(point_set)
+mnist_problem.optimize(landmarks, target_avg_voltage=0.9, radius=10)
 
 # Initialize the map
 voltage_map = voltagemap.VoltageMap()
@@ -63,7 +64,7 @@ voltage_map = voltagemap.VoltageMap()
 # Compute voltages for each landmark and store in the map
 for lm in landmarks:
 	mnist_solver = solver.Solver(problem=mnist_problem)
-	voltages = mnist_solver.compute_voltages(k=4, landmarks=[lm])
+	voltages = mnist_solver.compute_voltages(landmarks=[lm])
 	voltage_map.add_solution(landmark_index=lm.index, voltages=voltages)
 
 print(np.array(voltage_map.voltage_maps).shape)
