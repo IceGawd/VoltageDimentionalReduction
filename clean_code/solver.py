@@ -66,5 +66,6 @@ class Solver:
 		
 		if (universalGround):
 			self.voltages = self.voltages[:-1]
+			landmarks.pop()
 
 		return self.voltages

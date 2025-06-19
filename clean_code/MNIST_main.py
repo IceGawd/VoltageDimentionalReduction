@@ -55,7 +55,7 @@ for digit in range(3):
 	landmarks.append(landmark.Landmark(random.randint(0, centroids.shape[0]),1.0))
 
 mnist_problem = problem.Problem(point_set, r=1)
-# mnist_problem.optimize(landmarks, k=4, target_avg_voltage=0.5)
+mnist_problem.optimize(landmarks, k=4, target_avg_voltage=0.5)
 
 # Initialize the map
 voltage_map = voltagemap.VoltageMap()
@@ -69,4 +69,4 @@ for lm in landmarks:
 print(np.array(voltage_map.voltage_maps).shape)
 
 #av: TODO call some visualizations, that store the figure into a file.
-visualization.Visualization.plot_mds_unlabeled(voltage_map, point_set, alpha_actual=0.5, out_file="../inputoutput/matplotfigures/mnist_mds.png")
+visualization.Visualization.plot_mds_unlabeled(voltage_map, point_set, alpha_actual=1, out_file="../inputoutput/matplotfigures/mnist_mds.png")
