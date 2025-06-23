@@ -68,3 +68,23 @@ class Solver:
 			self.voltages = self.voltages[:-1]
 
 		return self.voltages
+
+if __name__ == "__main__":
+	# Example usage
+	import setofpoints
+	import config
+	import pandas as pd
+
+	config.params['r'] = 1.0
+	config.params['c'] = 1.0
+
+	points = np.array([[0, 0], [1, 0], [0, 1], [1, 1]])
+	weights = np.array([1, 1, 1, 1])
+	point_set = setofpoints.SetOfPoints(points=points, weights=weights)
+
+	problem_instance = problem.Problem(point_set, r=config.params['r'], c=config.params['c'])
+	solver_instance = Solver(problem_instance)
+
+	landmarks = [landmark.Landmark(0, 5), landmark.Landmark(1, 10)]
+	voltages = solver_instance.compute_voltages(landmarks)
+	print("Computed Voltages:", voltages)

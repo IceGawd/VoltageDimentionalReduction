@@ -6,6 +6,7 @@ import argparse
 import config
 
 import faulthandler
+from collections import Counter
 faulthandler.enable()
 
 # ------------------- Reader -------------------
@@ -154,14 +155,14 @@ class StreamingKMeansPlusPlus:
             #print('probs=',np.mean(probs))
             rand_vals = np.random.rand(X_batch.shape[0])
             accept_mask = (rand_vals < probs) & (d2 > 0)
-
-            X=np.stack(X_batch[accept_mask])
-            if self.index.ntotal + X.shape[0] > self.max_centroids:
-                X = X[:self.max_centroids - self.index.ntotal]
-            if config.params['normalize_vecs']:
-                X = X / np.linalg.norm(X,axis=1, keepdims=True)
-            self.index.add(X)  # Add new vectors to the index          
-            print(f"\nnumber of centroids: {self.index.ntotal}, max_centroids: {self.max_centroids}")
+            if np.sum(accept_mask) != 0:
+                X=np.stack(X_batch[accept_mask])
+                if self.index.ntotal + X.shape[0] > self.max_centroids:
+                    X = X[:self.max_centroids - self.index.ntotal]
+                if config.params['normalize_vecs']:
+                    X = X / np.linalg.norm(X,axis=1, keepdims=True)
+                self.index.add(X)  # Add new vectors to the index          
+                print(f"\nnumber of centroids: {self.index.ntotal}, max_centroids: {self.max_centroids}")
         
     def get_centroids(self):
         """
@@ -247,8 +248,45 @@ def Streaming_Kmeans(filepath):
     total_d2 = 0    # Initialize total distance squared to zero
     initial_mean_d2=0
     total_count = 0  # Total number of vectors processed
-     
-    for vectors, _ in reader.stream_batches(config.params['batch_size']):
+     # compute for each centroid a label that is the majority of examples that are assigned to it
+     # why are you not doing anything with labels?
+    # Initialize a list to store the labels assigned to each centroid
+    centroid_labels = [ [] for _ in range(centroids.shape[0]) ]
+
+    for vectors, labels in reader.stream_batches(config.params['batch_size']):
+        if config.params['normalize_vecs']:
+            vectors = vectors / np.linalg.norm(vectors, axis=1, keepdims=True)
+        D, vec_assignments = skmeans._compute_distances_squared(vectors, index)
+        # Assign labels to centroids
+        for idx, centroid_idx in enumerate(vec_assignments):
+            centroid_labels[centroid_idx].append(labels[idx])
+        # Count and average the vectors assigned to each centroid using numpy
+        unique_values, counts = np.unique(vec_assignments, return_counts=True)
+        for i, count in zip(unique_values, counts):
+            if count > 0:
+                # Update the centroid with the new vectors
+                centroids[i] = (centroids[i] * counters[i] + np.sum(vectors[vec_assignments == i], axis=0)) \
+                                / (counters[i] + count)
+                counters[i] += count
+                total_d2 += np.sum(D[vec_assignments == i])  # Sum of squared distances for this centroid
+                total_count += count
+        mean_d2 = total_d2 / total_count if total_count > 0 else 0
+        if initial_mean_d2 == 0:
+            initial_mean_d2 = mean_d2
+        print('mean d2=', mean_d2, end='')
+        skmeans.index.reset()  # Reset index to ensure it's empty
+        skmeans.index.add(centroids)  # Add the final centroids to the index
+
+    # Compute majority label for each centroid
+    majority_labels = []
+    for labels_list in centroid_labels:
+        if labels_list:
+            majority_label = Counter(labels_list).most_common(1)[0][0]
+        else:
+            majority_label = None
+        majority_labels.append(majority_label)
+    
+    for vectors, labels in reader.stream_batches(config.params['batch_size']):
         if config.params['normalize_vecs']:
             vectors=vectors/ np.linalg.norm(vectors, axis=1, keepdims=True)
         D,vec_assignments= skmeans._compute_distances_squared(vectors, index)
@@ -273,60 +311,51 @@ def Streaming_Kmeans(filepath):
     print("\nClosing reader...")
     reader.close()
 
-    return centroids, counters, initial_mean_d2, mean_d2
+    return centroids, counters, majority_labels, initial_mean_d2, mean_d2
 
 
 # ------------------- Main ---------------------
-def main():
-    parser = argparse.ArgumentParser(description="Streaming k-means++ with FAISS")
-    parser.add_argument("file_path", help="Path to a text file of vectors (word + floats)")
-    parser.add_argument("--split_char")
-    parser.add_argument("--normalize_vecs", action="store_true", help="normalize vectors to L_2=1 before calculating distances")
-    parser.add_argument("--max-centroids", type=int, default=1000, help="Maximum number of centroids")
-    parser.add_argument("--init-size", type=int, default=1000, help="Number of points to estimate Z")
-    parser.add_argument("--batch-size", type=int, default=1000, help="Batch size for streaming")
-    parser.add_argument("--output", type=str, default="streaming_centroids.npy", help="Output .npy file")
-    args = parser.parse_args()
+from set_params import set_params
 
-    config.params=vars(args)
-    print("Configuration parameters:")
-    for key, value in config.params.items():
-        if type(value) is str:
-            value = re.sub(r'\s+', ' ', value)
-            value=f"'{value}'"
-        print(f"config.params['{key}']= {value}")
-        
-    # Validate input parameters
-    filepath = args.file_path
-    if not os.path.exists(filepath):
-        raise FileNotFoundError(f"Input file {filepath} does not exist.")
-    if args.max_centroids <= 0:
-        raise ValueError("max-centroids must be a positive integer.")
-    if args.init_size <= 0:
-        raise ValueError("init-size must be a positive integer.")
-    if args.batch_size <= 0:
-        raise ValueError("batch-size must be a positive integer.")
-    if args.normalize_vecs:
-        print("Normalizing vectors to L2=1 before distance calculations.")
-    else:
-        print("Using raw vectors without normalization for distance calculations.")
+def main():
     
-    centroids,counters,inital_mean_d2,mean_d2=Streaming_Kmeans(filepath)
-     
+    set_params()  #set parameters accordinig to the command line
+    if config.params['test']:
+        
+        config.params['file_path']= '../data/synthetic/2drandom10000.csv'
+        config.params['split_char']= ','
+        config.params['normalize_vecs']= False
+
+        config.params['max_centroids']= 20
+        config.params['init_size']= 1000
+        config.params['batch_size']= 100
+        config.params['output']=None
+
+    centroids,counters,majority_labels,inital_mean_d2,mean_d2=Streaming_Kmeans(config.params['file_path'])
+
     # Finalization and saving
-    print(f"\nNumber of centroids in index after finalization: {centroids.shape[0]}")
-    print('Initial mean squared distance:', inital_mean_d2)
-    print('Final mean squared distance:', mean_d2)
-    # Save the final centroids to a .npy file
+    if config.params['verbosity']>=1:
+        print(f"\nNumber of centroids in index after finalization: {centroids.shape[0]}")
+        print('Initial mean squared distance:', inital_mean_d2)
+        print('Final mean squared distance:', mean_d2)
+        if config.params['test']:
+            if mean_d2>0.039 or mean_d2<0.036:
+                raise ValueError(f"test failed, mean_d2={mean_d2} is outside the range [0.036,0.039]")
+            else:
+                print('Test Passed')
     if config.params['output'] is not None:
-        np.savez(config.params['output'], centroids=centroids, counters=counters)
+        np.savez(config.params['output'], centroids=centroids, counters=counters, majority_labels=majority_labels,)
         print(f"Centroids saved to {config.params['output']}")
     else:
         print("No output file specified, centroids not saved.")
 
-
+    # if 2d test then visualize datapoints, centroids labels
+    if config.params['test']:
+        import visualization
+        visualization.plot_centroids(centroids, counters, majority_labels)
 
 
 if __name__ == "__main__":
     main()
 
+# 0.03762965367120542, 0.036821142712546884, 0.03856438296515467, 0.03692830421204044

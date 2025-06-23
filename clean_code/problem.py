@@ -144,3 +144,5 @@ class Problem:
 				right = r_try
 
 		self.r = best_r
+
+		return best_r,voltages
