@@ -39,24 +39,6 @@ weighted by the number of data-points. The current idea is to use
 k-means to generate the partition. Relying on **streaming** K-means++
 and K-means allows fast processing of large files that don't fit in memory.
 
-## Implementation outline
-
-The main classes are:
-
-* **SetOfPoints**: two numpy arrays points: an array of dimension nXd where n  is the number of points, d is the dimension of each point. weights, an array of size n which defines the weights of the points.
-* **Problem**: Contains a set of points, a kernel width c and a resistance
-  to the ground r. The class has a method: calcResisitanceMatrix which
-  outputs a (potentially sparse) matrix of size (n+1)X(n+1) which
-  defines the weights associated with pairs of points. The matrix can
-  be sparse if we zero the weights are smaller than some threshold
-* **Solver**: Finds the voltage map for each point in a pointset for a given
-  problem for a given landmark (a point or set of points)
-* **FindBestParameters** Finds the best settings for the parameters c and R. For a  given Problem + landmarks $$ \bigoplus $$
-* **Kmeans**: given a data file, uses streaming to generate a weighted set
-  of points (a partition).
-* **Visualization**: create 2D visualizations of the voltage map
-* **VoltageMap**: a collection of solutions which defines the location of each point
-
 ## Skills required
 
 * Experience in data analysis

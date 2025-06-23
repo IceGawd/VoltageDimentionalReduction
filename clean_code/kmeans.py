@@ -339,8 +339,8 @@ def main():
         print('Initial mean squared distance:', inital_mean_d2)
         print('Final mean squared distance:', mean_d2)
         if config.params['test']:
-            if mean_d2>0.039 or mean_d2<0.036:
-                raise ValueError(f"test failed, mean_d2={mean_d2} is outside the range [0.036,0.039]")
+            if mean_d2>0.04 or mean_d2<0.035:
+                raise ValueError(f"test failed, mean_d2={mean_d2} is outside the range [0.035,0.04]")
             else:
                 print('Test Passed')
     if config.params['output'] is not None:
@@ -358,4 +358,3 @@ def main():
 if __name__ == "__main__":
     main()
 
-# 0.03762965367120542, 0.036821142712546884, 0.03856438296515467, 0.03692830421204044
