@@ -26,7 +26,7 @@ import config
 
 print("Streaming K-means on MNIST dataset")
 
-config.params['file_path']= '../data/mnist.csv'
+config.params['file_path']= '../data/mnist/mnist.csv'
 config.params['split_char']= ','
 config.params['normalize_vecs']= False
 config.params['max_centroids']= 1000

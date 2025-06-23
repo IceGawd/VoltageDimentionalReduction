@@ -315,57 +315,42 @@ def Streaming_Kmeans(filepath):
 
 
 # ------------------- Main ---------------------
-def main():
-    parser = argparse.ArgumentParser(description="Streaming k-means++ with FAISS")
-    parser.add_argument("file_path", help="Path to a text file of vectors (word + floats)")
-    parser.add_argument("--split_char")
-    parser.add_argument("--normalize_vecs", action="store_true", help="normalize vectors to L_2=1 before calculating distances")
-    parser.add_argument("--max-centroids", type=int, default=1000, help="Maximum number of centroids")
-    parser.add_argument("--init-size", type=int, default=1000, help="Number of points to estimate Z")
-    parser.add_argument("--batch-size", type=int, default=1000, help="Batch size for streaming")
-    parser.add_argument("--output", type=str, default="streaming_centroids.npy", help="Output .npy file")
-    parser.add_argument("--verbosity", type=int, default=1, help="Verbosity level (0: silent, 1: normal, 2: verbose)")
-    args = parser.parse_args()
+from set_params import set_params
 
-    config.params=vars(args)
-    if config.params['verbosity']>=2:
-        print("Configuration parameters:")
-        for key, value in config.params.items():
-            if type(value) is str:
-                value = re.sub(r'\s+', ' ', value)
-                value=f"'{value}'"
-        
-    # Validate input parameters
-    filepath = args.file_path
-    if not os.path.exists(filepath):
-        raise FileNotFoundError(f"Input file {filepath} does not exist.")
-    if args.max_centroids <= 0:
-        raise ValueError("max-centroids must be a positive integer.")
-    if args.init_size <= 0:
-        raise ValueError("init-size must be a positive integer.")
-    if args.batch_size <= 0:
-        raise ValueError("batch-size must be a positive integer.")
-    if args.normalize_vecs:
-        print("Normalizing vectors to L2=1 before distance calculations.")
-    else:
-        print("Using raw vectors without normalization for distance calculations.")
+def main():
     
-    centroids,counters,majority_labels,inital_mean_d2,mean_d2=Streaming_Kmeans(filepath)
-     
+    set_params()  #set parameters accordinig to the command line
+    if config.params['test']:
+        
+        config.params['file_path']= '../data/synthetic/2drandom10000.csv'
+        config.params['split_char']= ','
+        config.params['normalize_vecs']= False
+
+        config.params['max_centroids']= 20
+        config.params['init_size']= 1000
+        config.params['batch_size']= 100
+        config.params['output']=None
+
+    centroids,counters,majority_labels,inital_mean_d2,mean_d2=Streaming_Kmeans(config.params['file_path'])
+
     # Finalization and saving
     if config.params['verbosity']>=1:
         print(f"\nNumber of centroids in index after finalization: {centroids.shape[0]}")
         print('Initial mean squared distance:', inital_mean_d2)
         print('Final mean squared distance:', mean_d2)
-    # Save the final centroids to a .npy file
+        if config.params['test']:
+            if mean_d2>0.039 or mean_d2<0.036:
+                raise ValueError(f"test failed, mean_d2={mean_d2} is outside the range [0.036,0.039]")
+            else:
+                print('Test Passed')
     if config.params['output'] is not None:
         np.savez(config.params['output'], centroids=centroids, counters=counters, majority_labels=majority_labels,)
         print(f"Centroids saved to {config.params['output']}")
     else:
         print("No output file specified, centroids not saved.")
 
-# if 2d then visualize datapoints, centroids labels and voronoy diagram
-    if centroids.shape[1] == 2:
+    # if 2d test then visualize datapoints, centroids labels
+    if config.params['test']:
         import visualization
         visualization.plot_centroids(centroids, counters, majority_labels)
 
@@ -373,3 +358,4 @@ def main():
 if __name__ == "__main__":
     main()
 
+# 0.03762965367120542, 0.036821142712546884, 0.03856438296515467, 0.03692830421204044

@@ -1,7 +1,20 @@
 ## Minor changes
-* To implement greedy search we need to add one landmark at a
-  time. Which means that Problem.optimize and compute_voltages should
-  work on a single landmark at a time.
+* Problem.optimize and compute_voltages should work on a single landmark at a time.
+* Problem set_matrix uses a self.matrix to compute the matrix just once
+* In general minimize number of parameters, move shared parameters to config.params
+* Avignha to write directions for how to create documentation. Documentation.md
+* Put data files on Google drive
+* 
+## Testing
+Testing should give a pass/fail and not require human judgement. (Other than visualization)
+* For Kmeans - test based on average distance to centroid.
+* For Solver - test using a random walk simulator as a comparison
+* Shivani - to go over python files on clean_code and write tests.
+
+## ongoing
+* Avighna works on improving visualization
+* Yoav works on selecting landmarks.
+
 
 ## Characterizing the neighborhood of landmarks 
 We want to choose the resistance to the ground so that it would capture low dimensional structure.

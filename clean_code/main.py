@@ -24,12 +24,17 @@ import kmeans
 import config
 
 
+#config.params['file_path']= '../data/glove/shuffled_output.txt'
+#config.params['split_char']= ' '
+#config.params['normalize_vecs']= True
+
 config.params['file_path']= '../data/mnist/mnist.csv'
 config.params['split_char']= ','
 config.params['normalize_vecs']= False
+
 config.params['max_centroids']= 1000
-config.params['init_size']= 10000
-config.params['batch_size']= 10000
+config.params['init_size']= 5000
+config.params['batch_size']= 1000
 config.params['output']= 'streaming_centroids.npy'
 
 # generate centroids using streaming k-means
@@ -52,12 +57,12 @@ this_landmark=landmark.Landmark(random.randint(0, centroids.shape[0]),1.0)
 # Initialize the map
 voltage_map = voltagemap.VoltageMap()
 
-problem = problem.Problem(point_set)
+problem = problem.Problem(point_set,r=10.0)
 
 while True:
 	landmarks.append(this_landmark)
 	# Find best r and Add the landmark to the voltage map
-	best_r,voltages=problem.optimize([this_landmark], k=2)
+	best_r,voltages=problem.optimize([this_landmark,], k=2)
 	voltage_map.add_solution(landmark_index=this_landmark.index, voltages=voltages)
 
 	# choose next landmark to add
@@ -67,4 +72,9 @@ while True:
 	# find the point with the lowest voltage so far
 	break
 
-visualization.Visualization.plot_mds_digits([2, 3, 4, 5, 7, 8, 9], voltage_map, point_set, y[:1000], alpha_actual=0.5, out_file="../inputoutput/matplotfigures/mnist_mds.png")
+# visualization.Visualization.plot_mds_digits([2, 3, 4, 5, 7, 8, 9], voltage_map, point_set, y[:1000], alpha_actual=0.5, out_file="../inputoutput/matplotfigures/mnist_mds.png")
+
+import dill  # or use 'pickle' for simpler objects
+with open("../data/workspace.pkl", "wb") as f:
+    dill.dump_session(f)
+print("main complete. Workspace saved to '../data/workspace.pkl'.")
