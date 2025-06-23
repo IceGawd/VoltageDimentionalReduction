@@ -70,3 +70,14 @@ class Solver:
 			landmarks.pop()
 
 		return self.voltages
+
+def main():
+    parser = argparse.ArgumentParser(description="Testing and verifying solver works")
+    args = parser.parse_args()
+
+    config.params = vars(args)
+
+    
+
+if __name__ == "__main__":
+    main()

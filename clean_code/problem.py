@@ -52,7 +52,7 @@ class Problem:
 		X = self.points.points							# shape (n, d)
 		n = X.shape[0]
 
-		# k-NN search (k+1 because the first neighbor is the point itself)
+		# k-NN search (k+1 to cover self-inclusion)
 		nbrs = NearestNeighbors(n_neighbors=config.params['k-nearest-neighbors'] + 1, algorithm='auto').fit(X)
 		_, indices = nbrs.kneighbors(X)
 
@@ -61,9 +61,10 @@ class Problem:
 		weight = 1.0 / config.params['k-nearest-neighbors']
 
 		for i in range(n):
-			for j in indices[i][1:]:					# skip the point itself
-				kernel[i, j] = weight * self.points.weights[i] * self.points.weights[j] 
-				kernel[j, i] = weight * self.points.weights[j] * self.points.weights[i]	# keep it symmetric
+			for j in indices[i]:
+				if j != i:
+					kernel[i, j] = weight * self.points.weights[i] * self.points.weights[j]
+					kernel[j, i] = weight * self.points.weights[j] * self.points.weights[i]  # symmetric
 
 		# Constant connection to the ground node
 		if (universalGround):

@@ -55,7 +55,7 @@ landmarks = []
 for digit in range(10):
 	landmarks.append(landmark.Landmark(random.randint(0, centroids.shape[0]), 1.0))
 
-mnist_problem = problem.Problem(point_set)
+mnist_problem = problem.Problem(point_set, r=1)
 mnist_problem.optimize(landmarks, target_avg_voltage=0.9, radius=10)
 
 # Initialize the map
