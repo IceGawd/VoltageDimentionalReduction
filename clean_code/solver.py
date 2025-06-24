@@ -25,26 +25,30 @@ class Solver:
 		"""
 		self.problem = problem
 
-	def compute_voltages(self, landmarks: List["Landmark"], k: int = 10, universalGround: bool = True):
+	def compute_voltages(self, this_landmark: landmark.Landmark):
 		"""
 		Computes and returns the voltages for the given problem
 
 		Args:
-			landmarks (List["Landmark"]): The landmarks to consider when computing voltages
+			landmark (List["Landmark"]): The landmarks to consider when computing voltages
 
 		Returns:
 			voltages (List[float]): The voltages corresponding to each point in set of points
 		"""
 
-		weights = self.problem.calcResistanceMatrix(k, universalGround)
+		### yf: I think most of this logic should reside in calcresistancematrix. The only
+		### logic that should be here is incorporating the (single) landmark.
+
+		weights = self.problem.getResistanceMatrix()
 		n = weights.shape[0]
 
-		if (universalGround):
-			landmarks.append(landmark.Landmark(n - 1, 0))
+		ground=landmark.Landmark(n - 1, 0)	
+		landmarks=[this_landmark,ground]
 		
 		constrained_nodes =   [l.index for l in landmarks]
 		unconstrained_nodes = [i for i in range(n) if i not in constrained_nodes]
 		
+		# I don't understand the lines from here to the #print
 		b = np.zeros(n)
 		for lm in landmarks:
 			for y in range(0, n):
@@ -64,8 +68,7 @@ class Solver:
 
 		self.voltages[unconstrained_nodes] = v_unconstrained
 		
-		if (universalGround):
-			self.voltages = self.voltages[:-1]
+		self.voltages = self.voltages[:-1]
 
 		return self.voltages
 
