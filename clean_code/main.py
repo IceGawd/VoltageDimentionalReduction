@@ -67,9 +67,9 @@ if __name__=="__main__":
 #	point_set = setofpoints.SetOfPoints(points=X, weights=counters)
 
 	import pickle
-#	with  open('../data/Intermediates/pointset.pkl','wb') as pkl:
+#	with  open('../../Voltage_Temp/Intermediates/pointset.pkl','wb') as pkl:
 #		pickle.dump(point_set,pkl)
-	with  open('../data/Intermediates/pointset.pkl','rb') as pkl:
+	with  open('../../Voltage_Temp/Intermediates/pointset.pkl','rb') as pkl:
 		point_set=pickle.load(pkl)
 
 	print('started')
@@ -119,6 +119,6 @@ if __name__=="__main__":
 
 
 	import dill  # or use 'pickle' for simpler objects
-	with open("../data/workspace.pkl", "wb") as f:
+	with open("../../Voltage_Temp/Intermediates/workspace.pkl", "wb") as f:
 		dill.dump_session(f)
-	print("main complete. Workspace saved to '../data/Intermediates/workspace.pkl'.")
+	print("main complete. Workspace saved to '../../Voltage_Temp/Intermediates/workspace.pkl'.")

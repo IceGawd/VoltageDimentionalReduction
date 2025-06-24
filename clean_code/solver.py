@@ -39,10 +39,6 @@ class Solver:
 		Returns:
 			voltages: the voltages solution ndarray
 		"""
-
-		# Normalize to list
-		if not isinstance(landmarks, list):
-			landmarks = [landmarks]
 		
 		### yf: I think most of this logic should reside in calcresistancematrix. The only
 		### logic that should be here is incorporating the (single) landmark.

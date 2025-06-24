@@ -38,13 +38,13 @@ class Problem:
 		self.r = r
 		self.ResistanceMatrix =  self.calcResistanceMatrix(k,r)
 
-	def calcResistanceMatrix(self, universalGround: bool = True) -> np.ndarray:
+	def calcResistanceMatrix(self, k: int = 10,r: float = 1.0) -> np.ndarray:
 		"""
 		Calculates the (n+1)x(n+1) row-normalized resistance matrix using k-nearest neighbors.
 
 		Args:
 			k (int): Number of nearest neighbors for sparse approximation.
-			sparse (bool): Whether to return a sparse matrix.
+			r (float): Resistance to ground
 
 		Returns:
 			np.ndarray: (n+1)x(n+1) resistance matrix with rows summing to 1.
@@ -54,12 +54,12 @@ class Problem:
 		n = X.shape[0]
 
 		# k-NN search (k+1 to cover self-inclusion)
-		nbrs = NearestNeighbors(n_neighbors=config.params['k-nearest-neighbors'] + 1, algorithm='auto').fit(X)
+		nbrs = NearestNeighbors(n_neighbors=k + 1, algorithm='auto').fit(X)
 		_, indices = nbrs.kneighbors(X)
 
 		# Dense kernel (n × n)
 		kernel = np.zeros((n, n), dtype=float)
-		weight = 1.0 / config.params['k-nearest-neighbors']
+		weight = 1.0 / k
 
 		for i in range(n):
 			for j in indices[i]:
