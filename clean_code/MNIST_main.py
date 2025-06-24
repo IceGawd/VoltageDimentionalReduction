@@ -36,8 +36,7 @@ config.params['output'] = 'streaming_centroids.npy'
 config.params['k-nearest-neighbors'] = 2
 # config.params['no-show-plots'] = True
 
-centroids,counters,inital_mean_d2,mean_d2=kmeans.Streaming_Kmeans(config.params['file_path'])
-
+centroids, counters, majority_labels, initial_mean_d2, mean_d2 = kmeans.Streaming_Kmeans(config.params['file_path'])
 X = np.stack(centroids)
 print('X.shape=',X.shape)
 

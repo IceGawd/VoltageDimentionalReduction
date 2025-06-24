@@ -4,9 +4,12 @@ from sklearn.decomposition import PCA
 from sklearn.manifold import MDS
 from typing import List
 from scipy.optimize import minimize
+import math
+import itertools
 
 import voltagemap
 import setofpoints
+import config
 
 class Visualization:
 	"""
@@ -103,11 +106,7 @@ class Visualization:
 		fig.patch.set_facecolor('black')
 		plt.title("MDS Visualization of K-Means MNIST")
 
-		if out_file:
-			plt.savefig(out_file)
-			plt.close(fig)
-		else:
-			plt.show()
+		Visualization.standard_save_display(out_file)
 	
 	@staticmethod
 	def plot_mds_digits(selected_digits, voltages, data, correct, n_outliers=10, alpha_actual=1, percent_size=0.02, out_file=None):
@@ -185,47 +184,47 @@ class Visualization:
 		fig.patch.set_facecolor('black')
 		plt.title("MDS Visualization of Digits: " + ", ".join(map(str, selected_digits)))
 
-		if out_file:
-			plt.savefig(out_file)
-			plt.close(fig)
-		if 'no-show-plots' in config.params and !config.params['no-show-plots']:
-			plt.show()
+		Visualization.standard_save_display(out_file)
 
 	@staticmethod
 	def plot_centroids(centroids, counters, majority_labels, out_file=None):
-	    """
-	    Plots centroids with their counters as sizes and majority labels as annotations.
+		"""
+		Plots centroids with their counters as sizes and majority labels as annotations.
 
-	    Args:
-	        centroids (np.ndarray): Array of centroids (shape: [num_centroids, dimensions]).
-	        counters (np.ndarray): Array of counters for each centroid (shape: [num_centroids]).
-	        majority_labels (list): List of majority labels for each centroid.
-	        out_file (str, optional): Path to save the plot. If None, the plot is displayed.
-	    """
-	    if centroids.shape[1] != 2:
-	        raise ValueError("Centroids must have 2 dimensions for visualization.")
+		Args:
+			centroids (np.ndarray): Array of centroids (shape: [num_centroids, dimensions]).
+			counters (np.ndarray): Array of counters for each centroid (shape: [num_centroids]).
+			majority_labels (list): List of majority labels for each centroid.
+			out_file (str, optional): Path to save the plot. If None, the plot is displayed.
+		"""
+		if centroids.shape[1] != 2:
+			raise ValueError("Centroids must have 2 dimensions for visualization.")
 
 		# Create the plot
-	    plt.figure(figsize=(10, 10))
+		plt.figure(figsize=(10, 10))
 
 		# plt.scatter(centroids[:, 0], centroids[:, 1], s=counters * 10, c='blue', alpha=0.6, label='Centroids')
 
 		# Annotate each centroid with its majority label
-	    for i, (x, y) in enumerate(centroids):
-	        label = majority_labels[i] if majority_labels[i] is not None else "None"
-	        plt.text(x, y, str(label), fontsize=12, ha='center', va='center', color='red')
+		for i, (x, y) in enumerate(centroids):
+			label = majority_labels[i] if majority_labels[i] is not None else "None"
+			plt.text(x, y, str(label), fontsize=12, ha='center', va='center', color='red')
 
 		# Add labels and title
-	    plt.xlabel("X Coordinate")
-	    plt.ylabel("Y Coordinate")
-	    plt.xlim([-1.1, 1.1])
-	    plt.ylim([-1.1, 1.1])
-	    plt.title("Centroids Visualization with Counters and Majority Labels")
-	    plt.legend()
+		plt.xlabel("X Coordinate")
+		plt.ylabel("Y Coordinate")
+		plt.xlim([-1.1, 1.1])
+		plt.ylim([-1.1, 1.1])
+		plt.title("Centroids Visualization with Counters and Majority Labels")
+		plt.legend()
 
-		# Save or show the plot
-	    if out_file:
-	        plt.savefig(out_file)
-	        print(f"Plot saved to {out_file}")
-	    else:
-	        plt.show()
+		Visualization.standard_save_display(out_file)
+
+	# Save or show the plot
+	@staticmethod
+	def standard_save_display(out_file):
+		if out_file:
+			plt.savefig(out_file)
+			print(f"Plot saved to {out_file}")
+		if not ('no-show-plots' in config.params and config.params['no-show-plots']):
+			plt.show()
