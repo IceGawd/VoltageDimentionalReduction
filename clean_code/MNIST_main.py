@@ -64,7 +64,7 @@ voltage_map = voltagemap.VoltageMap()
 # Compute voltages for each landmark and store in the map
 for lm in landmarks:
 	mnist_solver = solver.Solver(problem=mnist_problem)
-	voltages = mnist_solver.compute_voltages(landmarks=[lm])
+	voltages = mnist_solver.compute_voltages(lm)
 	voltage_map.add_solution(landmark_index=lm.index, voltages=voltages)
 
 print(np.array(voltage_map.voltage_maps).shape)

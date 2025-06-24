@@ -3,7 +3,7 @@ import problem
 import config
 import setofpoints
 
-from typing import List
+from typing import Union, List
 import numpy as np
 from scipy.linalg import solve
 import pandas as pd
@@ -29,17 +29,22 @@ class Solver:
 		"""
 		self.problem = problem
 
-	def compute_voltages(self, landmarks: List["Landmark"], universalGround: bool = True):
+	def compute_voltages(self, landmarks: Union["Landmark", List["Landmark"]], universalGround: bool = True):
 		"""
-		Computes and returns the voltages for the given problem
+		Computes and returns the voltages for the given problem.
 
 		Args:
-			landmarks (List["Landmark"]): The landmarks to consider when computing voltages
+			landmarks (Union[Landmark, List[Landmark]]): A single landmark or a list of landmarks to consider 
+				when computing voltages.
+			universalGround (bool): Whether to apply a universal ground condition.
 
 		Returns:
-			voltages (List[float]): The voltages corresponding to each point in set of points
+			voltages (List[float]): The voltages corresponding to each point in the set of points.
 		"""
-
+		# Normalize to list
+		if not isinstance(landmarks, list):
+			landmarks = [landmarks]
+		
 		weights = self.problem.calcResistanceMatrix(universalGround)
 		n = weights.shape[0]
 
@@ -89,7 +94,7 @@ def main():
 	landmarks = [landmark.Landmark(0, 5), landmark.Landmark(1, 10)]
 	voltages = solver_instance.compute_voltages(landmarks)
 	print("Computed Voltages:", voltages)
-    
+	
 
 if __name__ == "__main__":
-    main()
+	main()
