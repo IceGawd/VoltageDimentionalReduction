@@ -23,58 +23,102 @@ import setofpoints
 import kmeans
 import config
 
+def test_voltage(voltages, ignore_fraction:float=0.9, thr:float=0.05):
+	sorted = np.sort(voltages.flatten())
+	low=int(ignore_fraction*sorted.shape[0])
+	scaled = (sorted - sorted[low] )/ (sorted[-1] - sorted[low])
+	scaled=np.maximum(scaled,0)
+	advantage=np.mean(scaled[low:])
+	# print(f'advantage={advantage}')
+	if advantage>thr:
+		scaled_voltages=(voltages - sorted[low])/(sorted[-1] - sorted[low])
+		scaled_voltages=np.maximum(scaled_voltages,0)
+		print(f'min(scaled_voltages) {min(scaled_voltages.flatten())}')
+		return advantage, True, scaled_voltages
+	else:
+		return advantage, False, None
 
-#config.params['file_path']= '../data/glove/shuffled_output.txt'
-#config.params['split_char']= ' '
-#config.params['normalize_vecs']= True
 
-config.params['file_path']= '../data/mnist/mnist.csv'
-config.params['split_char']= ','
-config.params['normalize_vecs']= False
 
-config.params['max_centroids']= 1000
-config.params['init_size']= 5000
-config.params['batch_size']= 1000
-config.params['output']= 'streaming_centroids.npy'
+if __name__=="__main__":
+	#config.params['file_path']= '../data/glove/shuffled_output.txt'
+	#config.params['split_char']= ' '
+	#config.params['normalize_vecs']= True
 
-# generate centroids using streaming k-means
-centroids, counters, majority_labels, _,_=kmeans.Streaming_Kmeans(config.params['file_path'])
+	config.params['file_path']= '../data/mnist/mnist.csv'
+	config.params['split_char']= ','
+	config.params['normalize_vecs']= False
 
-X=np.stack(centroids)
-print('X.shape=',X.shape)
-# Normalize pixel values to [0, 1]
-X = X / 255.0   #for visualization purposes
-y= np.array(majority_labels)
+	config.params['max_centroids']= 1000
+	config.params['init_size']= 5000
+	config.params['batch_size']= 1000
+	config.params['output']= 'streaming_centroids.npy'
 
-# define set of points on which we will work
-point_set = setofpoints.SetOfPoints(points=X, weights=counters)
+	# generate centroids using streaming k-means
+#	centroids, counters, majority_labels, _,_=kmeans.Streaming_Kmeans(config.params['file_path'])
 
-#choose landmarks one at a time, starting with a random centroid and then choosing a centroid where all of the voltages so far are low.
+#	X=np.stack(centroids)
+#	print('X.shape=',X.shape)
+#	# Normalize pixel values to [0, 1]
+#	X = X / 255.0   #for visualization purposes
+#	y= np.array(majority_labels)
 
-import random
-landmarks = []
-this_landmark=landmark.Landmark(random.randint(0, centroids.shape[0]),1.0)
-# Initialize the map
-voltage_map = voltagemap.VoltageMap()
+#	# define set of points on which we will work
+#	point_set = setofpoints.SetOfPoints(points=X, weights=counters)
 
-problem = problem.Problem(point_set,r=10.0)
+	import pickle
+#	with  open('../data/Intermediates/pointset.pkl','wb') as pkl:
+#		pickle.dump(point_set,pkl)
+	with  open('../data/Intermediates/pointset.pkl','rb') as pkl:
+		point_set=pickle.load(pkl)
 
-while True:
-	landmarks.append(this_landmark)
-	# Find best r and Add the landmark to the voltage map
-	best_r,voltages=problem.optimize([this_landmark,], k=2)
-	voltage_map.add_solution(landmark_index=this_landmark.index, voltages=voltages)
+	print('started')
+	#choose landmarks one at a time, starting with a random centroid and then choosing a centroid where all of the voltages so far are low.
 
-	# choose next landmark to add
-	# collect, for each point, the voltages calculated so far
-	voltages_so_far = np.stack(voltage_map.voltage_maps)
-	print('voltages_so_far.shape=', voltages_so_far.shape)
-	# find the point with the lowest voltage so far
-	break
+	import random
 
-# visualization.Visualization.plot_mds_digits([2, 3, 4, 5, 7, 8, 9], voltage_map, point_set, y[:1000], alpha_actual=0.5, out_file="../inputoutput/matplotfigures/mnist_mds.png")
+	j=0
+	# Initialize the map
+	landmarks=[]
+	voltage_map = voltagemap.VoltageMap()
+	problem = problem.Problem(point_set)
+	solver=solver.Solver(problem)
+	max_voltage=np.zeros(point_set.__len__())
 
-import dill  # or use 'pickle' for simpler objects
-with open("../data/workspace.pkl", "wb") as f:
-    dill.dump_session(f)
-print("main complete. Workspace saved to '../data/workspace.pkl'.")
+	Voltage_thr=0.1     # maximal voltage for adding a landmark
+	coverage_threshold=0.95  # minimal coverage to terminate the program
+
+	while True:
+		index=random.randint(0, len(point_set)-1)  # choose a random point
+		if(max_voltage[index]>Voltage_thr):  # check whether it already has significant voltage
+			continue
+		# choose next landmark to add
+		candidate_landmark=landmark.Landmark(index,voltage=1.0)
+		voltages=solver.compute_voltages(candidate_landmark)
+		advantage,test_passed, scaled_voltages = test_voltage(voltages) 
+		if not test_passed:
+			continue
+
+		j+=1
+		landmarks.append(candidate_landmark)
+
+		# collect, for each point, the voltages calculated so far
+		voltage_map.add_solution(landmark_index=candidate_landmark.index, voltages=scaled_voltages)
+
+		voltages_so_far = np.stack(voltage_map.voltage_maps)
+		max_voltage=np.max(voltages_so_far,axis=0)
+		aver_max=np.mean(max_voltage.flatten())
+		min_max=np.min(max_voltage.flatten())
+		non_zero_fraction =  np.mean(max_voltage.flatten()>0)
+		print(f"iter={j}, advantage={advantage},\
+		 aver_max={aver_max}, min_max={min_max},\
+			non_zero_fraction={non_zero_fraction}")
+		if non_zero_fraction>=coverage_threshold: 
+			print(f'non_zero_fraction >= {coverage_threshold}, Stopping')
+			break
+
+
+	import dill  # or use 'pickle' for simpler objects
+	with open("../data/workspace.pkl", "wb") as f:
+		dill.dump_session(f)
+	print("main complete. Workspace saved to '../data/Intermediates/workspace.pkl'.")

@@ -29,31 +29,35 @@ class Solver:
 		"""
 		self.problem = problem
 
-	def compute_voltages(self, landmarks: Union["Landmark", List["Landmark"]], universalGround: bool = True):
+	def compute_voltages(self, this_landmark: landmark.Landmark):
 		"""
 		Computes and returns the voltages for the given problem.
 
 		Args:
-			landmarks (Union[Landmark, List[Landmark]]): A single landmark or a list of landmarks to consider 
-				when computing voltages.
-			universalGround (bool): Whether to apply a universal ground condition.
+		this_landmark landmark.Landmark: The landmark
 
 		Returns:
-			voltages (List[float]): The voltages corresponding to each point in the set of points.
+			voltages: the voltages solution ndarray
 		"""
+
 		# Normalize to list
 		if not isinstance(landmarks, list):
 			landmarks = [landmarks]
 		
-		weights = self.problem.calcResistanceMatrix(universalGround)
+		### yf: I think most of this logic should reside in calcresistancematrix. The only
+		### logic that should be here is incorporating the (single) landmark.
+
+		weights = self.problem.getResistanceMatrix()
+
 		n = weights.shape[0]
 
-		if (universalGround):
-			landmarks.append(landmark.Landmark(n - 1, 0))
+		ground=landmark.Landmark(n - 1, 0)	
+		landmarks=[this_landmark,ground]
 		
 		constrained_nodes =   [l.index for l in landmarks]
 		unconstrained_nodes = [i for i in range(n) if i not in constrained_nodes]
 		
+		# I don't understand the lines from here to the #print
 		b = np.zeros(n)
 		for lm in landmarks:
 			for y in range(0, n):
@@ -73,9 +77,7 @@ class Solver:
 
 		self.voltages[unconstrained_nodes] = v_unconstrained
 		
-		if (universalGround):
-			self.voltages = self.voltages[:-1]
-			landmarks.pop()
+		self.voltages = self.voltages[:-1]
 
 		return self.voltages
 
@@ -88,13 +90,15 @@ def main():
 	weights = np.array([1, 1, 1, 1])
 	point_set = setofpoints.SetOfPoints(points=points, weights=weights)
 
-	problem_instance = problem.Problem(point_set, r=config.params['r'], c=config.params['c'])
+	problem_instance = problem.Problem(point_set, r=config.params['r'])
 	solver_instance = Solver(problem_instance)
 
 	landmarks = [landmark.Landmark(0, 5), landmark.Landmark(1, 10)]
 	voltages = solver_instance.compute_voltages(landmarks)
 	print("Computed Voltages:", voltages)
-	
+
+        # main needs to implement a test that passes/fails without human input.
+        
 
 if __name__ == "__main__":
 	main()
