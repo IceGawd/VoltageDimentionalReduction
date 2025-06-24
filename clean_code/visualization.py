@@ -31,16 +31,20 @@ class Visualization:
 			all_points = np.vstack(([0, 0, 0], points))
 			return inverse_pairwise_squared_distance_sum(all_points)  # Negate for minimization
 		
-		# Initial guess: random points in unit cube
-		init_points = np.random.rand(N, 3)
+		# Initial guess: points in unit cube
+		div_num = int(np.ceil(math.pow(N, 1.0/3.0)))
+		divisions = [(i + 1.0) / div_num for i in range(div_num)]
+
+		all_points = list(itertools.product(divisions, repeat=3))
+		init_points = np.array(all_points[:N])
+
 		result = minimize(
 			objective,
 			init_points.flatten(),
 			args=(N,),
-			method='L-BFGS-B',
 			bounds=[(0, 1)] * (3 * N),
-			options={'maxiter': 1000}
 		)
+		
 		optimized_points = result.x.reshape((N, 3))
 		return optimized_points
 
@@ -184,5 +188,6 @@ class Visualization:
 		if out_file:
 			plt.savefig(out_file)
 			plt.close(fig)
-		else:
+
+		if 'no-show-plots' in config.params and !config.params['no-show-plots']:
 			plt.show()

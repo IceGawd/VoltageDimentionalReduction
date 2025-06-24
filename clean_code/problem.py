@@ -20,7 +20,7 @@ class Problem:
 		r (float): Resistance to ground.
 	"""
 
-	def __init__(self, points: setofpoints.SetOfPoints, r: float):
+	def __init__(self, points: setofpoints.SetOfPoints, r: float = 1):
 		"""
 		Initializes a Problem instance.
 
@@ -66,9 +66,12 @@ class Problem:
 					kernel[i, j] = weight * self.points.weights[i] * self.points.weights[j]
 					kernel[j, i] = weight * self.points.weights[j] * self.points.weights[i]  # symmetric
 
+
+		kernel = kernel / kernel.sum(axis=1, keepdims=True)
+
 		# Constant connection to the ground node
 		if (universalGround):
-			connectivity = kernel.sum() / (self.r * n * n)
+			connectivity = 1 / (self.r * n)	# A normalization of the self.r value
 			ground_col = np.full((n, 1), connectivity, dtype=float)
 			ground_row = ground_col.T						# (1 × n)
 

@@ -34,6 +34,7 @@ config.params['init_size'] = 1000
 config.params['batch_size'] = 10000
 config.params['output'] = 'streaming_centroids.npy'
 config.params['k-nearest-neighbors'] = 2
+# config.params['no-show-plots'] = True
 
 centroids,counters,inital_mean_d2,mean_d2=kmeans.Streaming_Kmeans(config.params['file_path'])
 
