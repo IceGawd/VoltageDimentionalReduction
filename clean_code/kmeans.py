@@ -4,6 +4,7 @@ import os
 import re
 import argparse
 import config
+import visualization
 
 import faulthandler
 from collections import Counter
@@ -351,8 +352,7 @@ def main():
 
     # if 2d test then visualize datapoints, centroids labels
     if config.params['test']:
-        import visualization
-        visualization.plot_centroids(centroids, counters, majority_labels)
+        visualization.Visualization.plot_centroids(centroids, counters, majority_labels)
 
 
 if __name__ == "__main__":

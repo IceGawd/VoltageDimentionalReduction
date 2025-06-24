@@ -1,3 +1,5 @@
 *.pyc
 *.png
 *__pycache__*
+data
+inputoutput/data/mnist.csv

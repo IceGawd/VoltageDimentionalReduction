@@ -1,9 +1,13 @@
 import landmark
 import problem
+import config
+import setofpoints
 
 from typing import List
 import numpy as np
 from scipy.linalg import solve
+import pandas as pd
+
 
 class Solver:
 	"""
@@ -25,7 +29,7 @@ class Solver:
 		"""
 		self.problem = problem
 
-	def compute_voltages(self, landmarks: List["Landmark"], k: int = 10, universalGround: bool = True):
+	def compute_voltages(self, landmarks: List["Landmark"], universalGround: bool = True):
 		"""
 		Computes and returns the voltages for the given problem
 
@@ -36,7 +40,7 @@ class Solver:
 			voltages (List[float]): The voltages corresponding to each point in set of points
 		"""
 
-		weights = self.problem.calcResistanceMatrix(k, universalGround)
+		weights = self.problem.calcResistanceMatrix(universalGround)
 		n = weights.shape[0]
 
 		if (universalGround):
@@ -66,15 +70,12 @@ class Solver:
 		
 		if (universalGround):
 			self.voltages = self.voltages[:-1]
+			landmarks.pop()
 
 		return self.voltages
 
-if __name__ == "__main__":
-	# Example usage
-	import setofpoints
-	import config
-	import pandas as pd
-
+# Example usage
+def main():
 	config.params['r'] = 1.0
 	config.params['c'] = 1.0
 
@@ -88,3 +89,7 @@ if __name__ == "__main__":
 	landmarks = [landmark.Landmark(0, 5), landmark.Landmark(1, 10)]
 	voltages = solver_instance.compute_voltages(landmarks)
 	print("Computed Voltages:", voltages)
+    
+
+if __name__ == "__main__":
+    main()
