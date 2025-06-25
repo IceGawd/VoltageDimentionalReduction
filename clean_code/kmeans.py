@@ -5,94 +5,11 @@ import re
 import argparse
 import config
 import visualization
+from reader import Reader
 
 import faulthandler
 from collections import Counter
 faulthandler.enable()
-
-# ------------------- Reader -------------------
-class ParseException(Exception):
-    pass
-
-def readvec(file):
-    line = file.readline()
-    if not line:
-        return None, None
-    
-    line = line.split('#')[0]
-    
-    split_char = config.params['split_char']
-    if split_char == '' or split_char is None:
-        parts = line.strip().split()  # default: split on any whitespace
-    else:
-        parts = line.strip().split(split_char)
-    if len(parts) < 2:
-        print(line)
-        print('no of parts=', len(parts))
-        raise ParseException(parts)
-    try:
-        label = parts[0]
-        vec = np.array([float(x) for x in parts[1:]], dtype=np.float32)
-        return label, vec
-    except ValueError:
-        return None, None  # Skip lines with bad floats
-
-    except ValueError:
-        raise ParseException(parts)
-
-class Reader:
-    """
-    Reads a text file containing vectors line-by-line and yields batches of vectors and labels.
-
-    Each line in the file should be in the format:
-        word val1 val2 val3 ...
-
-    Attributes:
-        file (TextIO): Opened file handle.
-        counter (int): Number of vectors successfully read.
-    """
-
-    def __init__(self, file_path):
-        """
-        Initializes the Reader.
-
-        Args:
-            file_path (str): Path to the input text file.
-        """
-        self.file = open(file_path, 'r', encoding='utf-8')
-        self.counter = 0
-
-    def stream_batches(self, batch_size):
-        """
-        Generator that yields batches of vectors and labels as NumPy arrays.
-
-        Args:
-            batch_size (int): Number of vectors to include in each batch.
-
-        Yields:
-            tuple: (np.ndarray of shape (batch_size, vector_dim), np.ndarray of shape (batch_size,))
-        """
-        while True:
-            vectors = []
-            labels = []
-            for _ in range(batch_size):
-                label, vec = readvec(self.file)
-                if vec is not None:
-                    vectors.append(vec)
-                    labels.append(label)
-                    self.counter += 1
-                    if self.counter % config.params['batch_size'] == 0:
-                        print(f"\rRead {self.counter} vectors", end='', flush=True)
-            if not vectors:
-                break
-            yield np.stack(vectors), np.array(labels)
-
-    def close(self):
-        """
-        Closes the file handle.
-        """
-        self.file.close()
-
 
 # ------------- Streaming KMeans++ --------------
 class StreamingKMeansPlusPlus:
