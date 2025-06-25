@@ -18,6 +18,9 @@ def readvec(file):
     line = file.readline()
     if not line:
         return None, None
+    
+    line = line.split('#')[0]
+    
     split_char = config.params['split_char']
     if split_char == '' or split_char is None:
         parts = line.strip().split()  # default: split on any whitespace
@@ -320,7 +323,7 @@ from set_params import set_params
 
 def main():
     
-    set_params()  #set parameters accordinig to the command line
+    set_params()  #set parameters accordinig to the command line            
     if config.params['test']:
         
         config.params['file_path']= '../data/synthetic/2drandom10000.csv'
@@ -353,8 +356,7 @@ def main():
     # if 2d test then visualize datapoints, centroids labels
     if config.params['test']:
         visualization.Visualization.plot_centroids(centroids, counters, majority_labels)
-
-
+    
 if __name__ == "__main__":
     main()
 
