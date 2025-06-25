@@ -1,5 +1,6 @@
 import numpy as np
 import config
+from set_params import set_params
 
 class ParseException(Exception):
     pass
@@ -85,30 +86,32 @@ class Reader:
 
 # ------------------- Main ---------------------
 def main():
-    config.params['file_path'] = '../Voltage_Data/glove/glove_with_pos.txt'
-    #config.params['file_path'] = '../Voltage_Data/mnist/mnist.csv'
-    config.params['batch_size'] = 100
-    
-    if config.params['file_path'].endswith('.txt'):
-        config.params['split_char'] = ''
-    else:
-	    config.params['split_char'] = ','
-    
-    print("Testing Reader...")
-    try:
-        reader = Reader(config.params['file_path'])
-        vectors, labels = next(reader.stream_batches(config.params['batch_size']))
-        print(f"\nRead {len(vectors)} vectors, shape = {vectors.shape}")
-        print("Sample labels:", labels[:5])
-        print("Sample vector[0]:", vectors[0])
-        reader.close()
-        print("Test successful")
-    except FileNotFoundError:
-        print(f"File not found: {config.params['file_path']}")
-    except ParseException as e:
-        print(f"Parse error: {e}")
-    except Exception as e:
-        print(f"Unexpected error: {e}")
+    set_params()
+    if config.params['test']:
+        config.params['file_path'] = '../Voltage_Data/glove/glove_with_pos.txt'
+        #config.params['file_path'] = '../Voltage_Data/mnist/mnist.csv'
+        config.params['batch_size'] = 100
+        
+        if config.params['file_path'].endswith('.txt'):
+            config.params['split_char'] = ''
+        else:
+            config.params['split_char'] = ','
+        
+        print("Testing Reader...")
+        try:
+            reader = Reader(config.params['file_path'])
+            vectors, labels = next(reader.stream_batches(config.params['batch_size']))
+            print(f"\nRead {len(vectors)} vectors, shape = {vectors.shape}")
+            print("Sample labels:", labels[:5])
+            print("Sample vector[0]:", vectors[0])
+            reader.close()
+            print("Test successful")
+        except FileNotFoundError:
+            print(f"File not found: {config.params['file_path']}")
+        except ParseException as e:
+            print(f"Parse error: {e}")
+        except Exception as e:
+            print(f"Unexpected error: {e}")
 
 if __name__ == "__main__":
     main()
