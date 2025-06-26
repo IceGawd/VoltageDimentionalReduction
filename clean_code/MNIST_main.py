@@ -26,8 +26,12 @@ import config
 
 print("Streaming K-means on MNIST dataset")
 
-config.params['file_path'] = '../data/mnist.csv'
-config.params['split_char'] = ','
+config.params['file_path'] = '../Voltage_Data/mnist/mnist.csv'
+# config.params['file_path'] = '../Voltage_Data/glove/glove_with_pos.txt'
+if config.params['file_path'].endswith('.txt'):
+    config.params['split_char'] = ''
+else:
+	config.params['split_char'] = ','
 config.params['normalize_vecs'] = False
 config.params['max_centroids'] = 1000
 config.params['init_size'] = 1000
