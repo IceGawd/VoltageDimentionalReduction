@@ -2,7 +2,7 @@ import argparse
 import config
 
 def set_params():
-    parser = argparse.ArgumentParser(description="")")
+    parser = argparse.ArgumentParser(description="Set parameters for the streaming centroids algorithm.")
     parser.add_argument("file_path", nargs='?', default=None, help="Path to a text file of vectors (word + floats)")
     parser.add_argument("--split_char")
     parser.add_argument("--normalize_vecs", action="store_true", help="normalize vectors to L_2=1 before calculating distances")
