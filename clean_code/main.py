@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 from scipy.sparse.linalg import cg
 from sklearn.neighbors import NearestNeighbors
-from scipy.sparse import lil_matrix, csr_matrix
+from scipy.sparse import lil_matrix, csr_matrix, csgraph
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 from sklearn.decomposition import PCA
 from sklearn.manifold import MDS
@@ -77,8 +77,12 @@ def compute_distances(point_set, voltages):
 		for j in indices[i]:
 			if i != j:
 				adjacency_matrix[i, j] = 1.0
+				adjacency_matrix[j, i] = 1.0
+	
+	D3 = csgraph.shortest_path(adjacency, method = "auto", directed = False, unweighted=True)
+	D3[np.isinf(D3)] = np.inf
 
-
+	return D1, D2, D3
 
 
 
@@ -162,6 +166,7 @@ if __name__=="__main__":
 
 	#call a function for computing distances between all poirs of points in pointset
 	distances = compute_distances(point_set,voltages_so_far)
+	print(distances)
 
 
 
