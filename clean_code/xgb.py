@@ -14,7 +14,9 @@ with open("../../Voltage_Temp/Results/voltage_map.npy", "rb") as f:
 
 # Load point_set (centroid locations)
 with open("../../Voltage_Temp/Intermediates/pointset.pkl", "rb") as f:
-    dill.load_session(f)  # this loads `point_set` into the environment
+    point_set = dill.load(f)
+  # this loads `point_set` into the environment
+print(type(point_set))
 
 # Extract centroid vectors
 centroid_vectors = point_set.points  # shape: (n_centroids, d)
@@ -77,11 +79,11 @@ X_voltage = embed_voltage_features(X_data, centroid_vectors, voltage_map, k=5)
 print("Voltage-based feature matrix shape:", X_voltage.shape)
 
 # Train/test split and model
-# from sklearn.model_selection import train_test_split
-# from xgboost import XGBClassifier
+from sklearn.model_selection import train_test_split
+from xgboost import XGBClassifier
 
-# X_train, X_test, y_train, y_test = train_test_split(X_voltage, y_data, test_size=0.2, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(X_voltage, y_data, test_size=0.2, random_state=42)
 
-# model = XGBClassifier()
-# model.fit(X_train, y_train)
-# print("Test accuracy:", model.score(X_test, y_test))
+model = XGBClassifier()
+model.fit(X_train, y_train)
+print("Test accuracy:", model.score(X_test, y_test))
