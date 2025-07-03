@@ -5,6 +5,7 @@ import dill
 from sklearn.neighbors import NearestNeighbors
 from sklearn.model_selection import train_test_split
 from xgboost import XGBClassifier
+import argparse
 
 
 # ---------- Data Loading Functions ----------
@@ -19,7 +20,7 @@ def load_point_set(path: str):
         return dill.load(f)
 
 
-def load_mnist_data(path: str):
+def load_labeled_data(path: str):
     df = pd.read_csv(path, dtype=str, low_memory=False)
     df = df[df.iloc[:, 0] != "label"]
     df = df.astype(np.float32)
@@ -73,24 +74,37 @@ def train_and_evaluate(X, y):
 
 # ---------- Main Block ----------
 
-def main():
-    voltage_map_path = "../../Voltage_Temp/Results/voltage_map.npy"
-    pointset_path = "../../Voltage_Temp/Intermediates/pointset.pkl"
-    mnist_path = "../../Voltage_Data/mnist/mnist.csv"
+def main(args):
+    if args.test_only:
+        print("Running MNIST test-only mode...")
+        voltage_map = load_voltage_map("../../Voltage_Temp/Results/voltage_map.npy")
+        point_set = load_point_set("../../Voltage_Temp/Intermediates/pointset.pkl")
+        X_data, y_data = load_labeled_data("../../Voltage_Data/mnist/mnist.csv")
+        X_voltage = embed_voltage_features(X_data, point_set.points, voltage_map, k=5)
+        train_and_evaluate(X_voltage, y_data)
+        return
 
-    voltage_map = load_voltage_map(voltage_map_path)
-    point_set = load_point_set(pointset_path)
-    print("Loaded point_set:", type(point_set))
+    voltage_map = load_voltage_map(args.voltage_map)
+    point_set = load_point_set(args.pointset)
 
-    X_data, y_data = load_mnist_data(mnist_path)
+    X_data, y_data = load_labeled_data(args.data)
     centroid_vectors = point_set.points
-
     X_voltage = embed_voltage_features(X_data, centroid_vectors, voltage_map, k=5)
-    print("Voltage-based feature matrix shape:", X_voltage.shape)
-    print(X_voltage[:5])
 
     _ = train_and_evaluate(X_voltage, y_data)
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Voltage-based XGBoost classifier")
+    parser.add_argument("--data", type=str, help="Path to labeled CSV file")
+    parser.add_argument("--voltage_map", type=str, help="Path to voltage_map.npy file")
+    parser.add_argument("--pointset", type=str, help="Path to pointset.pkl file")
+    parser.add_argument("-T", "--test_only", action="store_true", help="Run in test-only mode")
+
+    args = parser.parse_args()
+
+    if not args.test_only:
+        if not args.data or not args.voltage_map or not args.pointset:
+            parser.error("In normal mode, --data, --voltage_map, and --pointset are required.")
+
+    main(args)
