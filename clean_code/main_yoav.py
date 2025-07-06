@@ -23,7 +23,7 @@ import setofpoints
 import kmeans
 import config
 
-def test_voltage(voltages, ignore_fraction:float=0.50, thr:float=0.09):
+def test_voltage(voltages, ignore_fraction:float=0.90, thr:float=0.05):
 	sorted = np.sort(voltages.flatten())
 	low=int(ignore_fraction*sorted.shape[0])
 	scaled = (sorted - sorted[low] )/ (sorted[-1] - sorted[low])
@@ -55,13 +55,26 @@ def compute_distances(point_set, voltages):
 	np.fill_diagonal(D1, -np.inf)
 
 	# 2. Distance based on voltages
-	X= voltages
+	# using L2 distance
+
 	index = faiss.IndexFlatL2(voltages.shape[1])  # L2 distance index
-	index.add(voltages.astype(np.float32))  # Add points to the index
-	D2, _ = index.search(voltages.astype(np.float32), voltages.shape[0])
+	vectors = voltages.astype(np.float32)
+
+	index.add(vectors)  # Add points to the index
+	D2, _ = index.search(vectors, vectors.shape[0])
 	np.fill_diagonal(D2, -np.inf)
 
-	return D1,D2
+	# 3. Distance based on voltages
+	# using L1 distance
+
+	D3 = np.abs(voltages[:, None, :] - voltages[None, :, :]).sum(axis=2)
+#	index = faiss.IndexFlat(voltages.shape[1], faiss.METRIC_L1)
+#	index.add(vectors)
+#	D3, _ = index.search(vectors, vectors.shape[0])
+	np.fill_diagonal(D3, -np.inf)
+
+	print("Returning shapes:", D1.shape, D2.shape, D3.shape,flush=True)
+	return D1, D2, D3
 
 	# 3. Distance based on k-connectivity graph
 	# Using the point_set directly
@@ -132,7 +145,7 @@ if __name__ == "__main__":
 	max_voltage=np.zeros(point_set.__len__())
 
 	Voltage_thr=0.2     # maximal voltage for adding a landmark
-	coverage_threshold=0.95  # minimal coverage to terminate the program
+	coverage_threshold=0.93  # minimal coverage to terminate the program
 
 	import random
 	while True:
@@ -167,8 +180,8 @@ if __name__ == "__main__":
 	print(f"voltages_so_far.shape={voltages_so_far.shape}, landmarks={len(landmarks)}")
 	print(f"point_set.shape={point_set.points.shape}, weights={point_set.weights.shape}")
 	#call a function for computing distances between all poirs of points in pointset
-	Deuclid,Dvolt = compute_distances(point_set,voltages_so_far.T)
-	print(f"Deuclid.shape={Deuclid.shape}, Dvolt.shape={Dvolt.shape}")
+	Deuclid,Dvolt2,Dvolt1 = compute_distances(point_set,voltages_so_far.T)
+	print(f"Deuclid.shape={Deuclid.shape}, Dvolt1.shape={Dvolt1.shape}")
 
 
 	# save the workspace for later use
