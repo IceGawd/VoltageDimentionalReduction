@@ -40,7 +40,7 @@ def test_voltage(voltages, ignore_fraction:float=0.90, thr:float=0.05):
 
 import faiss
 
-def compute_distances(point_set, voltages):
+def compute_distances(centroids, voltages):
 # Using Faiss compute three types of distances:
 # 1. Euclidean distance between points in the point set
 # 2. Distance between points in the point set based on voltages
@@ -48,8 +48,8 @@ def compute_distances(point_set, voltages):
 #    where the distance is defined as the number of hops in the graph 
 #    use FAISS to efficiently compute distances
 	# 1. Euclidean distance
-	# Using the point_set directly
-	X = point_set.points
+	# Using the centroids directly
+	X = centroids.points
 	index = faiss.IndexFlatL2(X.shape[1])  # L2 distance index
 	index.add(X.astype(np.float32))  # Add points to the index
 	D1, _ = index.search(X.astype(np.float32), X.shape[0])
@@ -108,7 +108,7 @@ if __name__ == "__main__":
 		y= np.array(majority_labels)
 
 		# define set of points on which we will work
-		point_set = setofpoints.SetOfPoints(points=X, weights=counters)
+		centroids = setofpoints.SetOfPoints(points=X, weights=counters)
 
 
 ### Store /recover intermediate workspace
@@ -116,55 +116,43 @@ if __name__ == "__main__":
 	else:
 		dill.load_session(workspace_file)
 	
-	print("starting after kmeans is done")
-	   
-	j=0
-	# Initialize the map
-	landmarks=[]
-	voltage_map = voltagemap.VoltageMap()
-	_problem = problem.Problem(point_set)
+	print("starting building landmarks after kmeans is done")
+
+	# compute the voltage map for each centroid
+
+	all_voltages = voltagemap.VoltageMap()	
+	_problem = problem.Problem(centroids,r=0.01)
 	_solver=solver.Solver(_problem)
-	max_voltage=np.zeros(point_set.__len__())
 
-	Voltage_thr=0.2     # maximal voltage for adding a landmark
-	coverage_threshold=0.93  # minimal coverage to terminate the program
+	from time import time
+	start_time = time()
+	for index in range(len(centroids)):
+		_landmark= landmark.Landmark(index, voltage=1.0)
+		voltages=_solver.compute_voltages(_landmark)
+		all_voltages.add_solution(_landmark, voltages=voltages)
+	end_time = time()
+	print(f"Computed voltages for {len(centroids)} centroids in {end_time - start_time:.2f} seconds")
+	all_voltages.sort_by_norm()  # sort the voltage map by norm in descending order
+	print(f"Voltage map has {len(all_voltages)} entries after sorting by norm")
 
-	import random
-	while True:
-		index=random.randint(0, len(point_set)-1)  # choose a random point
-		if(max_voltage[index]>Voltage_thr):  # check whether it already has significant voltage
+	# Initialize the map
+	voltage_map=voltagemap.VoltageMap()
+	max_voltage=np.zeros(len(all_voltages))  # to keep track of the maximum voltage for each landmark
+
+	for i, (lm, voltages, norm) in enumerate(all_voltages.entries):
+		if i==0:
+			# Initialize the voltage map with the first landmark
+			voltage_map.add_solution(lm, voltages=voltages)
 			continue
-		# choose next landmark to add
-		candidate_landmark=landmark.Landmark(index,voltage=1.0)
-		voltages=_solver.compute_voltages(candidate_landmark)
-		advantage,test_passed, scaled_voltages = test_voltage(voltages,ignore_fraction=0.5, thr=0.05) 
-		if not test_passed:
-			continue
-
-		j+=1
-		landmarks.append(candidate_landmark)
-
-		# collect, for each point, the voltages calculated so far
-		voltage_map.add_solution(landmark_index=candidate_landmark.index, voltages=scaled_voltages)
-
-		voltages_so_far = np.stack(voltage_map.voltage_maps)
-		max_voltage=np.max(voltages_so_far,axis=0)
-		aver_max=np.mean(max_voltage.flatten())
-		min_max=np.min(max_voltage.flatten())
-		non_zero_fraction =  np.mean(max_voltage.flatten()>Voltage_thr)
-		print(f"iter={j}, advantage={advantage},\
-		 aver_max={aver_max}, min_max={min_max},\
-			non_zero_fraction={non_zero_fraction}")
-		if non_zero_fraction>=coverage_threshold: 
-			print(f'non_zero_fraction >= {coverage_threshold}, Stopping')
-			break
-
-	print(f"voltages_so_far.shape={voltages_so_far.shape}, landmarks={len(landmarks)}")
-	print(f"point_set.shape={point_set.points.shape}, weights={point_set.weights.shape}")
-	#call a function for computing distances between all poirs of points in pointset
-	#import pdb; pdb.set_trace()
-	#Deuclid,Dvolt2,Dvolt1 = compute_distances(point_set,voltages_so_far.T)
-	#print(f"Deuclid.shape={Deuclid.shape}, Dvolt1.shape={Dvolt1.shape}")
+		else:
+			v1= voltages
+			norm1 = norm
+			for vm in voltage_map.entries:
+				v2= vm[1]
+				norm2 = vm[2]
+				dp= np.dot(v1, v2)/(norm1 * norm2)  # dot product
+				print(f"Landmark {i} - Dot product with existing landmarks: {dp:.4f}")
+			break 
 
 
 	# save the workspace for later use
