@@ -41,6 +41,7 @@ class Problem:
 	def calcResistanceMatrix(self, k: int = 10,r: float = 1.0) -> np.ndarray:
 		"""
 		Calculates the (n+1)x(n+1) row-normalized resistance matrix using k-nearest neighbors.
+		See for explaination: https://github.com/IceGawd/VoltageDimentionalReduction/blob/main/highLevelDocs/VoltageCalculation.md
 
 		Args:
 			k (int): Number of nearest neighbors for sparse approximation.
@@ -71,15 +72,14 @@ class Problem:
 		kernel = kernel / kernel.sum(axis=1, keepdims=True)
 
 		# Constant connection to the ground node
-		connectivity = kernel.sum() / (self.r * n * n)
+		connectivity = 1 / self.r
 		ground_col = np.full((n, 1), connectivity, dtype=float)
 		ground_row = ground_col.T						# (1 × n)
 
 		# Assemble full (n+1) × (n+1) matrix
-		top    = np.hstack((kernel, ground_col))		        # (n × (n+1))
+		top    = np.hstack((kernel, ground_col))		# (n × (n+1))
 		bottom = np.hstack((ground_row, [[0]]))
 		full   = np.vstack((top, bottom))				# ((n+1) × (n+1))
-
 
 		# Normalize so each row sums to 0 with diagonals 1
 		row_sums = full.sum(axis=1, keepdims=True)

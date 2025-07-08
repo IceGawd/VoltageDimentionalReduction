@@ -32,6 +32,7 @@ class Solver:
 	def compute_voltages(self, this_landmark: landmark.Landmark):
 		"""
 		Computes and returns the voltages for the given problem.
+		See for explaination: https://github.com/IceGawd/VoltageDimentionalReduction/blob/main/highLevelDocs/VoltageCalculation.md
 
 		Args:
 		this_landmark landmark.Landmark: The landmark
@@ -40,20 +41,16 @@ class Solver:
 			voltages: the voltages solution ndarray
 		"""
 		
-		### yf: I think most of this logic should reside in calcresistancematrix. The only
-		### logic that should be here is incorporating the (single) landmark.
-
 		weights = self.problem.getResistanceMatrix()
 
 		n = weights.shape[0]
 
-		ground=landmark.Landmark(n - 1, 0)	
-		landmarks=[this_landmark,ground]
+		ground = landmark.Landmark(n - 1, 0)	
+		landmarks = [this_landmark,ground]
 		
 		constrained_nodes =   [l.index for l in landmarks]
 		unconstrained_nodes = [i for i in range(n) if i not in constrained_nodes]
 		
-		# I don't understand the lines from here to the #print
 		b = np.zeros(n)
 		for lm in landmarks:
 			for y in range(0, n):
