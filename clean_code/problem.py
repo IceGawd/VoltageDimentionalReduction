@@ -1,6 +1,5 @@
 import setofpoints
 import landmark
-import solver
 import config
 
 import numpy as np
@@ -20,7 +19,7 @@ class Problem:
 		r (float): Resistance to ground.
 	"""
 
-	def __init__(self, points: setofpoints.SetOfPoints, k: int = 10, r: float = 1.0):
+	def __init__(self, points: setofpoints.SetOfPoints, k: int = 2, r: float = 1.0):
 		"""
 		Initializes a Problem instance.
 
@@ -55,7 +54,7 @@ class Problem:
 		n = X.shape[0]
 
 		# k-NN search (k+1 to cover self-inclusion)
-		nbrs = NearestNeighbors(n_neighbors=k + 1, algorithm='auto').fit(X)
+		nbrs = NearestNeighbors(n_neighbors=k + 1).fit(X)
 		_, indices = nbrs.kneighbors(X)
 
 		# Dense kernel (n × n)
@@ -83,8 +82,8 @@ class Problem:
 
 		# Normalize so each row sums to 0 with diagonals 1
 		row_sums = full.sum(axis=1, keepdims=True)
-		weights = full / row_sums
-		return np.identity(weights.shape[0]) - weights
+		probabilties = full / row_sums
+		return np.identity(probabilties.shape[0]) - probabilties
 
 	def getResistanceMatrix(self):
 		return self.ResistanceMatrix
