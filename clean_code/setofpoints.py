@@ -22,6 +22,8 @@ class SetOfPoints:
 			ValueError: If points and weights have incompatible shapes.
 		"""
 		
+		if not isinstance(points, np.ndarray):
+			raise TypeError("Points must be a 2Dnumpy array.")
 		if points.ndim != 2:
 			raise ValueError("Points array must be 2-dimensional (n, d).")
 

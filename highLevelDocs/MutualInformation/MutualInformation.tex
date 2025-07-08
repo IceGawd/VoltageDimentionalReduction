@@ -1,0 +1,134 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,geometry}
+\geometry{margin=1in}
+\begin{document}
+
+\section*{Gaussian Approximation for Color Counts in a Graph with Multiple Sources}
+
+\subsection*{Problem setup}
+
+\begin{itemize}
+\item Graph $G = (V,E)$ with a single sink node $T$ (absorbing).
+\item $K$ sources $S_1,\ldots,S_K$.
+\item Each source $S_k$ injects $N_k$ particles/sec (large $N_k$), of \emph{color $k$}.
+\item Particles do independent random walks and are absorbed at $T$.
+\item Consider node $A \neq T$.
+\item Let $X_k(A)$ be the number of color-$k$ particles at $A$ in steady state.
+\end{itemize}
+
+Goal: Approximate the \emph{joint distribution} of
+\[
+(X_1(A), X_2(A), \ldots, X_K(A))
+\]
+in steady state for large $N_k$.
+
+\subsection*{Step 1: Mean number of particles}
+
+The expected number of color-$k$ particles at $A$ is
+\[
+\lambda_k(A) = N_k \cdot H(S_k, A),
+\]
+where $H(S_k,A)$ is the expected number of visits to $A$ by a particle starting at $S_k$ before hitting $T$.
+
+\subsection*{Step 2: Distribution of color counts}
+
+Particles of color $k$ move independently:
+
+\[
+X_k(A) \sim \mathrm{Poisson}(\lambda_k(A)).
+\]
+
+\subsection*{Step 3: Joint distribution}
+
+Because colors are independent,
+\[
+(X_1(A), \ldots, X_K(A)) \sim \bigotimes_{k=1}^K \mathrm{Poisson}(\lambda_k(A)).
+\]
+
+\subsection*{Step 4: Large-$\lambda_k$ Gaussian Approximation}
+
+For large $\lambda_k(A)$:
+\[
+X_k(A) \approx \mathcal{N}(\lambda_k(A), \lambda_k(A)).
+\]
+
+Thus jointly:
+\[
+(X_1(A), \ldots, X_K(A)) \approx \mathcal{N}\bigl(\mu(A), \Sigma(A)\bigr),
+\]
+where
+\[
+\mu(A) = \begin{bmatrix}\lambda_1(A) \\ \vdots \\ \lambda_K(A)\end{bmatrix}, \quad
+\Sigma(A) = \mathrm{diag}(\lambda_1(A), \ldots, \lambda_K(A)).
+\]
+
+\subsection*{Step 5: Distribution over nodes}
+
+Suppose $A$ is random with prior $P(A)$. Then:
+\[
+(X_1,\ldots,X_K) \mid A \sim \mathcal{N}(\mu(A), \Sigma(A)).
+\]
+
+Joint distribution:
+\[
+P(A, x) = P(A) \times \mathcal{N}(x \mid \mu(A), \Sigma(A)).
+\]
+
+Marginal distribution over counts:
+\[
+P(x) = \sum_A P(A) \, \mathcal{N}(x \mid \mu(A), \Sigma(A)).
+\]
+
+\subsection*{Step 6: Mutual Information Approximation}
+
+The mutual information between the color-count vector and the node identity is:
+\[
+I\bigl((X_1,\ldots,X_K); A\bigr) = H(X_1,\ldots,X_K) - \sum_A P(A) H\bigl(X_1,\ldots,X_K \mid A\bigr).
+\]
+
+Under the Gaussian approximation:
+\[
+H\bigl(X_1,\ldots,X_K \mid A\bigr) = \frac{K}{2}\log(2\pi e) + \frac{1}{2}\sum_{k=1}^K \log \lambda_k(A).
+\]
+
+The marginal distribution is a \emph{Gaussian mixture}:
+\[
+P(x) = \sum_A P(A) \mathcal{N}(x \mid \mu(A), \Sigma(A)).
+\]
+
+Its entropy $H(X_1,\ldots,X_K)$ typically requires numerical estimation.
+
+\subsection*{Step 7: Final Approximate Formula}
+
+For large $N_k$:
+
+\[
+(X_1,\ldots,X_K) \mid A \approx \mathcal{N}(\mu(A), \Sigma(A))
+\]
+
+with
+
+\[
+\mu_k(A) = N_k H(S_k, A), \quad \Sigma(A) = \mathrm{diag}(\mu(A)).
+\]
+
+Then:
+
+\[
+I \approx H(\text{Gaussian mixture}) - \sum_A P(A) \frac{1}{2}\sum_{k=1}^K \log (2\pi e \lambda_k(A)).
+\]
+
+\subsection*{Interpretation}
+
+\begin{itemize}
+\item Mutual information quantifies how well the \emph{mean color profile} $\mu(A)$ distinguishes nodes.
+\item If the vectors $\mu(A)$ are well separated across nodes (relative to their variances), mutual information is large.
+\item If $\mu(A)$ is nearly constant across nodes, mutual information is small.
+\end{itemize}
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% End:

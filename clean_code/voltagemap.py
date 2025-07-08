@@ -15,7 +15,7 @@ class VoltageMap:
         """
         Initializes an empty Map.
         """
-        self.entries: list[tuple[landmark.Landmark, np.ndarray, float]] = []  # (landmark, voltages, norm)
+        self.entries: list[tuple[landmark.Landmark, np.ndarray, float]] = []  # (landmark, voltages, advantage)
         self.shape: tuple = ()
 
     def add_solution(self, landmark_obj: landmark.Landmark, voltages: np.ndarray) -> None:
@@ -26,29 +26,29 @@ class VoltageMap:
             landmark_obj (Landmark): The landmark used in the problem.
             voltages (np.ndarray): The computed voltage map for that landmark.
         """
-        norm = np.linalg.norm(voltages)
-        self.entries.append((landmark_obj, voltages, norm))
+        advantage = np.linalg.norm(voltages)
+        self.entries.append((landmark_obj, voltages, advantage))
         if not self.shape:
             self.shape = voltages.shape
 
     def get_solution(self, landmark_index: int) -> tuple[np.ndarray, float]:
         """
-        Retrieves the voltage map and norm for a specific landmark.
+        Retrieves the voltage map and advantage for a specific landmark.
 
         Args:
             landmark_index (int): Index of the desired landmark.
 
         Returns:
-            (np.ndarray, float): The voltage map and its norm.
+            (np.ndarray, float): The voltage map and its advantage.
         """
-        for lm, voltages, norm in self.entries:
+        for lm, voltages, advantage in self.entries:
             if lm.index == landmark_index:
-                return voltages, norm
+                return voltages, advantage
         raise ValueError(f"Landmark with index {landmark_index} not found in the map.")
 
-    def sort_by_norm(self) -> None:
+    def sort_by_advantage(self) -> None:
         """
-        Sorts the entries by their L2 norm in descending order.
+        Sorts the entries by their advantage in descending order.
         """
         self.entries.sort(key=lambda x: x[2], reverse=True)
 
@@ -59,7 +59,8 @@ class VoltageMap:
         Returns:
             np.ndarray: 2D array of shape (num_landmarks, num_points)
         """
-        return np.stack([voltages for _, voltages, _ in self.entries], axis=0)
+        V=np.stack([voltages for _, voltages, _ in self.entries], axis=0)
+        return V.T
 
     def __len__(self) -> int:
         return len(self.entries)
