@@ -36,6 +36,8 @@ class Solver:
 		Args:
 		this_landmark landmark.Landmark: The landmark
 
+                link to the pdf 
+                
 		Returns:
 			voltages: the voltages solution ndarray
 		"""
