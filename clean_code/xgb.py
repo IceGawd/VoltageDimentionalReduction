@@ -101,7 +101,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Voltage-based XGBoost classifier")
     parser.add_argument("--data", type=str, help="Path to labeled CSV file")
     parser.add_argument("--voltage_map", type=str, help="Path to voltage_map.npy file")
-    parser.add_argument("--pointset", type=str, help="Path to pointset.pkl file")
+    parser.add_argument("--pointset", type=str, help="Path to pointset.pkl or workspace.pkl file")
     parser.add_argument("-T", "--test_only", action="store_true", help="Run in test-only mode")
 
     args = parser.parse_args()
