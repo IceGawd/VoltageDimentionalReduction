@@ -75,17 +75,20 @@ def train_and_evaluate(X, y):
 # ---------- Main Block ----------
 
 def main(args):
+    global point_set
     if args.test_only:
         print("Running MNIST test-only mode...")
         voltage_map = load_voltage_map("../../Voltage_Temp/Results/voltage_map.npy")
-        point_set = load_point_set("../../Voltage_Temp/Intermediates/pointset.pkl")
+        #point_set = load_point_set("../../Voltage_Temp/Intermediates/pointset.pkl")
+        dill.load_session("../../Voltage_Temp/Intermediates/workspace.pkl")
         X_data, y_data = load_labeled_data("../../Voltage_Data/mnist/mnist.csv")
         X_voltage = embed_voltage_features(X_data, point_set.points, voltage_map, k=5)
         train_and_evaluate(X_voltage, y_data)
         return
 
     voltage_map = load_voltage_map(args.voltage_map)
-    point_set = load_point_set(args.pointset)
+    #point_set = load_point_set(args.pointset)
+    dill.load_session(args.pointset)
 
     X_data, y_data = load_labeled_data(args.data)
     centroid_vectors = point_set.points
@@ -98,7 +101,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Voltage-based XGBoost classifier")
     parser.add_argument("--data", type=str, help="Path to labeled CSV file")
     parser.add_argument("--voltage_map", type=str, help="Path to voltage_map.npy file")
-    parser.add_argument("--pointset", type=str, help="Path to pointset.pkl file")
+    parser.add_argument("--pointset", type=str, help="Path to pointset.pkl or workspace.pkl file")
     parser.add_argument("-T", "--test_only", action="store_true", help="Run in test-only mode")
 
     args = parser.parse_args()
