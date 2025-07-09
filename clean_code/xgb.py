@@ -6,6 +6,7 @@ from sklearn.neighbors import NearestNeighbors
 from sklearn.model_selection import train_test_split
 from xgboost import XGBClassifier
 import argparse
+import config
 
 
 # ---------- Data Loading Functions ----------
@@ -31,7 +32,10 @@ def load_labeled_data(path: str):
 
 # ---------- Voltage Embedding Function ----------
 
-def embed_voltage_features(X_data, centroids, voltage_map, k=5, use_rbf=True, sigma=None):
+def embed_voltage_features(X_data, centroids, voltage_map,sigma):
+    k = config.params['k']
+    sigma = sigma
+    use_rbf = True
     n_points = X_data.shape[0]
     n_landmarks = len(voltage_map.voltage_maps)
     print("Number of landmarks:", n_landmarks)
@@ -82,7 +86,8 @@ def main(args):
         #point_set = load_point_set("../../Voltage_Temp/Intermediates/pointset.pkl")
         dill.load_session("../../Voltage_Temp/Intermediates/workspace.pkl")
         X_data, y_data = load_labeled_data("../../Voltage_Data/mnist/mnist.csv")
-        X_voltage = embed_voltage_features(X_data, point_set.points, voltage_map, k=5)
+        sigma = None
+        X_voltage = embed_voltage_features(X_data, point_set.points, voltage_map,sigma)
         train_and_evaluate(X_voltage, y_data)
         return
 
@@ -92,7 +97,8 @@ def main(args):
 
     X_data, y_data = load_labeled_data(args.data)
     centroid_vectors = point_set.points
-    X_voltage = embed_voltage_features(X_data, centroid_vectors, voltage_map, k=5)
+    sigma = args.sigma
+    X_voltage = embed_voltage_features(X_data, centroid_vectors, voltage_map, sigma)
 
     _ = train_and_evaluate(X_voltage, y_data)
 
@@ -103,6 +109,7 @@ if __name__ == "__main__":
     parser.add_argument("--voltage_map", type=str, help="Path to voltage_map.npy file")
     parser.add_argument("--pointset", type=str, help="Path to pointset.pkl or workspace.pkl file")
     parser.add_argument("-T", "--test_only", action="store_true", help="Run in test-only mode")
+    parser.add_argument("--sigma", type=float, help="RBF sigma value")
 
     args = parser.parse_args()
 
