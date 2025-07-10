@@ -27,15 +27,15 @@ import faiss
 
 
 def compute_voltages(centroids):
-        """ compute the voltage map for each centroid """
-        all_voltages = voltagemap.VoltageMap()	
-        _problem = problem.Problem(centroids,r=0.01)
-        _solver=solver.Solver(_problem)
-        for index in range(len(centroids)):
-                _landmark= landmark.Landmark(index, voltage=1.0)
-                voltages=_solver.compute_voltages(_landmark)
-                all_voltages.add_solution(_landmark, voltages=voltages)
-        return all_voltages
+	""" compute the voltage map for each centroid """
+	all_voltages = voltagemap.VoltageMap()	
+	_problem = problem.Problem(centroids,r=0.01)
+	_solver=solver.Solver(_problem)
+	for index in range(len(centroids)):
+		_landmark= landmark.Landmark(index, voltage=1.0)
+		voltages=_solver.compute_voltages(_landmark)
+		all_voltages.add_solution(_landmark, voltages=voltages)
+	return all_voltages
 
 def main():
 	# generate centroids using streaming k-means
@@ -51,6 +51,7 @@ def main():
 	from time import time
 	start_time = time()
 	all_voltages = compute_voltages(centroids)
+	print(f"all_voltages.all_solutions().shape: {all_voltages.all_solutions().shape}")
 	end_time = time()
 	print(f"Computed voltages for {len(centroids)} centroids in {end_time - start_time:.2f} seconds")
 
@@ -66,8 +67,15 @@ def main():
 	
 	workspace_file="../../Voltage_Temp/Intermediates/workspace.pkl"
 	import dill
-	dill.dump_session(workspace_file)
-	print(f"Workspace saved to {workspace_file}")
+	with open(workspace_file, "wb") as f:
+		dill.dump({
+			"majority_labels": majority_labels,
+			"centroids": centroids,
+			"all_voltages": all_voltages,
+			"voltage_map": voltage_map
+		}, f)
+	print(f"Saved main() variables to {workspace_file}")
+
 
 	import pickle
 	with open(config.params['Voltage_map_output'], 'wb') as f:

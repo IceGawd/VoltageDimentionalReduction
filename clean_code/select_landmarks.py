@@ -32,3 +32,4 @@ def select_landmarks(all_voltages):
             voltage_map.add_solution(lm, voltages=voltages)
         else:
             break
+    return voltage_map
