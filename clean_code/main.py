@@ -95,4 +95,3 @@ if __name__ == "__main__":
 		config.params['k']=10
 
 		main()
->>>>>>> yoav_experiments
