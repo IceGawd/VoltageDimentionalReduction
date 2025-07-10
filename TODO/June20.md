@@ -32,3 +32,6 @@ To do this estimation I suggest looking at the relationship between the average 
   points associated with the centroid. Compute the correlation
   between the vector of voltages and these
   distributions.
+
+  ### Using XGBoost to predict the labels from the voltage
+  

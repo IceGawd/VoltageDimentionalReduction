@@ -2,7 +2,7 @@ import argparse
 import config
 
 def set_params():
-    parser = argparse.ArgumentParser(description="Streaming k-means++ with FAISS")
+    parser = argparse.ArgumentParser(description="Set parameters for the streaming centroids algorithm.")
     parser.add_argument("file_path", nargs='?', default=None, help="Path to a text file of vectors (word + floats)")
     parser.add_argument("--split_char")
     parser.add_argument("--normalize_vecs", action="store_true", help="normalize vectors to L_2=1 before calculating distances")
@@ -12,6 +12,7 @@ def set_params():
     parser.add_argument("--output", type=str, default="streaming_centroids.npy", help="Output .npy file")
     parser.add_argument("--verbosity", type=int, default=1, help="Verbosity level (0: silent, 1: normal, 2: verbose)")
     parser.add_argument("--test", action="store_true", help="run in self-test mode")
+    parser.add_argument("--k", type=int, default=10, help="k-connectivity for the k-nearest neighbor graph")
     args = parser.parse_args()
 
     config.params=vars(args)
