@@ -6,30 +6,33 @@ class ParseException(Exception):
     pass
 
 def readvec(file):
-    line = file.readline()
-    if not line:
-        return None, None
+    while True:
+        line = file.readline()
+        if not line:
+            return None, None
 
-    line = line.split('#')[0]
-    split_char = config.params['split_char']
+        line = line.split('#')[0]
+        if not line or 'label' in line.lower():
+            continue  # Skip empty or header lines
+        split_char = config.params['split_char']
 
-    if split_char == '' or split_char is None:# default: split on any whitespace
-        parts = line.strip().split()
-    else:
-        parts = line.strip().split(split_char)
-    if len(parts) < 2:
-        print(line)
-        print('no of parts=', len(parts))
-        raise ParseException(parts)
+        if split_char == '' or split_char is None:# default: split on any whitespace
+            parts = line.strip().split()
+        else:
+            parts = line.strip().split(split_char)
+        if len(parts) < 2:
+            print(line)
+            print('no of parts=', len(parts))
+            raise ParseException(parts)
 
-    try:
-        label = parts[0]
-        vec = np.array([float(x) for x in parts[1:]], dtype=np.float32)
-        return label, vec
-    except ValueError:
-        return None, None  # Skip lines with bad floats
-    except ValueError:
-        raise ParseException(parts)
+        try:
+            label = parts[0]
+            vec = np.array([float(x) for x in parts[1:]], dtype=np.float32)
+            return label, vec
+        except ValueError:
+            return None, None  # Skip lines with bad floats
+        except ValueError:
+            raise ParseException(parts)
 
 class Reader:
     """
