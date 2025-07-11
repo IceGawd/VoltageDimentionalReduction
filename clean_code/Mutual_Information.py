@@ -5,7 +5,7 @@ from scipy.special import logsumexp
 def mutual_information(voltage_matrix, N=100, num_samples=10000):
     """
     Approximate I(A; B) via Gaussian mixture and Monte Carlo sampling.
-    
+
     for Details see: highLevelDocs/Mutual_Information/VoltageMutualInformation.pdf
     
     Parameters:
@@ -68,11 +68,13 @@ def mutual_information(voltage_matrix, N=100, num_samples=10000):
 if __name__ == "__main__":
     # test case
 
-    voltage_matrix=np.eye(10)[:,:3]
-    I_est = mutual_information(voltage_matrix, N=1000,num_samples=1000)
-    print(f"Estimated I(A; B) ≈ {I_est:.4f} nats")
-
-    if np.abs(I_est - 1.0114) < 1e-4:
-        print("Test passed!")
-    else:
-        print("Test failed.")   
+    epsilon=0.01
+    for i in range(2,10):
+        voltage_matrix=np.eye(i)  # Example with i nodes and i sources
+        # Estimate mutual information
+        I_est = mutual_information(voltage_matrix,N=1000000,num_samples=100000)
+        print(f"i={i},Estimated I(A; B) ≈ {I_est:.4f} nats log({i})-I_est = {np.log(i) - I_est:.4f}")
+        if np.abs(np.log(i) - I_est) > epsilon:
+            raise ValueError("Test failed: difference between log({i}) and I_est is greater than {epsilon}")
+    print("Test passed: I_est is within {epsilon} of log(i) for all i in [2, 3, ..., 9]")
+    
