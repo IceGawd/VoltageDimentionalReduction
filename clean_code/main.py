@@ -1,4 +1,4 @@
-import time
+from Utilities.timer import Timer
 import numpy as np
 from typing import Union, Optional, List, Any, Tuple, Callable, Dict
 from itertools import product
@@ -38,33 +38,32 @@ def compute_voltages(centroids):
 	return all_voltages
 
 def main():
+	timer=Timer()
 	# generate centroids using streaming k-means
 	points, counters, majority_labels, _,_=kmeans.Streaming_Kmeans(config.params['file_path'])
-
+	timer.mark("Streaming K-means completed")
+	
 	X=np.stack(points)
 	y= np.array(majority_labels)
 
 	# define set of set of centroids
 	centroids = setofpoints.SetOfPoints(points=points, weights=counters)
 
+	timer.mark("Compute voltages started")
 	# compute voltages for each centroid
-	from time import time
-	start_time = time()
+	
 	all_voltages = compute_voltages(centroids)
 	print(f"all_voltages.all_solutions().shape: {all_voltages.all_solutions().shape}")
-	end_time = time()
-	print(f"Computed voltages for {len(centroids)} centroids in {end_time - start_time:.2f} seconds")
 
-	start_time = time()
+	timer.mark(f"Computed voltages for {len(centroids)} centroids")
+
 	from select_landmarks import select_landmarks
 	voltage_map=select_landmarks(all_voltages)
-	end_time= time()
-	print(f"Selected landmarks in {end_time - start_time:.2f} seconds")
+	timer.mark("Selected landmarks for voltage map")
 
-	# print("About to call compute_distances")
 	# Ds = compute_distances(centroids, voltage_map)
-	# save the workspace for use in
-	
+
+	# save the workspace for use in jupyter notebooks	
 	workspace_file="../../Voltage_Temp/Intermediates/workspace.pkl"
 	import dill
 	with open(workspace_file, "wb") as f:
