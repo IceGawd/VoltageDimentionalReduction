@@ -1,3 +1,4 @@
+from pyexpat import model
 import numpy as np
 import pandas as pd
 import pickle
@@ -10,6 +11,7 @@ from Utilities import config
 import os
 import subprocess
 import sys
+from Utilities import config
 
 # ---------- Data Loading Functions ----------
 
@@ -71,54 +73,50 @@ def embed_voltage_features(X_data, centroids, voltage_map, use_rbf=True, sigma=N
 
 def train_and_evaluate(X, y):
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    model = XGBClassifier()
-    model.fit(X_train, y_train)
+    model = XGBClassifier(n_estimators=1000,
+                          learning_rate=0.1,
+                           max_depth=2,
+                           eval_metric='merror',  # specify metric
+                           random_state=42)
+    
+    eval_set = [(X_train, y_train), (X_test, y_test)]
+    model.fit(X_train, y_train,eval_set=eval_set)
+
+    results = model.evals_result()
+    from Utilities.xgb_util import plot_train_test_errors
+    plot_train_test_errors(results)
+    
+    train_score = model.score(X_train, y_train)
+    print("Train accuracy:", train_score)
+    # Evaluate on test set
     test_score = model.score(X_test, y_test)
     print("Test accuracy:", test_score)
     return model
 
 # ---------- Main Block ----------
 
-def main(args):
-    if args.test_only:
-        print("Running MNIST test-only mode...")
-
-        # 1. Delete voltage_map result file
-        voltage_map_output = '../../Voltage_Temp/Results/voltage_map.npy'
-        if os.path.exists(voltage_map_output):
-            try:
-                os.remove(voltage_map_output)
-                print(f"Deleted voltage map output: {voltage_map_output}")
-            except Exception as e:
-                print(f"Failed to delete {voltage_map_output}: {e}")
-        else:
-            print(f"No existing voltage map output found at {voltage_map_output}")
-
-        # 2. Run main.py
-        print("Running main.py to regenerate workspace and voltage map...")
-        subprocess.run([sys.executable, "main.py", "--test"], check=True) #sys.executable uses the venv
-
-        # 3. Set file paths
+def main():
+    if config.params['test']:
+     
         voltage_map_path = "../../Voltage_Temp/Results/voltage_map.npy"
         data_path = "../../Voltage_Data/mnist/mnist.csv"
     else:
         # call select_landmarks here
-        voltage_map_path = args.voltage_map
-        data_path = args.data
+        voltage_map_path = config.params['voltage_map']
+        data_path = config.params['data']
 
+    from Utilities.timer import Timer
+    timer = Timer()
+    timer.mark("Loading voltage map and centroids")
     centroids, voltage_map, k = load_voltage_and_centroids(voltage_map_path)
     config.params['k'] = k 
     X_data, y_data = load_labeled_data(data_path)
 
-    X_voltage = embed_voltage_features(X_data, centroids, voltage_map,sigma=args.sigma)
+    X_voltage = embed_voltage_features(X_data, centroids, voltage_map,sigma=config.params['sigma'])
+    timer.mark("Embedded voltage features")
     train_and_evaluate(X_voltage, y_data)
-
+    timer.mark("Training and evaluation completed")
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Voltage-based XGBoost classifier")
-    parser.add_argument("--data", type=str, help="Path to labeled CSV file")
-    parser.add_argument("--voltage_map", type=str, help="Path to npy file containing {'centroids', 'voltage_map', 'k'}")
-    parser.add_argument("-T", "--test_only", action="store_true", help="Run in test-only mode")
-    parser.add_argument("--sigma", type=float, default=None, help="Sigma value for RBF weighting (default: auto)")
-
-    args = parser.parse_args()
-    main(args)
+    from Utilities.set_params import set_params
+    set_params()  # Load configuration parameters
+    main()
