@@ -78,8 +78,13 @@ def main():
 
 
 	import pickle
+	data_to_save = {
+    'centroids': centroids,        # your SetOfPoints object
+    'voltage_map': voltage_map,
+	'k': config.params['k']     # your VoltageMap object
+	}
 	with open(config.params['Voltage_map_output'], 'wb') as f:
-		pickle.dump(voltage_map, f)
+		pickle.dump(data_to_save, f)
 	print(f"Voltage map saved to {config.params['Voltage_map_output']}")
 
 if __name__ == "__main__":
