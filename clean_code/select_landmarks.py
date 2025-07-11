@@ -13,9 +13,9 @@ def select_landmarks(all_voltages):
     # repeatedly iteration all_voltages.entries and add the landmark with the largest distance to the selected landmarks to the voltage map	
     for iteration in range(100):
         # Find the landmark in all_voltages.entries that is farthest from the current voltage_map entries
-        max_min_dist = 2.0
+        max_min_dist = 1.3
         best_idx = None
-        best_norm = 2.0
+        best_norm = 1.3
         for idx, (lm, voltages, norm) in enumerate(all_voltages.entries):
             # Skip if already in voltage_map
             if any(np.array_equal(lm.index, vmap_lm.index) for vmap_lm, _, _ in voltage_map.entries):

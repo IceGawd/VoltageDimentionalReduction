@@ -1,6 +1,6 @@
 import numpy as np
-import config
-from set_params import set_params
+from Utilities import config
+from Utilities.set_params import set_params
 
 class ParseException(Exception):
     pass

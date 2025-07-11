@@ -22,7 +22,7 @@ import solver
 import visualization
 import setofpoints
 import kmeans
-import config
+from Utilities import config
 
 print("Streaming K-means on MNIST dataset")
 

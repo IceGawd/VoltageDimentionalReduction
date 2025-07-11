@@ -1,6 +1,6 @@
 import landmark
 import problem
-import config
+from Utilities import config
 import setofpoints
 
 from typing import Union, List

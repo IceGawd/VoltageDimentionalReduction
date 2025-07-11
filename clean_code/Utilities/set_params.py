@@ -1,5 +1,5 @@
 import argparse
-import config
+from Utilities import config
 
 def set_params():
     parser = argparse.ArgumentParser(description="Set parameters for the streaming centroids algorithm.")

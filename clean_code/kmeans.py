@@ -1,11 +1,9 @@
 import numpy as np
 import faiss
-import os
-import re
-import argparse
-import config
+
+from Utilities import config
 import visualization
-from reader import Reader
+from Utilities.reader import Reader
 
 import faulthandler
 from collections import Counter
@@ -236,7 +234,7 @@ def Streaming_Kmeans(filepath):
 
 
 # ------------------- Main ---------------------
-from set_params import set_params
+from Utilities.set_params import set_params
 
 def main():
     

@@ -75,6 +75,5 @@ if __name__ == "__main__":
         I_est = mutual_information(voltage_matrix,N=1000000,num_samples=100000)
         print(f"i={i},Estimated I(A; B) ≈ {I_est:.4f} nats log({i})-I_est = {np.log(i) - I_est:.4f}")
         if np.abs(np.log(i) - I_est) > epsilon:
-            raise ValueError("Test failed: difference between log({i}) and I_est is greater than {epsilon}")
-    print("Test passed: I_est is within {epsilon} of log(i) for all i in [2, 3, ..., 9]")
-    
+            raise ValueError(f"Test failed: difference between log({i}) and I_est is greater than {epsilon}")
+    print(f"Test passed: I_est is within {epsilon} of log(i) for all i in [2, 3, ..., 9]")

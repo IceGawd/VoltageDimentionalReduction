@@ -21,7 +21,7 @@ import solver
 import visualization
 import setofpoints
 import kmeans
-import config
+from Utilities import config
 import faiss
 
 def test_voltage(voltages, ignore_fraction:float=0.90, thr:float=0.05):
