@@ -6,7 +6,7 @@ from sklearn.neighbors import NearestNeighbors
 from sklearn.model_selection import train_test_split
 from xgboost import XGBClassifier
 import argparse
-import config
+from Utilities import config
 import os
 import subprocess
 import sys
@@ -57,7 +57,7 @@ def embed_voltage_features(X_data, centroids, voltage_map, use_rbf=True, sigma=N
         weights_all = 1 / (distances + 1e-8)
 
     weights_all /= np.sum(weights_all, axis=1, keepdims=True)
-
+    # Don't read all of the data at once, instead read it in chunks using Reader
     for i, (landmark_obj, v_vector, _) in enumerate(voltage_map.entries):
         for j in range(n_points):
             neighbor_ids = indices[j]
@@ -102,6 +102,7 @@ def main(args):
         voltage_map_path = "../../Voltage_Temp/Results/voltage_map.npy"
         data_path = "../../Voltage_Data/mnist/mnist.csv"
     else:
+        # call select_landmarks here
         voltage_map_path = args.voltage_map
         data_path = args.data
 

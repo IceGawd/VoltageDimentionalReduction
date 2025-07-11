@@ -22,7 +22,7 @@ import solver
 import visualization
 import setofpoints
 import kmeans
-import config
+from Utilities import config
 import faiss
 
 
@@ -88,7 +88,7 @@ def main():
 	print(f"Voltage map saved to {config.params['Voltage_map_output']}")
 
 if __name__ == "__main__":
-	from set_params import set_params
+	from Utilities.set_params import set_params
 	set_params()
 	if config.params['test']:
 		# Load configuration parameters
