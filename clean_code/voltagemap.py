@@ -15,9 +15,18 @@ class VoltageMap:
         """
         Initializes an empty Map.
         """
-        self.entries: list[tuple[landmark.Landmark, np.ndarray, float]] = []  # (landmark, voltages, advantage)
-        self.shape: tuple = ()
+        self.entries: list = []  # (landmark, voltages, advantage)
 
+    def set_advantages(self, advantage: float, quantity="advantage") -> None:
+        """
+        Sets the advantage for all entries in the map to a specific value.
+
+        Args:
+            advantage (float): The advantage value to set for all entries.
+        """
+        for i in range(len(self.entries)):
+            self.entries[i][quantity] = advantage
+            
     def add_solution(self, landmark_obj: landmark.Landmark, voltages: np.ndarray) -> None:
         """
         Adds a voltage map corresponding to a specific landmark.
@@ -26,31 +35,16 @@ class VoltageMap:
             landmark_obj (Landmark): The landmark used in the problem.
             voltages (np.ndarray): The computed voltage map for that landmark.
         """
-        advantage = np.linalg.norm(voltages)
-        self.entries.append((landmark_obj, voltages, advantage))
-        if not self.shape:
-            self.shape = voltages.shape
+        self.entries.append({
+            "landmark":landmark_obj, 
+            "voltages":voltages})
 
-    def get_solution(self, landmark_index: int) -> tuple[np.ndarray, float]:
-        """
-        Retrieves the voltage map and advantage for a specific landmark.
 
-        Args:
-            landmark_index (int): Index of the desired landmark.
-
-        Returns:
-            (np.ndarray, float): The voltage map and its advantage.
+    def sort_by_advantage(self, quantity="advantage",reverse=True) -> None:
         """
-        for lm, voltages, advantage in self.entries:
-            if lm.index == landmark_index:
-                return voltages, advantage
-        raise ValueError(f"Landmark with index {landmark_index} not found in the map.")
-
-    def sort_by_advantage(self) -> None:
+        Sorts the entries by the quantity (default advantage).
         """
-        Sorts the entries by their advantage in descending order.
-        """
-        self.entries.sort(key=lambda x: x[2], reverse=True)
+        self.entries.sort(key=lambda x: x[quantity], reverse=reverse)
 
     def all_solutions(self) -> np.ndarray:
         """
@@ -59,7 +53,7 @@ class VoltageMap:
         Returns:
             np.ndarray: 2D array of shape (num_landmarks, num_points)
         """
-        V=np.stack([voltages for _, voltages, _ in self.entries], axis=0)
+        V=np.stack([E['voltages'] for E in self.entries], axis=0)
         return V.T
 
     def __len__(self) -> int:
@@ -88,6 +82,7 @@ class VoltageMap:
         self._iter_idx += 1
         return voltages
 
+    ##YF:Does this belong here?
     @staticmethod
     def from_problem_and_landmarks(problem: problem.Problem, landmarks: list[landmark.Landmark], solver_cls: solver.Solver) -> "VoltageMap":
         """

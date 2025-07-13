@@ -1,17 +1,8 @@
 from Utilities.timer import Timer
 import numpy as np
-from typing import Union, Optional, List, Any, Tuple, Callable, Dict
 from itertools import product
 import pandas
 import matplotlib.pyplot as plt
-
-from scipy.sparse.linalg import cg
-from sklearn.neighbors import NearestNeighbors
-from scipy.sparse import lil_matrix, csr_matrix
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
-from sklearn.decomposition import PCA
-from sklearn.manifold import MDS
-from sklearn.datasets import fetch_openml
 
 import importlib
 
@@ -57,29 +48,17 @@ def main():
 
 	timer.mark(f"Computed voltages for {len(centroids)} centroids")
 
-	from select_landmarks import select_landmarks
-	voltage_map=select_landmarks(all_voltages)
-	timer.mark("Selected landmarks for voltage map")
+	#from select_landmarks_MI import select_landmarks
+	#voltage_map=select_landmarks(all_voltages)
+	#timer.mark("Selected landmarks for voltage map")
 
 	# Ds = compute_distances(centroids, voltage_map)
 
-	# save the workspace for use in jupyter notebooks	
-	workspace_file="../../Voltage_Temp/Intermediates/workspace.pkl"
-	import dill
-	with open(workspace_file, "wb") as f:
-		dill.dump({
-			"majority_labels": majority_labels,
-			"centroids": centroids,
-			"all_voltages": all_voltages,
-			"voltage_map": voltage_map
-		}, f)
-	print(f"Saved main() variables to {workspace_file}")
-
-
 	import pickle
 	data_to_save = {
+	'majority_labels': majority_labels,  # your labels
+	'all_voltages': all_voltages,  # your VoltageMap object
     'centroids': centroids,        # your SetOfPoints object
-    'voltage_map': voltage_map,
 	'k': config.params['k']     # your VoltageMap object
 	}
 	with open(config.params['Voltage_map_output'], 'wb') as f:

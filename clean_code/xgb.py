@@ -60,7 +60,8 @@ def embed_voltage_features(X_data, centroids, voltage_map, use_rbf=True, sigma=N
 
     weights_all /= np.sum(weights_all, axis=1, keepdims=True)
     # Don't read all of the data at once, instead read it in chunks using Reader
-    for i, (landmark_obj, v_vector, _) in enumerate(voltage_map.entries):
+    for i, entry in enumerate(voltage_map.entries):
+        v_vector = entry['voltages']
         for j in range(n_points):
             neighbor_ids = indices[j]
             neighbor_voltages = v_vector[neighbor_ids]
@@ -73,10 +74,10 @@ def embed_voltage_features(X_data, centroids, voltage_map, use_rbf=True, sigma=N
 
 def train_and_evaluate(X, y):
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    model = XGBClassifier(n_estimators=1000,
+    model = XGBClassifier(n_estimators=2000,
                           learning_rate=0.1,
                           objective='multi:softmax', num_class=10,
-                           max_depth=5,
+                           max_depth=2,
                            eval_metric='merror',  # specify metric
                            random_state=42)
     
