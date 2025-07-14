@@ -55,11 +55,11 @@ def main():
 	all_voltages = compute_voltages(centroids)
 	print(f"all_voltages.all_solutions().shape: {all_voltages.all_solutions().shape}")
 
-	timer.mark(f"Computed voltages for {len(centroids)} centroids")
+	# timer.mark(f"Computed voltages for {len(centroids)} centroids")
 
-	from select_landmarks import select_landmarks
-	voltage_map=select_landmarks(all_voltages)
-	timer.mark("Selected landmarks for voltage map")
+	# from select_landmarks import select_landmarks
+	# voltage_map=select_landmarks(all_voltages)
+	# timer.mark("Selected landmarks for voltage map")
 
 	# Ds = compute_distances(centroids, voltage_map)
 
@@ -71,19 +71,27 @@ def main():
 			"majority_labels": majority_labels,
 			"centroids": centroids,
 			"all_voltages": all_voltages,
-			"voltage_map": voltage_map
+			#"voltage_map": voltage_map
 		}, f)
 	print(f"Saved main() variables to {workspace_file}")
 
 
 	import pickle
+	# data_to_save = {
+    # 'centroids': centroids,        # your SetOfPoints object
+    # 'voltage_map': voltage_map,
+	# }
+	# with open(config.params['Voltage_map_output'], 'wb') as f:
+	# 	pickle.dump(data_to_save, f)
+	# print(f"Voltage map saved to {config.params['Voltage_map_output']}")
+
 	data_to_save = {
     'centroids': centroids,        # your SetOfPoints object
-    'voltage_map': voltage_map,
+    "all_voltages": all_voltages,
 	}
-	with open(config.params['Voltage_map_output'], 'wb') as f:
+	with open(config.params['main_output'], 'wb') as f:
 		pickle.dump(data_to_save, f)
-	print(f"Voltage map saved to {config.params['Voltage_map_output']}")
+	print(f"All_voltages saved to {config.params['main_output']}")
 
 if __name__ == "__main__":
 	from Utilities.set_params import set_params
@@ -102,7 +110,8 @@ if __name__ == "__main__":
 		config.params['init_size']= 5000
 		config.params['batch_size']= 1000
 		config.params['kmeans_output']= '../../Voltage_Temp/Results/streaming_centroids.npy'
-		config.params['Voltage_map_output']= '../../Voltage_Temp/Results/voltage_map.npy'
+		#config.params['Voltage_map_output']= '../../Voltage_Temp/Results/voltage_map.npy'
+		config.params['main_output']= '../../Voltage_Temp/Results/all_voltages.npy'
 		config.params['k']=10
 
 		main()

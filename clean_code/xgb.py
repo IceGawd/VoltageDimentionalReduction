@@ -104,7 +104,7 @@ def main():
     from Utilities.timer import Timer
     timer = Timer()
     timer.mark("Loading voltage map and centroids")
-    centroids, voltage_map= load_voltage_and_centroids(config.params['voltage_map'])
+    centroids, voltage_map= load_voltage_and_centroids(config.params['Voltage_map_output'])
     X_voltage, y_data = stream_and_embed_batches(config.params['file_path'], centroids, voltage_map)
     timer.mark("Embedded voltage features")
     train_and_evaluate(X_voltage, y_data)
@@ -114,6 +114,6 @@ if __name__ == "__main__":
      set_params()
      if config.params['test']:
         config.params['file_path']= '../../Voltage_Data/mnist/mnist.csv'
-        config.params['voltage_map'] = "../../Voltage_Temp/Results/voltage_map.npy"
+        config.params['Voltage_map_output'] = "../../Voltage_Temp/Results/voltage_map.npy"
         config.params['split_char']=','
      main()

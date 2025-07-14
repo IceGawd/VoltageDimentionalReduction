@@ -1,5 +1,13 @@
 import voltagemap   
 import numpy as np
+from Utilities import config
+from Utilities.timer import Timer
+import pickle
+
+def load_all_voltage_and_centroids(path: str):
+    with open(path, "rb") as f:
+        data = pickle.load(f)
+    return data['centroids'], data['all_voltages']
 
 def select_landmarks(all_voltages):
     """Selects landmarks as a subset of all_voltages.
@@ -33,3 +41,25 @@ def select_landmarks(all_voltages):
         else:
             break
     return voltage_map
+
+def main():
+    timer=Timer()
+    centroids,all_voltages = load_all_voltage_and_centroids(config.params['main_output'])
+    timer.mark(f"Computed voltages for {len(centroids)} centroids")
+    voltage_map=select_landmarks(all_voltages)
+    timer.mark("Selected landmarks for voltage map")
+    data_to_save = {
+    'centroids': centroids,        # your SetOfPoints object
+    "voltage_map": voltage_map,
+	}
+    with open(config.params['Voltage_map_output'], 'wb') as f:
+          pickle.dump(data_to_save, f)
+    print(f"Voltage map saved to {config.params['Voltage_map_output']}")
+
+if __name__ == "__main__":
+    from Utilities.set_params import set_params
+    set_params()
+    if config.params['test']:
+        config.params['Voltage_map_output']= '../../Voltage_Temp/Results/voltage_map.npy'
+        config.params['main_output']= '../../Voltage_Temp/Results/all_voltages.npy'
+    main()

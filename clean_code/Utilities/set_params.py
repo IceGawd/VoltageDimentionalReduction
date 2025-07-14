@@ -14,7 +14,6 @@ def set_params():
     parser.add_argument("--test", action="store_true", help="run in self-test mode")
     parser.add_argument("--k", type=int, default=10, help="k-connectivity for the k-nearest neighbor graph")
     parser.add_argument("--sigma", type=float, default=None, help="Sigma value for RBF weight in xgboost")
-    parser.add_argument("--voltage_map", type=str, help="Path to npy file containing {'centroids', 'voltage_map'}")
     args = parser.parse_args()
 
     config.params=vars(args)
