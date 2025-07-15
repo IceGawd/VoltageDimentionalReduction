@@ -14,7 +14,6 @@ Dependencies:
 """
 
 import numpy as np
-from Utilities import config
 from scipy.sparse import csgraph
 
 def compute_distances(point_set, voltages):
@@ -67,7 +66,7 @@ def compute_distances(point_set, voltages):
     np.fill_diagonal(D2, -np.inf)          # Set diagonal to -inf
 
     # Section 3: Compute graph-based distances
-    k = config.params['k']  # Get number of neighbors from config
+    k = 5  # Get number of neighbors from config
     
     # Create k-nearest neighbors graph
     nbrs = NearestNeighbors(n_neighbors=k, algorithm='auto').fit(point_set.points)
