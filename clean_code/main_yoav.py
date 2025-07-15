@@ -22,6 +22,7 @@ import visualization
 import setofpoints
 import kmeans
 from Utilities import config
+from Utilities.distances import compute_distances
 import faiss
 
 def test_voltage(voltages, ignore_fraction:float=0.90, thr:float=0.05):
@@ -40,62 +41,6 @@ def test_voltage(voltages, ignore_fraction:float=0.90, thr:float=0.05):
 		return advantage, False, None
 
 
-def compute_distances(centroids, voltages):
-	"""
-	Compute three types of pairwise distances between points using Faiss.
-	This function calculates:
-		1. Euclidean distances between points in the centroid set.
-		2. Euclidean (L2) distances between points based on their voltage representations.
-		3. (Commented out) L1 distances between points based on their voltage representations.
-	The function uses Faiss for efficient computation of L2 distances.
-	Args:
-		centroids: A pointset object with `.points` attribute, representing the coordinates of the centroids as a list of NumPy arrays of shape (n_features).
-		voltages:  a voltageMap.VoltageMap object containing voltage vectors for each landmark.
-	Returns:
-		tuple:
-			D1 (np.ndarray): Pairwise Euclidean distances between centroids (with diagonal set to -inf).
-			D2 (np.ndarray): Pairwise Euclidean distances between voltage vectors (with diagonal set to -inf).
-	Note:
-		- The third distance matrix (L1 distance) is currently commented out and not returned.
-		- The diagonal of each distance matrix is set to -inf to ignore self-distances.
-	"""
-
-	if not isinstance(centroids, setofpoints.SetOfPoints):
-		raise TypeError("centroids must be an instance of setofpoints.SetOfPoints")
-	if not isinstance(voltages, voltagemap.VoltageMap):
-		raise TypeError("voltages must be an instance of voltagemap.VoltageMap")
-	# 1. Euclidean distance
-	# Using the centroids directly
-	print("Computing distances...", flush=True)
-	X = np.stack(centroids.points)  # Expecting centroids to have a .points attribute
-	print(f"type(X): {type(X)}", flush=True)
-	print("X.shape:", X.shape, flush=True)
-	index = faiss.IndexFlatL2(X.shape[1])  # L2 distance index
-	index.add(X.astype(np.float32))  # Add points to the index
-	D1, _ = index.search(X.astype(np.float32), X.shape[0])
-	np.fill_diagonal(D1, -np.inf)
-
-	# 2. Distance based on voltages
-	# using L2 distance
-
-	vectors = voltages.all_solutions().astype(np.float32)  # Convert to float32 for Faiss compatibility
-	index = faiss.IndexFlatL2(vectors.shape[1])  # L2 distance index
-
-	index.add(vectors)  # Add points to the index
-	D2, _ = index.search(vectors, vectors.shape[0])
-	np.fill_diagonal(D2, -np.inf)
-
-	# 3. Distance based on voltages
-	# using L1 distance
-	#print("vectors.shape:", vectors.shape, flush=True)
-	#D3 = np.abs(vectors[:, None, :] - vectors[None, :, :]).sum(axis=2)
-	#print("D3 shape:", D3.shape, flush=True)
-	#np.fill_diagonal(D3, -np.inf)
-
-	#print("Returning shapes:", D1.shape, D2.shape, D3.shape,flush=True)
-	Ds=[D1, D2]
-	print(len(Ds), flush=True)
-	return Ds
 
 
 if __name__ == "__main__":
