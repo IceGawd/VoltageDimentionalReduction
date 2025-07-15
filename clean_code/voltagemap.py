@@ -59,15 +59,35 @@ class VoltageMap:
             The advantage is computed as the Euclidean norm of the voltage map
             and is stored alongside the solution.
         """
+        # Calculate advantage as the norm of the voltage map
+        advantage = np.linalg.norm(voltages)
+        
         self.entries.append({
-            "landmark":landmark_obj, 
-            "voltages":voltages})
+            "landmark": landmark_obj,
+            "voltages": voltages,
+            "advantage": advantage  # Add advantage to the entry
+        })
 
 
-    def sort_by_advantage(self, quantity="advantage",reverse=True) -> None:
+    def sort_by_advantage(self, quantity="advantage", reverse=True) -> None:
         """
-        Sorts the entries by the quantity (default advantage).
+        Sorts the entries by the specified quantity (default advantage).
+        
+        Args:
+            quantity (str): The quantity to sort by. Defaults to 'advantage'.
+            reverse (bool): If True, sort in descending order. Defaults to True.
+            
+        Raises:
+            KeyError: If the specified quantity doesn't exist in any entry
         """
+        # Check if the quantity exists in the entries
+        if not self.entries:
+            return
+            
+        if quantity not in self.entries[0]:
+            raise KeyError(f"Cannot sort by '{quantity}', quantity not found in entries. "
+                         f"Available quantities: {list(self.entries[0].keys())}")
+            
         self.entries.sort(key=lambda x: x[quantity], reverse=reverse)
 
     def all_solutions(self) -> np.ndarray:
@@ -123,7 +143,7 @@ class VoltageMap:
         """
         if self._iter_idx >= len(self.entries):
             raise StopIteration
-        voltages = self.entries[self._iter_idx][1]
+        voltages = self.entries[self._iter_idx]['voltages']
         self._iter_idx += 1
         return voltages
 

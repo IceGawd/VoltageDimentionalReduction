@@ -14,10 +14,30 @@ Dependencies:
 """
 
 import numpy as np
-from Utilities import config
-from scipy.sparse import csgraph
 
-def compute_distances(point_set, voltages):
+# Try to import required packages
+try:
+    import faiss
+    HAVE_FAISS = True
+except ImportError:
+    HAVE_FAISS = False
+    print("Warning: faiss not found, please install it for optimal performance")
+    
+try:
+    from scipy.sparse import lil_matrix, csgraph
+    HAVE_SCIPY = True
+except ImportError:
+    HAVE_SCIPY = False
+    print("Warning: scipy not found, please install it for graph distances")
+    
+try:
+    from sklearn.neighbors import NearestNeighbors
+    HAVE_SKLEARN = True
+except ImportError:
+    HAVE_SKLEARN = False
+    print("Warning: scikit-learn not found, please install it for graph distances")
+
+def compute_distances(points, voltages):
     """
     Compute three different types of distances between points.
 
@@ -27,10 +47,12 @@ def compute_distances(point_set, voltages):
     3. Graph distance based on k-nearest neighbors connectivity
 
     Args:
-        point_set (SetOfPoints): Set of points in the original space,
-            containing the 'points' attribute as numpy array of shape (n_points, n_dimensions)
-        voltages (np.ndarray): Voltage values for each point,
-            array of shape (n_points, n_voltages)
+        points (Union[np.ndarray, SetOfPoints]): Points in the original space.
+            Can be either a numpy array of shape (n_points, n_dimensions) or
+            a SetOfPoints instance containing the points.
+        voltages (Union[np.ndarray, VoltageMap]): Voltage values for each point.
+            Can be either a numpy array of shape (n_points, n_voltages) or
+            a VoltageMap instance containing the voltages.
 
     Returns:
         tuple[np.ndarray, np.ndarray, np.ndarray]: Three distance matrices:
@@ -40,42 +62,58 @@ def compute_distances(point_set, voltages):
         
         Note: Diagonal entries are set to -inf for D1 and D2, and graph
         unreachable nodes are set to inf in D3.
-
-    Example:
-        >>> points = SetOfPoints(np.random.rand(100, 2))
-        >>> voltages = np.random.rand(100, 10)
-        >>> D1, D2, D3 = compute_distances(points, voltages)
-        >>> print(f"Distance matrices shapes: {D1.shape}, {D2.shape}, {D3.shape}")
     """
     # Import required libraries
-    import faiss
-    from scipy.sparse import lil_matrix
-    from sklearn.neighbors import NearestNeighbors
+    try:
+        import faiss
+    except ImportError:
+        raise ImportError("faiss is required for distance computation. Please install it first.")
+        
+    try:
+        from scipy.sparse import lil_matrix
+        from sklearn.neighbors import NearestNeighbors
+    except ImportError:
+        raise ImportError("scipy and scikit-learn are required for graph distances. Please install them first.")
+
+    # Handle input types
+    if hasattr(points, 'points'):  # If points is a SetOfPoints instance
+        X = points.points
+    else:  # If points is a numpy array
+        X = points
+        
+    if hasattr(voltages, 'get_voltages'):  # If voltages is a VoltageMap instance
+        V = voltages.get_voltages()
+    else:  # If voltages is a numpy array
+        V = voltages
+
+    if not isinstance(X, np.ndarray) or not isinstance(V, np.ndarray):
+        raise ValueError("Both points and voltages must be numpy arrays or appropriate class instances")
+
+    # Ensure inputs are float32 for faiss compatibility
+    X = X.astype(np.float32)
+    V = V.astype(np.float32)
 
     # Section 1: Compute Euclidean distances in original space
-    X = point_set.points
     index = faiss.IndexFlatL2(X.shape[1])  # Create L2 distance index
-    index.add(X.astype(np.float32))        # Add points to the index
-    D1, _ = index.search(X.astype(np.float32), X.shape[0])
+    index.add(X)                           # Add points to the index
+    D1, _ = index.search(X, X.shape[0])
     np.fill_diagonal(D1, -np.inf)          # Set diagonal to -inf
 
     # Section 2: Compute distances based on voltages
-    X = voltages
-    index = faiss.IndexFlatL2(X.shape[1])  # Create L2 distance index
-    index.add(X.astype(np.float32))        # Add points to the index
-    D2, _ = index.search(X.astype(np.float32), X.shape[0])
+    index = faiss.IndexFlatL2(V.shape[1])  # Create L2 distance index
+    index.add(V)                           # Add points to the index
+    D2, _ = index.search(V, V.shape[0])
     np.fill_diagonal(D2, -np.inf)          # Set diagonal to -inf
 
     # Section 3: Compute graph-based distances
-    k = config.get('k', 5)  # Get number of neighbors from config
-    # k = 5  # Get number of neighbors from config
+    k = min(5, X.shape[0] - 1)  # Use 5 neighbors, ensuring k is not larger than n_points - 1
     
     # Create k-nearest neighbors graph
-    nbrs = NearestNeighbors(n_neighbors=k, algorithm='auto').fit(point_set.points)
-    _, indices = nbrs.kneighbors(point_set.points)
+    nbrs = NearestNeighbors(n_neighbors=k, algorithm='auto').fit(X)
+    _, indices = nbrs.kneighbors(X)
     
     # Create sparse adjacency matrix
-    n = point_set.points.shape[0]
+    n = X.shape[0]
     adjacency_matrix = lil_matrix((n, n), dtype=np.float32)
     
     # Fill adjacency matrix with symmetric connections
