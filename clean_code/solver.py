@@ -11,13 +11,28 @@ import pandas as pd
 
 class Solver:
 	"""
-	Solves for voltage distributions across a set of points in a resistance network.
+	Solves for voltage distributions in a resistance network using numerical methods.
 
-	Given a problem with defined resistances and a set of landmarks with fixed voltages,
-	this class computes the approximate voltages at all other points.
+	This class implements a solver for computing voltage distributions across a set of points
+	in a resistance network. It uses a system of linear equations based on Kirchhoff's laws
+	to determine the voltages at each point given:
+	- A resistance network defined by a Problem instance
+	- A set of landmarks with fixed voltages
+	- A ground point (automatically added)
+
+	The solver uses the following approach:
+	1. Constructs a resistance matrix from the problem
+	2. Separates constrained (landmark) and unconstrained nodes
+	3. Solves the resulting linear system using scipy.linalg.solve
 
 	Attributes:
-		problem (Problem): The resistance network model.
+		problem (Problem): The resistance network model containing point set and resistance parameters
+		voltages (np.ndarray): The most recently computed voltage solution (available after solve)
+
+		Example:
+			>>> problem_instance = Problem(point_set, r=1.0)
+			>>> solver = Solver(problem_instance)
+			>>> voltages = solver.compute_voltages(landmark_obj)
 	"""
 
 	def __init__(self, problem: problem.Problem):
@@ -31,15 +46,29 @@ class Solver:
 
 	def compute_voltages(self, this_landmark: landmark.Landmark):
 		"""
-		Computes and returns the voltages for the given problem.
+		Computes voltage distribution across all points in the network.
+
+		This method solves for the voltages at each point in the resistance network given
+		a landmark with a fixed voltage. The solution process involves:
+		1. Getting the resistance matrix from the problem
+		2. Adding a ground point (voltage = 0) as an additional landmark
+		3. Separating nodes into constrained (landmarks) and unconstrained sets
+		4. Solving the linear system Ax = b where:
+		   - A is the resistance matrix for unconstrained nodes
+		   - b is the voltage contribution from landmark nodes
+		   - x gives the voltages at unconstrained nodes
 
 		Args:
-		this_landmark landmark.Landmark: The landmark
+			this_landmark (landmark.Landmark): The landmark specifying a point with fixed voltage
 
-                link to the pdf 
-                
 		Returns:
-			voltages: the voltages solution ndarray
+			np.ndarray: Computed voltages for all points except ground (shape: n-1)
+					   where n is the total number of points including ground
+
+		Note:
+			- A ground point is automatically added as the last point with voltage = 0
+			- The returned voltages array excludes the ground point
+			- The solution is stored in self.voltages for later access
 		"""
 		
 		### yf: I think most of this logic should reside in calcresistancematrix. The only

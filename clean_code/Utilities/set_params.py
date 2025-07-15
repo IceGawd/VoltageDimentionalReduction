@@ -1,7 +1,31 @@
 import argparse
 from Utilities import config
 
+"""
+Parameter setup for the streaming centroids algorithm.
+
+This module parses command-line arguments and sets global configuration parameters
+for the clustering pipeline. It validates input and provides helpful error messages
+for invalid or missing arguments.
+"""
+
 def set_params():
+    """
+    Parse command-line arguments and set global configuration parameters.
+
+    This function uses argparse to parse command-line options for the streaming centroids
+    algorithm, validates them, and stores them in the global `config.params` dictionary.
+    It also prints configuration details if verbosity is high.
+
+    Side Effects:
+        - Modifies `config.params` (global dictionary).
+        - May print configuration details to stdout.
+        - May raise exceptions for invalid arguments or missing files.
+
+    Raises:
+        FileNotFoundError: If the input file does not exist (unless in test mode).
+        ValueError: If any of the integer parameters are not positive.
+    """
     parser = argparse.ArgumentParser(description="Set parameters for the streaming centroids algorithm.")
     parser.add_argument("file_path", nargs='?', default=None, help="Path to a text file of vectors (word + floats)")
     parser.add_argument("--split_char")
