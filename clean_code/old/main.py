@@ -1,7 +1,7 @@
 import argparse
 import numpy as np
 import random
-import config
+from Utilities import config
 from kmeans import Streaming_Kmeans
 from problem import Problem
 from rg_optimizer import rg_optimizer

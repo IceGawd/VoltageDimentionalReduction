@@ -22,12 +22,16 @@ import solver
 import visualization
 import setofpoints
 import kmeans
-import config
+from Utilities import config
 
 print("Streaming K-means on MNIST dataset")
 
-config.params['file_path'] = '../data/mnist.csv'
-config.params['split_char'] = ','
+config.params['file_path'] = '../Voltage_Data/mnist/mnist.csv'
+# config.params['file_path'] = '../Voltage_Data/glove/glove_with_pos.txt'
+if config.params['file_path'].endswith('.txt'):
+    config.params['split_char'] = ''
+else:
+	config.params['split_char'] = ','
 config.params['normalize_vecs'] = False
 config.params['max_centroids'] = 1000
 config.params['init_size'] = 1000
@@ -55,8 +59,7 @@ landmarks = []
 for digit in range(10):
 	landmarks.append(landmark.Landmark(random.randint(0, centroids.shape[0]), 1.0))
 
-mnist_problem = problem.Problem(point_set, r=1)
-mnist_problem.optimize(landmarks, target_avg_voltage=0.9, radius=10)
+mnist_problem = problem.Problem(point_set, r=0.3)
 
 # Initialize the map
 voltage_map = voltagemap.VoltageMap()

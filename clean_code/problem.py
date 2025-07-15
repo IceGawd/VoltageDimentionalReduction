@@ -7,7 +7,7 @@ Provides methods to compute the resistance matrix using a k-nearest neighbor ker
 import setofpoints
 import landmark
 import solver
-import config
+from Utilities import config
 
 import numpy as np
 from scipy.spatial.distance import cdist

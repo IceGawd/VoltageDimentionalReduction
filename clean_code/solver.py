@@ -1,6 +1,6 @@
 import landmark
 import problem
-import config
+from Utilities import config
 import setofpoints
 
 from typing import Union, List
@@ -124,8 +124,8 @@ def main():
 	voltages = solver_instance.compute_voltages(landmarks)
 	print("Computed Voltages:", voltages)
 
-        # main needs to implement a test that passes/fails without human input.
-        
+	# main needs to implement a test that passes/fails without human input.
+		
 
 if __name__ == "__main__":
 	main()

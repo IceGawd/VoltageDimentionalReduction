@@ -9,7 +9,7 @@ import itertools
 
 import voltagemap
 import setofpoints
-import config
+from Utilities import config
 
 class Visualization:
 	"""

@@ -1,127 +1,13 @@
 import numpy as np
 import faiss
-import os
-import re
-import argparse
-import config
+
+from Utilities import config
 import visualization
+from Utilities.reader import Reader
 
 import faulthandler
 from collections import Counter
 faulthandler.enable()
-
-# ------------------- Reader -------------------
-
-class ParseException(Exception):
-    """
-    Exception raised when a line cannot be parsed into a label and vector.
-    """
-    pass
-
-
-def readvec(file):
-    """
-    Reads a single line from the file and parses it into a label and a vector.
-
-    Args:
-        file (TextIO): Open file handle to read from.
-
-    Returns:
-        tuple: (label, vector) where label is a string and vector is a numpy array of floats.
-               Returns (None, None) if the line is empty or cannot be parsed.
-
-    Raises:
-        ParseException: If the line cannot be split into at least two parts.
-    """
-    line = file.readline()
-    if not line:
-        return None, None
-    split_char = config.params['split_char']
-    if split_char == '' or split_char is None:
-        parts = line.strip().split()  # default: split on any whitespace
-    else:
-        parts = line.strip().split(split_char)
-    if len(parts) < 2:
-        print(line)
-        print('no of parts=', len(parts))
-        raise ParseException(parts)
-    try:
-        label = parts[0]
-        vec = np.array([float(x) for x in parts[1:]], dtype=np.float32)
-        return label, vec
-    except ValueError:
-        return None, None  # Skip lines with bad floats
-    except ValueError:
-        raise ParseException(parts)
-
-
-class Reader:
-    """
-    Reads a text file containing vectors line-by-line and yields batches of vectors and labels.
-
-    Each line in the file should be in the format:
-        word val1 val2 val3 ...
-
-    Attributes:
-        file (TextIO): Opened file handle.
-        counter (int): Number of vectors successfully read.
-
-    Example:
-        >>> reader = Reader('vectors.txt')
-        >>> for vectors, labels in reader.stream_batches(100):
-        ...     print(vectors.shape, labels[:5])
-        >>> reader.close()
-    """
-
-    def __init__(self, file_path):
-        """
-        Initializes the Reader.
-
-        Args:
-            file_path (str): Path to the input text file.
-
-        Raises:
-            FileNotFoundError: If the file does not exist.
-            IOError: If the file cannot be opened.
-        """
-        self.file = open(file_path, 'r', encoding='utf-8')
-        self.counter = 0
-
-    def stream_batches(self, batch_size):
-        """
-        Generator that yields batches of vectors and labels as NumPy arrays.
-
-        Args:
-            batch_size (int): Number of vectors to include in each batch.
-
-        Yields:
-            tuple: (np.ndarray of shape (batch_size, vector_dim), np.ndarray of shape (batch_size,))
-                Each batch contains up to batch_size vectors. The last batch may be smaller.
-
-        Raises:
-            ParseException: If a line cannot be parsed.
-        """
-        while True:
-            vectors = []
-            labels = []
-            for _ in range(batch_size):
-                label, vec = readvec(self.file)
-                if vec is not None:
-                    vectors.append(vec)
-                    labels.append(label)
-                    self.counter += 1
-                    if self.counter % config.params['batch_size'] == 0:
-                        print(f"\rRead {self.counter} vectors", end='', flush=True)
-            if not vectors:
-                break
-            yield np.stack(vectors), np.array(labels)
-
-    def close(self):
-        """
-        Closes the file handle. Safe to call multiple times.
-        """
-        self.file.close()
-
 
 # ------------- Streaming KMeans++ --------------
 
@@ -361,11 +247,11 @@ def Streaming_Kmeans(filepath):
 
 
 # ------------------- Main ---------------------
-from set_params import set_params
+from Utilities.set_params import set_params
 
 def main():
     
-    set_params()  #set parameters accordinig to the command line
+    set_params()  #set parameters accordinig to the command line            
     if config.params['test']:
         
         config.params['file_path']= '../data/synthetic/2drandom10000.csv'
@@ -398,8 +284,7 @@ def main():
     # if 2d test then visualize datapoints, centroids labels
     if config.params['test']:
         visualization.Visualization.plot_centroids(centroids, counters, majority_labels)
-
-
+    
 if __name__ == "__main__":
     main()
 
