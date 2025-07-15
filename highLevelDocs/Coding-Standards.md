@@ -27,10 +27,30 @@ the module is fixed and does not change from run to run.
 
 It is in general a bad idea to store data files / images on
 github. Those files tend to be large and diff does not compress
-them. We therefor store large files either locally on the computer or
-on a shared google drive. @shivany to explain how to do this in a way
+them. We therefore store large files either locally on the computer or
+on a shared google drive. @shivani to explain how to do this in a way
 that would allow the software to reach the datafiles from any
 computer.
+## Symlink Instructions
+### Note **Open a Terminal/command prompt as administrator **
+For windows, the command should be run in the folder where one wants the Link to be created 
+windows- mklink /D <LinkName> "<TargetFolderPath>" 
+linux/macos - ln -s /absolute/path/to/original/folder /desired/path/to/link
+
+### Example:
+windows - mklink /D Voltage_Data "D:\Yoav_lab\Voltage_Data"
+output: symbolic link created for Voltage_Data <<===>> "D:\Yoav_lab\Voltage_Data"
+linux/macos  - ln -s /absolute/path/to/original/folder absolute_path_to_VoltageDimentionalReduction
+
+### 3. **Verify the Link**
+windows: Run:dir
+You will see something like:
+06/25/2025  10:00 AM    <SYMLINKD>     Voltage_Data ["D:\Yoav_lab\Voltage_Data"]
+
+Linux-/Macos: Run:ls -l
+You will see something like:
+Voltage_Data -> "D:\Yoav_lab\Voltage_Data"
+That means your symlink was successfully created.
 
 # git branching
 

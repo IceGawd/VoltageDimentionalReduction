@@ -1,6 +1,7 @@
 import setofpoints
 import landmark
-import config
+import solver
+from Utilities import config
 
 import numpy as np
 from scipy.spatial.distance import cdist
@@ -10,21 +11,21 @@ import networkx as nx
 
 class Problem:
 	"""
-	Represents a kernel-based resistance model over a set of points with grounding.
+	Represents a kernel-based resistance model over a set of centroids with grounding.
 
 	Attributes:
-		points (SetOfPoints): The points object.
+		centroids (SetOfPoints): The centroids object.
 		landmarks (List[Landmark])
 		c (float): Kernel width parameter used in the Gaussian kernel.
 		r (float): Resistance to ground.
 	"""
 
-	def __init__(self, points: setofpoints.SetOfPoints, k: int = 2, r: float = 1.0):
+	def __init__(self, centroids: setofpoints.SetOfPoints, k: int = 10, r: float = 1.0):
 		"""
 		Initializes a Problem instance.
 
 		Args:
-			points (np.ndarray): A (n, d) array of points.
+			centroids: A SetOfPoints: stores points and weights.
 			r (float): Resistance to the ground.
 
 		Raises:
@@ -33,7 +34,7 @@ class Problem:
 		if r <= 0:
 			raise ValueError("Ground resistance (r) must be positive.")
 
-		self.points = points
+		self.centroids = centroids
 		self.r = r
 		self.ResistanceMatrix =  self.calcResistanceMatrix(k,r)
 
@@ -50,7 +51,8 @@ class Problem:
 			np.ndarray: (n+1)x(n+1) resistance matrix with rows summing to 1.
 		"""
 
-		X = self.points.points							# shape (n, d)
+		print(type(self.centroids))
+		X = self.centroids.points						# shape (n, d)
 		n = X.shape[0]
 
 		# k-NN search (k+1 to cover self-inclusion)
@@ -64,8 +66,8 @@ class Problem:
 		for i in range(n):
 			for j in indices[i]:
 				if j != i:
-					kernel[i, j] = weight * self.points.weights[i] * self.points.weights[j]
-					kernel[j, i] = weight * self.points.weights[j] * self.points.weights[i]  # symmetric
+					kernel[i, j] = weight * self.centroids.weights[i] * self.centroids.weights[j]
+					kernel[j, i] = weight * self.centroids.weights[j] * self.centroids.weights[i]  # symmetric
 
 
 		kernel = kernel / kernel.sum(axis=1, keepdims=True)

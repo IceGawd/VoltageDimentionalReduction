@@ -1,6 +1,6 @@
 import landmark
 import problem
-import config
+from Utilities import config
 import setofpoints
 
 from typing import Union, List
@@ -37,6 +37,8 @@ class Solver:
 		Args:
 		this_landmark landmark.Landmark: The landmark
 
+                link to the pdf 
+                
 		Returns:
 			voltages: the voltages solution ndarray
 		"""

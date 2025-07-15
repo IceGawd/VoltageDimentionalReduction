@@ -1,0 +1,168 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath, amssymb}
+
+\title{Approximation of Mutual Information in Random Walk Voltage Models}
+\author{}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\section*{Problem Setting}
+
+Consider a graph with $n$ nodes. We designate $k$ source nodes $S_1, \ldots, S_k$ and a single sink node $T$. For each source $S_i$, define the voltage function $V_i(u)$ on nodes $u \in \{1, \ldots, n\}$ via the Dirichlet problem:
+
+\[
+\begin{cases}
+V_i(S_i) = 1, \\
+V_i(T) = 0, \\
+\Delta V_i(u) = 0 \text{ for } u \notin \{S_i, T\}.
+\end{cases}
+\]
+
+Each $V_i(u)$ represents the probability that a random walk starting at node $u$ reaches source $S_i$ before the sink $T$.
+
+\bigskip
+
+Suppose $N$ independent particles are released from node $u$. For each source $S_i$, let $m_i(u)$ be the number of particles that hit $S_i$ before $T$. Then:
+
+\[
+m_i(u) \sim \operatorname{Binomial}(N, V_i(u)).
+\]
+
+Define the $k$-dimensional random vector at node $u$ as:
+
+\[
+A(u) = \big(m_1(u), m_2(u), \ldots, m_k(u)\big).
+\]
+
+We introduce a random variable $B$ that is uniformly distributed over the $n$ nodes:
+
+\[
+B \sim \text{Uniform} \{1, 2, \ldots, n\}.
+\]
+
+We are interested in the mutual information $I(A; B)$, where $A = A(B)$.
+
+\section*{Conditional Distribution of $A$}
+
+Conditioned on $B = u$, the components of $A$ are independent:
+
+\[
+A \mid B = u \sim \bigotimes_{i=1}^k \operatorname{Binomial}(N, V_i(u)).
+\]
+
+For large $N$, each binomial distribution can be approximated by a Gaussian:
+
+\[
+\operatorname{Binomial}(N, p) \approx \mathcal{N}\big(Np, Np(1-p)\big).
+\]
+
+Therefore,
+
+\[
+A \mid B = u \approx \mathcal{N}\big(\mu(u), \Sigma(u)\big),
+\]
+
+where
+
+\[
+\mu_i(u) = N V_i(u),
+\]
+\[
+\Sigma(u) = \operatorname{diag}\big(N V_1(u)(1 - V_1(u)), \ldots, N V_k(u)(1 - V_k(u))\big).
+\]
+
+\section*{Mutual Information Formula}
+
+The mutual information is:
+
+\[
+I(A; B) = H(A) - H(A|B).
+\]
+
+\subsection*{Conditional Entropy $H(A|B)$}
+
+Given $B = u$, $A$ is approximately Gaussian with covariance $\Sigma(u)$. The differential entropy of a multivariate Gaussian is:
+
+\[
+H(A|B = u) = \frac{k}{2}\log(2\pi e) + \frac{1}{2} \log \det \Sigma(u).
+\]
+
+Averaging over uniform $B$:
+
+\[
+H(A|B) = \frac{1}{n} \sum_{u=1}^n H(A|B = u).
+\]
+
+\subsection*{Marginal Entropy $H(A)$}
+
+The marginal distribution of $A$ is a mixture of Gaussians:
+
+\[
+P(A) = \frac{1}{n} \sum_{u=1}^n \mathcal{N}\big(\mu(u), \Sigma(u)\big).
+\]
+
+Its entropy $H(A)$ has no closed-form expression. We approximate it via Monte Carlo sampling:
+
+\begin{itemize}
+    \item Sample $B$ uniformly from $\{1, \ldots, n\}$.
+    \item Sample $A \mid B$ from $\mathcal{N}\big(\mu(B), \Sigma(B)\big)$.
+    \item Estimate $p(A)$ using the mixture density.
+    \item Approximate $H(A) \approx - \frac{1}{M} \sum_{j=1}^M \log p(A^{(j)})$.
+\end{itemize}
+
+\section*{Monte Carlo Approximation Procedure}
+
+\begin{enumerate}
+    \item For each node $u$, compute:
+    \[
+    \mu(u) = N \cdot V(u), \quad \Sigma(u) = \operatorname{diag}\big(N V_i(u)(1 - V_i(u))\big).
+    \]
+    
+    \item Compute:
+    \[
+    H(A|B) = \frac{1}{n} \sum_{u=1}^n \frac{k}{2}\log(2\pi e) + \frac{1}{2} \sum_{i=1}^k \log\big(N V_i(u)(1 - V_i(u))\big).
+    \]
+    
+    \item Draw $M$ samples:
+    \[
+    B^{(j)} \sim \text{Uniform}\{1, \ldots, n\},
+    \]
+    \[
+    A^{(j)} \sim \mathcal{N}\big(\mu(B^{(j)}), \Sigma(B^{(j)})\big).
+    \]
+    
+    \item For each sample $A^{(j)}$, compute:
+    \[
+    p(A^{(j)}) \approx \frac{1}{n} \sum_{u=1}^n \mathcal{N}\big(A^{(j)}; \mu(u), \Sigma(u)\big).
+    \]
+    
+    \item Approximate:
+    \[
+    H(A) \approx -\frac{1}{M} \sum_{j=1}^M \log p(A^{(j)}).
+    \]
+    
+    \item Finally:
+    \[
+    I(A; B) \approx H(A) - H(A|B).
+    \]
+\end{enumerate}
+
+\section*{Interpretation}
+
+\begin{itemize}
+    \item For large $N$, the binomial distributions are sharply peaked, so the means of the Gaussians separate well.
+    \item If the voltage vectors $V(u)$ are well-separated across nodes, $I(A; B)$ approaches $\log n$.
+    \item If the voltage vectors are similar across nodes, $I(A; B)$ is small.
+\end{itemize}
+
+This approximation provides a practical way to quantify how well observing the particle count vector $A$ can identify the underlying node $B$ in large-$N$ regimes.
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% End:
