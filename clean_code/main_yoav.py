@@ -190,7 +190,7 @@ if __name__ == "__main__":
 			break
 
 	print("Applying voltage-based filtering")
-	from filter import filter_by_voltage, filter_by_weights
+	from filter import filter_by_voltage as filter_utils_by_voltage, filter_by_weights as filter_utils_by_weights
 
 	# Try different threshold values until we keep enough points
 	thresholds = [1.0, 0.7, 0.5, 0.3, 0.1]  # Start strict, gradually relax
