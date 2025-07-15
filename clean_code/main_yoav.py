@@ -1,27 +1,28 @@
+# Standard library imports
+import os
+from typing import Union, Optional, List, Any, Tuple
+
+# Third-party imports
 import numpy as np
-from typing import Union, Optional, List, Any, Tuple, Callable, Dict
-from itertools import product
-import pandas
-import matplotlib.pyplot as plt
-
-from scipy.sparse.linalg import cg
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
-from sklearn.decomposition import PCA
-from sklearn.manifold import MDS
 from sklearn.datasets import fetch_openml
+import faiss
 
-import importlib
-
+# Local imports - core functionality
 import landmark
 import voltagemap
 import problem
 import solver
-import visualization
 import setofpoints
 import kmeans
+
+# Local imports - utilities
 from Utilities import config
 from Utilities.distances import compute_distances
-import faiss
+
+# Optional imports for visualization (commented out until needed)
+# import matplotlib.pyplot as plt
+# from sklearn.manifold import MDS
+# from sklearn.decomposition import PCA
 
 def test_voltage(voltages, ignore_fraction:float=0.90, thr:float=0.05):
 	sorted = np.sort(voltages.flatten())

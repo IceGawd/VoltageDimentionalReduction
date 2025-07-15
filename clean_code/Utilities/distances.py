@@ -6,11 +6,6 @@ metrics: Euclidean distance, voltage-based distance, and graph-based distance.
 It utilizes FAISS for efficient distance computations and scikit-learn for
 k-nearest neighbors graph construction.
 
-Dependencies:
-    - numpy: For numerical computations
-    - faiss: For efficient distance computations
-    - scipy: For sparse matrix operations and graph algorithms
-    - sklearn: For nearest neighbors computation
 """
 
 import numpy as np
@@ -63,16 +58,10 @@ def compute_distances(points, voltages):
         Note: Diagonal entries are set to -inf for D1 and D2, and graph
         unreachable nodes are set to inf in D3.
     """
-    # Import required libraries
-    try:
-        import faiss
-    except ImportError:
+    # Check if required packages are available
+    if not HAVE_FAISS:
         raise ImportError("faiss is required for distance computation. Please install it first.")
-        
-    try:
-        from scipy.sparse import lil_matrix
-        from sklearn.neighbors import NearestNeighbors
-    except ImportError:
+    if not HAVE_SCIPY or not HAVE_SKLEARN:
         raise ImportError("scipy and scikit-learn are required for graph distances. Please install them first.")
 
     # Handle input types
