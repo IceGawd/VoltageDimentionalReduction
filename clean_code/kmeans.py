@@ -11,10 +11,28 @@ from collections import Counter
 faulthandler.enable()
 
 # ------------------- Reader -------------------
+
 class ParseException(Exception):
+    """
+    Exception raised when a line cannot be parsed into a label and vector.
+    """
     pass
 
+
 def readvec(file):
+    """
+    Reads a single line from the file and parses it into a label and a vector.
+
+    Args:
+        file (TextIO): Open file handle to read from.
+
+    Returns:
+        tuple: (label, vector) where label is a string and vector is a numpy array of floats.
+               Returns (None, None) if the line is empty or cannot be parsed.
+
+    Raises:
+        ParseException: If the line cannot be split into at least two parts.
+    """
     line = file.readline()
     if not line:
         return None, None
@@ -33,9 +51,9 @@ def readvec(file):
         return label, vec
     except ValueError:
         return None, None  # Skip lines with bad floats
-
     except ValueError:
         raise ParseException(parts)
+
 
 class Reader:
     """
@@ -47,6 +65,12 @@ class Reader:
     Attributes:
         file (TextIO): Opened file handle.
         counter (int): Number of vectors successfully read.
+
+    Example:
+        >>> reader = Reader('vectors.txt')
+        >>> for vectors, labels in reader.stream_batches(100):
+        ...     print(vectors.shape, labels[:5])
+        >>> reader.close()
     """
 
     def __init__(self, file_path):
@@ -55,6 +79,10 @@ class Reader:
 
         Args:
             file_path (str): Path to the input text file.
+
+        Raises:
+            FileNotFoundError: If the file does not exist.
+            IOError: If the file cannot be opened.
         """
         self.file = open(file_path, 'r', encoding='utf-8')
         self.counter = 0
@@ -68,6 +96,10 @@ class Reader:
 
         Yields:
             tuple: (np.ndarray of shape (batch_size, vector_dim), np.ndarray of shape (batch_size,))
+                Each batch contains up to batch_size vectors. The last batch may be smaller.
+
+        Raises:
+            ParseException: If a line cannot be parsed.
         """
         while True:
             vectors = []
@@ -86,30 +118,35 @@ class Reader:
 
     def close(self):
         """
-        Closes the file handle.
+        Closes the file handle. Safe to call multiple times.
         """
         self.file.close()
 
 
 # ------------- Streaming KMeans++ --------------
+
 class StreamingKMeansPlusPlus:
     """
     Implements streaming k-means++ centroid selection using FAISS for efficient distance computation.
+
+    This class incrementally selects centroids from streaming data using a probabilistic
+    approach based on distance, and maintains a FAISS index for efficient nearest neighbor search.
 
     Attributes:
         d (int): Dimensionality of vectors.
         Z (float): Scaling constant for sampling probability.
         max_centroids (int): Maximum number of centroids to retain.
+        index (faiss.IndexFlatL2): FAISS index for centroid search.
     """
 
-    def __init__(self, d, max_dist2,min_dist2,index):
+    def __init__(self, d, max_dist2, min_dist2, index):
         """
         Initializes the streaming k-means++ class.
 
         Args:
             d (int): Vector dimensionality.
-            Z (float): Normalization constant for sampling.
-            max_centroids (int): Maximum number of centroids to store.
+            max_dist2 (float): Maximum squared distance in the initial buffer.
+            min_dist2 (float): Minimum squared distance in the initial buffer.
             index (faiss.IndexFlatL2): FAISS index for efficient distance computation.
         """
         self.d = d
@@ -131,7 +168,9 @@ class StreamingKMeansPlusPlus:
             index (faiss.IndexFlatL2): FAISS index of centroids.
 
         Returns:
-            np.ndarray: Squared distances for each point in X.
+            tuple: (distances, indices)
+                distances (np.ndarray): Squared distances for each point in X.
+                indices (np.ndarray): Indices of nearest centroids.
         """
         if self.index is None or self.index.ntotal == 0:
             print("Index is empty, returning infinity distances.")
@@ -178,17 +217,23 @@ class StreamingKMeansPlusPlus:
 
 # ------------------- Streaming_Kmeans----------
 def Streaming_Kmeans(filepath):
-
     """
-    Main function to perform streaming k-means++ with FAISS.
+    Performs streaming k-means++ clustering using FAISS.
 
-    Steps:
-        1. Estimate normalization constant Z from an initial buffer.
-        2. Select centroids incrementally using streaming batches.
-        3. update centroids using a streaming version of the Kmeans algorithm
-        4. Save final centroids to a .npy file.
+    Args:
+        filepath (str): Path to the input data file.
 
-    parameters are passed through config.params, see listing of parameters in argparse section.
+    Returns:
+        tuple: (centroids, counters, majority_labels, initial_mean_d2, mean_d2)
+            - centroids (np.ndarray): Final centroid vectors.
+            - counters (np.ndarray): Number of points assigned to each centroid.
+            - majority_labels (list): Most common label for each centroid.
+            - initial_mean_d2 (float): Initial mean squared distance.
+            - mean_d2 (float): Final mean squared distance.
+
+    Notes:
+        Parameters are passed through config.params.
+        See argparse section for parameter listing.
     """
     reader = Reader(filepath)
 

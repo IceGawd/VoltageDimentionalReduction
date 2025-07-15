@@ -1,5 +1,19 @@
+"""
+Provides the SetOfPoints class for managing weighted point sets in d-dimensional space.
+
+This module implements functionality for handling collections of points with associated 
+weights, supporting operations like normalization, subsetting, and point access. It's 
+particularly useful for geometric algorithms and weighted data representations.
+
+Example:
+    >>> points = np.array([[1, 2], [3, 4], [5, 6]])
+    >>> weights = np.array([0.3, 0.3, 0.4])
+    >>> point_set = SetOfPoints(points, weights)
+    >>> point_set.normalize_weights()
+"""
+
 import numpy as np
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Union, List
 
 class SetOfPoints:
 	"""
@@ -57,6 +71,17 @@ class SetOfPoints:
 	def normalize_weights(self) -> None:
 		"""
 		Normalizes the weights so that they sum to 1.
+
+		Modifies the weights in-place, scaling them so their sum equals 1.
+		This is useful for ensuring the weights represent a probability distribution.
+
+		Raises:
+			ValueError: If the sum of weights is zero.
+
+		Example:
+			>>> points = SetOfPoints(np.array([[1,2]]), weights=np.array([2.0]))
+			>>> points.normalize_weights()
+			>>> assert np.isclose(points.weights.sum(), 1.0)
 		"""
 		total = np.sum(self.weights)
 		if total == 0:
@@ -67,11 +92,21 @@ class SetOfPoints:
 		"""
 		Returns a new SetOfPoints object containing only the selected indices.
 
+		Creates a new instance with a subset of the original points and their 
+		corresponding weights. The weights are preserved but not re-normalized.
+
 		Args:
 			indices (np.ndarray): An array of indices to include in the new subset.
+				Can be boolean mask or integer indices.
 
 		Returns:
 			SetOfPoints: A new SetOfPoints object with selected points and weights.
+
+		Example:
+			>>> points = SetOfPoints(np.array([[1,2], [3,4], [5,6]]))
+			>>> subset = points.subset(np.array([0, 2]))
+			>>> print(len(subset))
+			2
 		"""
 		return SetOfPoints(self.points[indices], self.weights[indices])
 
@@ -84,33 +119,56 @@ class SetOfPoints:
 		"""
 		return self.points.shape[0]
 
-	def __getitem__(self, index):
+	def __getitem__(self, index: Union[int, List[int], np.ndarray]) -> np.ndarray:
 		"""
-		Allows indexing into the dataset.
+		Allows indexing into the dataset using array-like syntax.
+
+		Supports integer indexing, slicing, and boolean masking to access points.
+		Does not return weights - use get_point() if you need both point and weight.
 
 		Args:
-			index (int): Index of the desired data point.
+			index (Union[int, List[int], np.ndarray]): Index, slice, or boolean mask
+				to select points.
 
 		Returns:
-			np.ndarray: The data point at the given index.
+			np.ndarray: The selected data point(s).
+
+		Example:
+			>>> points = SetOfPoints(np.array([[1,2], [3,4]]))
+			>>> point = points[0]  # Get first point
+			>>> subset = points[np.array([True, False])]  # Boolean indexing
 		"""
 		return self.points[index]
 
-	def __setitem__(self, index, value):
+	def __setitem__(self, index: Union[int, List[int], np.ndarray], value: np.ndarray) -> None:
 		"""
-		Sets a value in the dataset at a specified index.
+		Sets values in the dataset using array-like syntax.
+
+		Supports integer indexing, slicing, and boolean masking to modify points.
+		Only modifies points, not weights.
 
 		Args:
-			index (int): The index to modify.
-			value (Any): The new value to set.
+			index (Union[int, List[int], np.ndarray]): Index, slice, or boolean mask
+				indicating which points to modify.
+			value (np.ndarray): The new value(s) to set. Must have compatible shape
+				with the indexed points.
+
+		Example:
+			>>> points = SetOfPoints(np.array([[1,2], [3,4]]))
+			>>> points[0] = np.array([5,6])  # Modify first point
 		"""
 		self.points[index] = value
 
 	def dimension(self) -> int:
 		"""
-		Returns the dimensionality of the points.
+		Returns the dimensionality of the points in the set.
 
 		Returns:
-			int: The dimension (d) of each point.
+			int: The dimension (d) of each point in the space.
+
+		Example:
+			>>> points = SetOfPoints(np.array([[1, 2, 3], [4, 5, 6]]))
+			>>> print(points.dimension())
+			3
 		"""
 		return self.points.shape[1]
