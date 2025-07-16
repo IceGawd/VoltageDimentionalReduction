@@ -10,29 +10,24 @@ from collections import Counter
 faulthandler.enable()
 
 # ------------- Streaming KMeans++ --------------
-
 class StreamingKMeansPlusPlus:
     """
     Implements streaming k-means++ centroid selection using FAISS for efficient distance computation.
-
-    This class incrementally selects centroids from streaming data using a probabilistic
-    approach based on distance, and maintains a FAISS index for efficient nearest neighbor search.
 
     Attributes:
         d (int): Dimensionality of vectors.
         Z (float): Scaling constant for sampling probability.
         max_centroids (int): Maximum number of centroids to retain.
-        index (faiss.IndexFlatL2): FAISS index for centroid search.
     """
 
-    def __init__(self, d, max_dist2, min_dist2, index):
+    def __init__(self, d, max_dist2,min_dist2,index):
         """
         Initializes the streaming k-means++ class.
 
         Args:
             d (int): Vector dimensionality.
-            max_dist2 (float): Maximum squared distance in the initial buffer.
-            min_dist2 (float): Minimum squared distance in the initial buffer.
+            Z (float): Normalization constant for sampling.
+            max_centroids (int): Maximum number of centroids to store.
             index (faiss.IndexFlatL2): FAISS index for efficient distance computation.
         """
         self.d = d
@@ -54,9 +49,7 @@ class StreamingKMeansPlusPlus:
             index (faiss.IndexFlatL2): FAISS index of centroids.
 
         Returns:
-            tuple: (distances, indices)
-                distances (np.ndarray): Squared distances for each point in X.
-                indices (np.ndarray): Indices of nearest centroids.
+            np.ndarray: Squared distances for each point in X.
         """
         if self.index is None or self.index.ntotal == 0:
             print("Index is empty, returning infinity distances.")
@@ -103,23 +96,17 @@ class StreamingKMeansPlusPlus:
 
 # ------------------- Streaming_Kmeans----------
 def Streaming_Kmeans(filepath):
+
     """
-    Performs streaming k-means++ clustering using FAISS.
+    Main function to perform streaming k-means++ with FAISS.
 
-    Args:
-        filepath (str): Path to the input data file.
+    Steps:
+        1. Estimate normalization constant Z from an initial buffer.
+        2. Select centroids incrementally using streaming batches.
+        3. update centroids using a streaming version of the Kmeans algorithm
+        4. Save final centroids to a .npy file.
 
-    Returns:
-        tuple: (centroids, counters, majority_labels, initial_mean_d2, mean_d2)
-            - centroids (np.ndarray): Final centroid vectors.
-            - counters (np.ndarray): Number of points assigned to each centroid.
-            - majority_labels (list): Most common label for each centroid.
-            - initial_mean_d2 (float): Initial mean squared distance.
-            - mean_d2 (float): Final mean squared distance.
-
-    Notes:
-        Parameters are passed through config.params.
-        See argparse section for parameter listing.
+    parameters are passed through config.params, see listing of parameters in argparse section.
     """
     reader = Reader(filepath)
 

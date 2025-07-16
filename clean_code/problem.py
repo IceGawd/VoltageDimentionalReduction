@@ -1,9 +1,3 @@
-
-"""
-Defines the Problem class for modeling a resistance network over centroids with grounding.
-Provides methods to compute the resistance matrix using a k-nearest neighbor kernel.
-"""
-
 import setofpoints
 import landmark
 import solver
@@ -94,10 +88,4 @@ class Problem:
 		return np.identity(weights.shape[0]) - weights
 
 	def getResistanceMatrix(self):
-		"""
-		Returns the precomputed resistance matrix for the problem instance.
-
-		Returns:
-			np.ndarray: The (n+1)x(n+1) resistance matrix.
-		"""
 		return self.ResistanceMatrix
