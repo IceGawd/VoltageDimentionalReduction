@@ -13,8 +13,10 @@ def set_params():
     parser.add_argument("--verbosity", type=int, default=1, help="Verbosity level (0: silent, 1: normal, 2: verbose)")
     parser.add_argument("--test", action="store_true", help="run in self-test mode")
     parser.add_argument("--k", type=int, default=10, help="k-connectivity for the k-nearest neighbor graph")
+    parser.add_argument("--r", type=int, default=1, help="resistance to ground")
     parser.add_argument("--sigma", type=float, default=None, help="Sigma value for RBF weighting (default: auto)")
     parser.add_argument("--NoOfLandmarks", type=int, default=10, help="Number of landmarks to select for the voltage map")
+    parser.add_argument("--no-show-plots", type=bool, default=False, help="Set to True if you do not want to show plots")
     args = parser.parse_args()
 
     config.params=vars(args)

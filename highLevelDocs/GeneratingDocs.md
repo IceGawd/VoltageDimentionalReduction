@@ -21,6 +21,8 @@ pip install mkdocs-material
 pip install mkdocstrings[python]
 ```
 
+When running mkdocs, please ensure you are on the base of the repository.
+
 ## Step 2: Preview the Docs Locally
 
 To serve the docs locally and preview changes in real-time:
@@ -29,7 +31,7 @@ To serve the docs locally and preview changes in real-time:
 mkdocs serve
 ```
 
-This will start a local development server (usually at http://127.0.0.1:8000/). Open that URL in your browser to see your docs.
+This will start a local development server (usually at http://127.0.0.1:8000/). Open that URL in your browser to see your docs. The actual docs will be displayed in the ``reference`` subfolder (usually http://127.0.0.1:8000/reference/) or you can get there by pressing the three lines on the top left and going to the Reference tab. 
 
 ## Step 3: Deploy to Github Pages
 

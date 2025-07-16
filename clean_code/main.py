@@ -10,7 +10,6 @@ import landmark
 import voltagemap
 import problem
 import solver
-import visualization
 import setofpoints
 import kmeans
 from Utilities import config
@@ -20,7 +19,7 @@ import faiss
 def compute_voltages(centroids):
 	""" compute the voltage map for each centroid """
 	all_voltages = voltagemap.VoltageMap()	
-	_problem = problem.Problem(centroids,r=0.01)
+	_problem = problem.Problem(centroids,r=config.params['r'])
 	_solver=solver.Solver(_problem)
 	for index in range(len(centroids)):
 		_landmark= landmark.Landmark(index, voltage=1.0)
@@ -56,14 +55,18 @@ def main():
 
 	import pickle
 	data_to_save = {
-	'majority_labels': majority_labels,  # your labels
-	'all_voltages': all_voltages,  # your VoltageMap object
-    'centroids': centroids,        # your SetOfPoints object
-	'k': config.params['k']     # your VoltageMap object
+		'majority_labels': majority_labels,	# your labels
+		'all_voltages': all_voltages,		# your VoltageMap object
+		'centroids': centroids,				# your SetOfPoints object
+		'k': config.params['k']				# number of neighbors
 	}
-	with open(config.params['Voltage_map_output'], 'wb') as f:
-		pickle.dump(data_to_save, f)
-	print(f"Voltage map saved to {config.params['Voltage_map_output']}")
+
+	if ('Voltage_map_output' in config.params):
+		with open(config.params['Voltage_map_output'], 'wb') as f:
+			pickle.dump(data_to_save, f)
+		print(f"Voltage map saved to {config.params['Voltage_map_output']}")
+
+	return data_to_save
 
 if __name__ == "__main__":
 	from Utilities.set_params import set_params

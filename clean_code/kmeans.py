@@ -2,7 +2,7 @@ import numpy as np
 import faiss
 
 from Utilities import config
-import visualization
+from Visualization import generalVisualization
 from Utilities.reader import Reader
 
 import faulthandler
@@ -270,7 +270,7 @@ def main():
 
     # if 2d test then visualize datapoints, centroids labels
     if config.params['test']:
-        visualization.Visualization.plot_centroids(centroids, counters, majority_labels)
+        generalVisualization.plot_centroids(centroids, counters, majority_labels)
     
 if __name__ == "__main__":
     main()

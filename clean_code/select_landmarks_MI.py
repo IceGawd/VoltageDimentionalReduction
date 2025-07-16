@@ -12,7 +12,7 @@ def select_landmarks(all_voltages):
     voltage_map=copy(all_voltages)
     voltage_map.set_advantages(-np.inf,quantity="MI_cumul")  # Set initial advantages to negative infinity
     L=len(voltage_map.entries)
-    N=30; #config.params['NoOfLandmarks']
+    N=10
     if N>L:
         raise ValueError(f"Number of landmarks {N} exceeds the number of available landmarks {L}.") 
     
@@ -69,5 +69,4 @@ if __name__ == "__main__":
     with open(config.params['Voltage_map_output'], 'wb') as f:
         pickle.dump(Data, f)
     print(f"added voltage_map to {config.params['Voltage_map_output']}")
-
 
