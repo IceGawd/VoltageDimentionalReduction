@@ -11,7 +11,6 @@ from Utilities import config
 import os
 import subprocess
 import sys
-from Utilities import config
 
 # ---------- Data Loading Functions ----------
 

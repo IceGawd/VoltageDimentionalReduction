@@ -1,6 +1,8 @@
 site_name: Voltage Dimentionality Reduction
 theme:
   name: material
+  features:
+    - navigation.expand
 
 plugins:
   - search

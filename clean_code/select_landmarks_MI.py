@@ -70,4 +70,3 @@ if __name__ == "__main__":
         pickle.dump(Data, f)
     print(f"added voltage_map to {config.params['Voltage_map_output']}")
 
-

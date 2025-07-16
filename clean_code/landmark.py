@@ -17,6 +17,6 @@ class Landmark:
 			voltage (float): Voltage to be applied at the specified index.
 		"""
 		self.index = index
-		self.voltage=voltage
+		self.voltage = voltage
 
 	

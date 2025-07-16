@@ -56,6 +56,18 @@ class VoltageMap:
         V=np.stack([E['voltages'] for E in self.entries], axis=0)
         return V.T
 
+    def voltage_array(self) -> np.ndarray:
+        """
+        Returns an (N x L) array of voltages, where N is the number of data points
+        and L is the number of landmarks.
+
+        Each column corresponds to the voltage map from one landmark.
+        """
+        if not self.entries:
+            raise ValueError("VoltageMap has no entries.")
+        
+        return np.column_stack([entry['voltages'] for entry in self.entries])
+
     def __len__(self) -> int:
         return len(self.entries)
 
