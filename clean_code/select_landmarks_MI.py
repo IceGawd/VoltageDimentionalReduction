@@ -12,7 +12,7 @@ def select_landmarks(all_voltages):
     voltage_map=copy(all_voltages)
     voltage_map.set_advantages(-np.inf,quantity="MI_cumul")  # Set initial advantages to negative infinity
     L=len(voltage_map.entries)
-    N=10
+    N=10; #config.params['NoOfLandmarks']
     if N>L:
         raise ValueError(f"Number of landmarks {N} exceeds the number of available landmarks {L}.") 
     
