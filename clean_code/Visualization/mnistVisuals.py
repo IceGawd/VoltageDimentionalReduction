@@ -42,7 +42,7 @@ def plot_mnist_unlabeled(voltages, data, transformation="mds", landmarkSize=3, a
 		
 		color = np.array(colors[np.argmax(point_voltages)])
 
-		size = 1
+		size = 2
 		if (np.max(point_voltages) == 1):
 			size = landmarkSize
 		
@@ -63,7 +63,7 @@ def plot_mnist_unlabeled(voltages, data, transformation="mds", landmarkSize=3, a
 
 	visualHelpers.standard_save_display(out_file)
 
-def plot_mnist_digits(voltages, data, labels, transformation="mds", landmarkSize=3, alpha_actual=1, percent_size=0.02, out_file=None):
+def plot_mnist_digits(voltages, data, labels, transformation="mds", landmarkSize=3, alpha_actual=1, percent_size=0.02, out_file=None, log_transform=True):
 	"""
 	Visualizes MNIST digits in 2D space using voltage-based embeddings reduced by PCA or MDS.
 
@@ -79,9 +79,12 @@ def plot_mnist_digits(voltages, data, labels, transformation="mds", landmarkSize
 		alpha_actual (float): Opacity of digit images (0.0 to 1.0, default: 1).
 		percent_size (float): Relative size of digit images as a fraction of plot range (default: 0.02).
 		out_file (Optional[str]): If provided, saves the output figure to this file path.
+		log_transform (bool): If True (default), applies a log transform to the voltage values before visualization.
 	"""
 
 	points = voltages.voltage_array()
+	if log_transform:
+		points = -np.log(points)	
 
 	transformed_points = visualHelpers.transform(points, transformation)
 	
