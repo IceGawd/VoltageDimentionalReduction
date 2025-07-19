@@ -53,7 +53,8 @@ def select_landmarks(all_voltages):
 
 if __name__ == "__main__": 
     set_params()  # Set parameters from command line or default values
-    config.params['Voltage_map_output']= '../../Voltage_Temp/Results/voltage_map.npy'
+    # config.params['Voltage_map_output']= '../../Voltage_Temp/Results/voltage_map.npy'
+    config.params['Voltage_map_output']= '../../Voltage_Temp/Results/glove/voltage_map.npy'
 
 
     import pickle

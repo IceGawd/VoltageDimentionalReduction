@@ -73,19 +73,21 @@ if __name__ == "__main__":
 	set_params()
 	if config.params['test']:
 		# Load configuration parameters
-		#config.params['file_path']= '../data/glove/shuffled_output.txt'
-		#config.params['split_char']= ' '
-		#config.params['normalize_vecs']= True
-
-		config.params['file_path']= '../../Voltage_Data/mnist/mnist.csv'
-		config.params['split_char']= ','
+		config.params['file_path']= '../../Voltage_Data/glove/glove_with_pos.txt'
+		config.params['split_char']= ' '
 		config.params['normalize_vecs']= False
+		config.params['kmeans_output']= '../../Voltage_Temp/Results/glove/streaming_centroids.npy'
+		config.params['Voltage_map_output']= '../../Voltage_Temp/Results/glove/voltage_map.npy'
+
+		# config.params['file_path']= '../../Voltage_Data/mnist/mnist.csv'
+		# config.params['split_char']= ','
+		# config.params['normalize_vecs']= False
+		# config.params['kmeans_output']= '../../Voltage_Temp/Results/streaming_centroids.npy'
+		# config.params['Voltage_map_output']= '../../Voltage_Temp/Results/voltage_map.npy'
 
 		config.params['max_centroids']= 1000
 		config.params['init_size']= 5000
 		config.params['batch_size']= 1000
-		config.params['kmeans_output']= '../../Voltage_Temp/Results/streaming_centroids.npy'
-		config.params['Voltage_map_output']= '../../Voltage_Temp/Results/voltage_map.npy'
 		config.params['k']=10
 
 		main()
