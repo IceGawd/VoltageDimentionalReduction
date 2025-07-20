@@ -241,7 +241,7 @@ def main():
     set_params()  #set parameters accordinig to the command line            
     if config.params['test']:
         
-        config.params['file_path']= '../data/synthetic/2drandom10000.csv'
+        config.params['file_path']= '../../Voltage_Data/synthetic/2drandom10000.csv'
         config.params['split_char']= ','
         config.params['normalize_vecs']= False
 

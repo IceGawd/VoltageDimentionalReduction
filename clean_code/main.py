@@ -27,7 +27,7 @@ def compute_voltages(centroids):
 		all_voltages.add_solution(_landmark, voltages=voltages)
 	return all_voltages
 
-def main():
+def main(filepath):
 	timer=Timer()
 	# generate centroids using streaming k-means
 	points, counters, majority_labels, _,_=kmeans.Streaming_Kmeans(config.params['file_path'])
@@ -68,30 +68,14 @@ def main():
 	return data_to_save
 
 if __name__ == "__main__":
+	#import faulthandler
+	#faulthandler.enable()
+
 	from Utilities.set_params import set_params
 	set_params()
-	if config.params['test']:
-		# Load configuration parameters
-		#config.params['file_path']= '../data/glove/shuffled_output.txt'
-		#config.params['split_char']= ' '
-		#config.params['normalize_vecs']= True
+	filepath = config.params['file_path']
+	import os
+	if not os.path.exists(filepath):
+		raise FileNotFoundError(f"Input file {filepath} does not exist.")
 
-		config.params['file_path']= '../../Voltage_Data/mnist/mnist.csv'
-		config.params['split_char']= ','
-		config.params['normalize_vecs']= False
-
-		config.params['max_centroids']= 1000
-		config.params['init_size']= 5000
-		config.params['batch_size']= 1000
-		config.params['kmeans_output']= '../../Voltage_Temp/Results/streaming_centroids.npy'
-		config.params['Voltage_map_output']= '../../Voltage_Temp/Results/voltage_map.npy'
-		config.params['k']=10
-
-		filepath = config.params['file_path']
-
-		if not config.params['test']:
-				import os
-				if not os.path.exists(filepath):
-					raise FileNotFoundError(f"Input file {filepath} does not exist.")
-
-		main()
+	main(filepath)
