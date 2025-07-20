@@ -49,7 +49,8 @@ class StreamingKMeansPlusPlus:
             index (faiss.IndexFlatL2): FAISS index of centroids.
 
         Returns:
-            np.ndarray: Squared distances for each point in X.
+            D: Squared distances for each point in X to the nearest centroid.
+            I: Indices of the nearest centroids in the index.
         """
         if self.index is None or self.index.ntotal == 0:
             print("Index is empty, returning infinity distances.")
@@ -142,7 +143,7 @@ def Streaming_Kmeans(filepath):
     print(f"\nEstimated max pairwise distance squared, FAISS) = {max_dist2:.4f}")
     print(f" Estimated minimum distance squared = {min_dist2:.4f}")
 
-    # Step 2: Streaming centroid selection
+    # Step 2: Streaming centroid selection using kmeans++ like rule
     ######################################
     # For seeding, pick a random vector from the buffer
     centroids = buffer[:10,:]
@@ -162,75 +163,113 @@ def Streaming_Kmeans(filepath):
 
     # Step 3. update centroids using a streaming version of the Kmeans algorithm
     ######################################
-    centroids = skmeans.get_centroids()
+    centroids = skmeans.get_centroids()  #extract centroids from the faiss index
     counters=np.ones(centroids.shape[0], dtype=np.int32)  # Initialize counters for each centroid
     total_d2 = 0    # Initialize total distance squared to zero
     initial_mean_d2=0
     total_count = 0  # Total number of vectors processed
      # compute for each centroid a label that is the majority of examples that are assigned to it
-     # why are you not doing anything with labels?
+
     # Initialize a list to store the labels assigned to each centroid
     centroid_labels = [ [] for _ in range(centroids.shape[0]) ]
 
+    def refine_centroids(centroids, vectors,labels):
+        """ Refine centroids using the current batch of vectors. This is done based on the observation that with the current update rule 
+        some centroids are assigned many vectors and some none. The idea here is to eliminate those that are assigned too few and on the other hand split those
+        that are assigned too many vectors.
+
+        """
+        D, vec_assignments = skmeans._compute_distances_squared(vectors, skmeans.index)
+        # Assign vectors and labels to centroids
+
+        centroids = skmeans.get_centroids()  # Get the current centroids from the index
+        centroid_stats = {i:{'centroid':centroids[i], 'vectors': [], 'labels': []} for i in range(centroids.shape[0])}
+
+        for idx, centroid_idx in enumerate(vec_assignments):
+            centroid_stats[centroid_idx]['labels'].append(labels[idx])
+            centroid_stats[centroid_idx]['vectors'].append(vectors[idx])
+        
+        # choose which centroids to remove and which to split
+        big_threshold = config.params['batch_size']/config.params['max_centroids']*3
+        small_threshold = 2
+        too_big=[]
+        too_small=[]
+        for i in range(len(centroid_stats)):
+            if len(centroid_stats[i]['vectors']) > big_threshold:
+                too_big.append(i)
+            if len(centroid_stats[i]['vectors']) < small_threshold:
+                too_small.append(i)
+        
+        ## Remove centroids that are too small
+        for i in too_small:
+            if config.params['verbosity']>=2:
+                print(f"Removing centroid {i} with {len(centroid_stats[i]['vectors'])} vectors")
+            # Remove the centroid
+            del centroid_stats[i]
+
+        ## split centroids that are too big
+            # Reset the centroid to zero
+        available_index=len(centroids)
+        for i in too_big:
+            if config.params['verbosity']>=2:
+                print(f"Splitting centroid {i} with {len(centroid_stats[i]['vectors'])} vectors")
+            # Split the centroid into two new centroids
+            # Randomly select two vectors from the centroid's vectors
+            new_centroid1 = centroid_stats[i]['vectors'][np.random.choice(len(centroid_stats[i]['vectors']))] 
+            new_centroid2 = centroid_stats[i]['vectors'][np.random.choice(len(centroid_stats[i]['vectors']))]
+            centroid_stats[i]['centroid'] = new_centroid1
+            centroid_stats[available_index]={'centroid':new_centroid2}
+
+        new_centroids = np.array([centroid_stats[i]['centroid'] for i in centroid_stats])
+        for i in range(5):
+            if i in centroid_stats:
+                print(f"centroid_stats[{i}]['centroid'].shape={centroid_stats[i]['centroid'].shape}")
+            else:
+                print(f"centroid_stats[{i}] does not exist")
+        
+        print(f"new_centroids.shape={new_centroids.shape}")
+
+        # Update faiss index with new centroids
+        skmeans.index.reset()  # Reset index to ensure it's empty
+        skmeans.index.add(new_centroids)  # Add the final centroids to the index
+        return centroid_stats, too_big, too_small
+
+    
+        
     for vectors, labels in reader.stream_batches(config.params['batch_size']):
         if config.params['normalize_vecs']:
             vectors = vectors / np.linalg.norm(vectors, axis=1, keepdims=True)
-        D, vec_assignments = skmeans._compute_distances_squared(vectors, index)
-        # Assign labels to centroids
-        for idx, centroid_idx in enumerate(vec_assignments):
-            centroid_labels[centroid_idx].append(labels[idx])
-        # Count and average the vectors assigned to each centroid using numpy
-        unique_values, counts = np.unique(vec_assignments, return_counts=True)
-        for i, count in zip(unique_values, counts):
-            if count > 0:
-                # Update the centroid with the new vectors
-                centroids[i] = (centroids[i] * counters[i] + np.sum(vectors[vec_assignments == i], axis=0)) \
-                                / (counters[i] + count)
-                counters[i] += count
-                total_d2 += np.sum(D[vec_assignments == i])  # Sum of squared distances for this centroid
-                total_count += count
-        mean_d2 = total_d2 / total_count if total_count > 0 else 0
-        if initial_mean_d2 == 0:
-            initial_mean_d2 = mean_d2
-        print('mean d2=', mean_d2, end='')
-        skmeans.index.reset()  # Reset index to ensure it's empty
-        skmeans.index.add(centroids)  # Add the final centroids to the index
 
+        too_big=[1]
+        too_small=[1]
+        while len(too_big)>0 or len(too_small)>0:
+            # Refine centroids using the current batch of vectors
+            # This function will return the updated index and centroid statistics 
+            print(f"\nrefining vectors")   
+            centroid_stats,too_big, too_small=refine_centroids(centroids,vectors,labels)
+            print(f"len(too_big)={len(too_big)}, len(too_small)={len(too_small)}")
+
+    
     # Compute majority label for each centroid
     majority_labels = []
-    for labels_list in centroid_labels:
+    label_counters =  []
+    for i in centroid_stats.keys():
+        labels_list = centroid_stats[i]['labels']
         if labels_list:
             majority_label = Counter(labels_list).most_common(1)[0][0]
+            label_counter = Counter(labels_list)
         else:
             majority_label = None
+            label_counter = None
         majority_labels.append(majority_label)
+        label_counters.append(label_counter)
     
-    for vectors, labels in reader.stream_batches(config.params['batch_size']):
-        if config.params['normalize_vecs']:
-            vectors=vectors/ np.linalg.norm(vectors, axis=1, keepdims=True)
-        D,vec_assignments= skmeans._compute_distances_squared(vectors, index)
-        #count and average the vectors assigned to each centroid using numpy
-        unique_values,counts=np.unique(vec_assignments, return_counts=True)
-        for i, count in zip(unique_values, counts):
-            if count > 0:
-                # Update the centroid with the new vectors
-                centroids[i] = (centroids[i] * counters[i] + np.sum(vectors[vec_assignments == i], axis=0)) \
-                                / (counters[i] + count)
-                counters[i] += count
-                total_d2 += np.sum(D[vec_assignments == i])  # Sum of squared distances for this centroid
-                total_count += count
-        mean_d2= total_d2 / total_count if total_count > 0 else 0
-        if initial_mean_d2 == 0:
-            initial_mean_d2 = mean_d2
-        print('mean d2=', mean_d2,end='')
-        skmeans.index.reset()  # Reset index to ensure it's empty
-        skmeans.index.add(centroids)  # Add the final centroids to the index
 
     # Close the reader 
     print("\nClosing reader...")
     reader.close()
 
-    return centroids, counters, majority_labels, initial_mean_d2, mean_d2
+    return centroids, counters, majority_labels, label_counters, initial_mean_d2, mean_d2
 
 
 # ------------------- Main ---------------------
@@ -239,18 +278,17 @@ from Utilities.set_params import set_params
 def main():
     
     set_params()  #set parameters accordinig to the command line            
-    if config.params['test']:
         
-        config.params['file_path']= '../../Voltage_Data/synthetic/2drandom10000.csv'
-        config.params['split_char']= ','
-        config.params['normalize_vecs']= False
+    config.params['file_path']= '../../Voltage_Data/synthetic/2drandom10000.csv'
+    config.params['split_char']= ','
+    config.params['normalize_vecs']= False
 
-        config.params['max_centroids']= 20
-        config.params['init_size']= 1000
-        config.params['batch_size']= 100
-        config.params['output']=None
+    config.params['max_centroids']= 20
+    config.params['init_size']= 1000
+    config.params['batch_size']= 100
+    config.params['output']=None
 
-    centroids,counters,majority_labels,inital_mean_d2,mean_d2=Streaming_Kmeans(config.params['file_path'])
+    centroids,counters,majority_labels,label_counters,inital_mean_d2,mean_d2=Streaming_Kmeans(config.params['file_path'])
 
     # Finalization and saving
     if config.params['verbosity']>=1:
