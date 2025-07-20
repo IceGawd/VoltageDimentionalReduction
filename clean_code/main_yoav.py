@@ -112,7 +112,7 @@ if __name__ == "__main__":
 	config.params['init_size']= 5000
 	config.params['batch_size']= 1000
 	config.params['kmeans_output']= '../../Voltage_Temp/Results/streaming_centroids.npy'
-	config.params['Voltage_map_output']= '../../Voltage_Temp/Results/voltage_map.npy'
+	config.params['saved_data']= '../../Voltage_Temp/Results/saved_data.pkl'
 	config.params['k']=10
 
 	run_kmeans=False
@@ -195,12 +195,12 @@ if __name__ == "__main__":
 	
 	# save the workspace for later use
 
-	workspace_file="../../Voltage_Temp/Intermediates/workspace.pkl"
+	workspace_file="config.params['save_data']"
 	dill.dump_session(workspace_file)
 	print(f"Workspace saved to {workspace_file}")
 
 	import pickle
-	with open(config.params['Voltage_map_output'], 'wb') as f:
+	with open(config.params['saved_data'], 'wb') as f:
 		pickle.dump(voltage_map, f)
-	print(f"Voltage map saved to {config.params['Voltage_map_output']}")
+	print(f"Voltage map saved to {config.params['saved_data']}")
 

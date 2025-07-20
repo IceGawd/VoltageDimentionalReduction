@@ -4,6 +4,7 @@ from typing import List
 
 from Visualization import visualHelpers
 
+###Yoav: I think the functionality of plot_mnist_unlabeled can be merged with scatter_plot.
 def plot_mnist_unlabeled(voltages, data, transformation="mds", landmarkSize=3, alpha_actual=1, percent_size=0.02, out_file=None):
 	"""
 	Visualizes MNIST digits in 2D space after dimensionality reduction (MDS or PCA),
@@ -25,7 +26,7 @@ def plot_mnist_unlabeled(voltages, data, transformation="mds", landmarkSize=3, a
 	points = voltages.voltage_array()
 
 	transformed_points = visualHelpers.transform(points, transformation)
-
+	
 	fig, ax = plt.subplots(figsize=(12, 10))
 
 	colors = visualHelpers.get_distinct_colors(points[0].shape[0])
@@ -42,7 +43,7 @@ def plot_mnist_unlabeled(voltages, data, transformation="mds", landmarkSize=3, a
 		
 		color = np.array(colors[np.argmax(point_voltages)])
 
-		size = 1
+		size = 2
 		if (np.max(point_voltages) == 1):
 			size = landmarkSize
 		
@@ -63,66 +64,132 @@ def plot_mnist_unlabeled(voltages, data, transformation="mds", landmarkSize=3, a
 
 	visualHelpers.standard_save_display(out_file)
 
-def plot_mnist_digits(voltages, data, labels, transformation="mds", landmarkSize=3, alpha_actual=1, percent_size=0.02, out_file=None):
-	"""
-	Visualizes MNIST digits in 2D space using voltage-based embeddings reduced by PCA or MDS.
 
-	Each point in the embedding is rendered as a translucent RGB digit image colored by its label.
-	Landmark points (voltage = 1) are optionally scaled up to highlight their influence.
+def scatter_plot(points,transformed_points, data, focus_on, labels, 
+				 percent_size=0.01, alpha_actual=1, out_file=None, num_labels=10, element="digit"):
+	"""
+	Creates a scatter plot of transformed points with digit images.
 
 	Args:
-		voltages (VoltageMap): The VoltageMap containing voltages per landmark for each point.
-		data (SetOfPoints): The list or array of raw MNIST digit images (each image flattened to length 784).
-		labels (List[int]): The ground truth labels for each point (0–9). Used for coloring.
-		transformation (str): Dimensionality reduction method: "pca" or "mds" (default: "mds").
-		landmarkSize (float): Scaling factor for landmark digits (default: 3).
-		alpha_actual (float): Opacity of digit images (0.0 to 1.0, default: 1).
-		percent_size (float): Relative size of digit images as a fraction of plot range (default: 0.02).
+		points (np.ndarray): Original points defined by the voltage maps
+		transformed_points (np.ndarray): 2D coordinates of points after dimensionality reduction.
+		data (np.ndarray): The raw MNIST images (each as a 784-length array) corresponding to the digits.
+		focus_on (List[int]): List of indices to translate column in points to landmark numbers.
+		labels ([np.ndarray]): Labels for coloring points.
+		percent_size (float): Relative size of digit images as a fraction of plot range.
+		alpha_actual (float): Opacity of digit images (0.0 to 1.0).
 		out_file (Optional[str]): If provided, saves the output figure to this file path.
+		num_labels (int): Number of distinct labels for coloring.
+		element (str): The type of element being visualized, e.g., "digit" or "point".
 	"""
+	if out_file is None:
+		out_file = "mnist_visualization.png"
 
-	points = voltages.voltage_array()
-
-	transformed_points = visualHelpers.transform(points, transformation)
-	
 	fig, ax = plt.subplots(figsize=(12, 10))
 
 	# Assign distinct colors for each digit
-	colors = visualHelpers.get_distinct_colors(len(set(labels)))
-	
+	from Visualization.visualHelpers import generate_vivid_colors
+	colors = generate_vivid_colors(num_labels)
+
+	# Define the boundaries of the plot based on transformed points
 	x_bound = (transformed_points[:, 0].min(), transformed_points[:, 0].max())
 	y_bound = (transformed_points[:, 1].min(), transformed_points[:, 1].max())
 
 	image_size = (x_bound[1] + y_bound[1] - x_bound[0] - y_bound[0]) * percent_size / 2
-	
-	for i in range(transformed_points.shape[0]):
-		alpha_mask = np.clip(data[i].reshape(28, 28), 0, 255) / 255
 
-		point_voltages = points[i]
+	count_nones=0		
+
+# iterate over each point and plot the corresponding digit image / landmark number
+
+	for i in range(transformed_points.shape[0]):
+	
+
+		point_voltages = points[i, :]
 
 		label = labels[i]
 
 		if (label != None):
-			color = np.array(colors[int(label)])
 			
 			size = 1
-			if (np.max(point_voltages) == 1):
-				size = landmarkSize
-	
-			# Create RGBA image
-			rgb_image = np.zeros((28, 28, 4))
-	
-			for c in range(3):
-				rgb_image[..., c] = color[c]
-			rgb_image[..., 3] = alpha_mask * alpha_actual  # Alpha from pixel intensity
-	
+			color = np.array(colors[int(label)])  # color for the point based on its label
 			x, y = transformed_points[i]
-			ax.imshow(rgb_image, extent=(x - image_size * size, x + image_size * size, y - image_size * size, y + image_size * size), origin='upper')
-	
-	ax.set_xlim(x_bound[0] - image_size * landmarkSize, x_bound[1] + image_size * landmarkSize)
-	ax.set_ylim(y_bound[0] - image_size * landmarkSize, y_bound[1] + image_size * landmarkSize)
+
+			if (np.min(point_voltages) == 0.0):	
+				#If landmark mark it's index
+				#find the index of the minimal voltage
+				min_index = np.argmin(point_voltages)
+				min_index=focus_on[min_index]
+				#plot the landmark number in the current location defined by transformed_points[i]
+				plt.text(x,y , str(min_index), fontsize=20, color='white', ha='center', va='center')
+
+			if element=="digit":
+
+				# Create RGBA image of mnist digit with alpha mask
+				rgb_image = np.zeros((28, 28, 4))
+				alpha_mask = np.clip(data[i].reshape(28, 28), 0, 255) / 255  #The mask defines the silhouette of the digit
+		
+				rgb_image[..., 0:3] = color
+				rgb_image[..., 3] = alpha_mask * alpha_actual  # Alpha from pixel intensity
+
+				ax.imshow(rgb_image, extent=(x - image_size * size, x + image_size * size, y - image_size * size, y + image_size * size), origin='upper')
+			elif element=="point":
+				plt.plot(x, y, marker='o', markersize=6, color=color)
+
+			else:
+				raise ValueError("element must be either 'digit' or 'point'")
+		else:
+			# If the label is None, we do not plot the point
+			count_nones+=1
+	# finish the plot
+	ax.set_xlim(x_bound[0] - image_size , x_bound[1] + image_size)
+	ax.set_ylim(y_bound[0] - image_size , y_bound[1] + image_size)
 	ax.set_facecolor('black')
 	fig.patch.set_facecolor('black')
 	plt.title("Visualization of Digits")
 
+	print(f"Number of points with no label: {count_nones}")
+
 	visualHelpers.standard_save_display(out_file)
+
+
+
+def plot_landmark_subset(points,centroids,labels, focus_on = None, log_transform=True, transformation='pca',**kwargs):
+	"""Visualizes a subset of points in 2D space after dimensionality reduction, focusing on specific landmarks.
+	Specificaly, we filter out points whos closest landmark is not in focus_on. 
+	We then remove the voltage maps that do not correspond to the voltage map.
+
+	Args:
+		points (np.ndarray): Original points defined by the voltage maps
+		centroids (np.ndarray): The centroids of the clusters
+		labels (np.ndarray): Labels for coloring points
+		focus_on (List[int]): List of landmark indices on which to focus.
+		log_transform (bool): Whether to apply log transformation to the points.
+		transformation (str): The type of transformation to apply (e.g., 'pca').
+		**kwargs: Additional keyword arguments for customization.
+	"""
+
+	if focus_on is None: 
+		focus_on = np.array(range(points.shape[1]))  
+	if log_transform:
+		points = -np.log(points)	
+
+	# identify the points for whom the closest landmark is in focus_on
+	closest_landmarks=np.argmin(points,axis=1)
+	mask = np.isin(closest_landmarks, focus_on)
+
+	# remove far points and remove voltagemaps that do not belong to focus_on
+	points = points[mask,:]
+	points = points[:, focus_on] 
+
+#We need to make sure that the row numbers of labels and centroids those of points.
+
+	# Remove the far points from the labels	
+	labels=np.array(labels)
+	labels = labels[mask]
+	# Remove the far points from the centroids (the images)
+	centroids=centroids[mask,:]
+
+	# perform the dimensionality reduction:
+	transformed_points = visualHelpers.transform(points, transformation)
+
+	scatter_plot(points, transformed_points, centroids, focus_on, labels,**kwargs)

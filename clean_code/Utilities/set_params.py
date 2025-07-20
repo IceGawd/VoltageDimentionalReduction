@@ -16,7 +16,10 @@ def set_params():
     parser.add_argument("--r", type=int, default=1, help="resistance to ground")
     parser.add_argument("--sigma", type=float, default=None, help="Sigma value for RBF weighting (default: auto)")
     parser.add_argument("--NoOfLandmarks", type=int, default=10, help="Number of landmarks to select for the voltage map")
+    parser.add_argument("--DepthOfLandmarkSearch", type=int, default=100, help="Depth of landmark search")
+    parser.add_argument("--use_rbf", action="store_true", help="Use RBF weighting for voltage embedding")   
     parser.add_argument("--no-show-plots", type=bool, default=False, help="Set to True if you do not want to show plots")
+    parser.add_argument("--save_data", type=str, default="../../Voltage_Temp/Results/saved_data.pkl", help="path to pickle file in which to save intermediate data")
     args = parser.parse_args()
 
     config.params=vars(args)
@@ -28,11 +31,6 @@ def set_params():
                 value=f"'{value}'"
         
     # Validate input parameters
-    filepath = args.file_path
-    if not config.params['test']:
-        import os
-        if not os.path.exists(filepath):
-            raise FileNotFoundError(f"Input file {filepath} does not exist.")
     if args.max_centroids <= 0:
         raise ValueError("max-centroids must be a positive integer.")
     if args.init_size <= 0:

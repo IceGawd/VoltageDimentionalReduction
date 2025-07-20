@@ -58,13 +58,12 @@ def main():
 		'majority_labels': majority_labels,	# your labels
 		'all_voltages': all_voltages,		# your VoltageMap object
 		'centroids': centroids,				# your SetOfPoints object
-		'k': config.params['k']				# number of neighbors
 	}
 
-	if ('Voltage_map_output' in config.params):
-		with open(config.params['Voltage_map_output'], 'wb') as f:
-			pickle.dump(data_to_save, f)
-		print(f"Voltage map saved to {config.params['Voltage_map_output']}")
+
+	with open(config.params['save_data'], 'wb') as f:
+		pickle.dump(data_to_save, f)
+	print(f"Voltage map saved to {config.params['save_data']}")
 
 	return data_to_save
 
@@ -87,5 +86,12 @@ if __name__ == "__main__":
 		config.params['kmeans_output']= '../../Voltage_Temp/Results/streaming_centroids.npy'
 		config.params['Voltage_map_output']= '../../Voltage_Temp/Results/voltage_map.npy'
 		config.params['k']=10
+
+		filepath = config.params['file_path']
+
+		if not config.params['test']:
+				import os
+				if not os.path.exists(filepath):
+					raise FileNotFoundError(f"Input file {filepath} does not exist.")
 
 		main()
