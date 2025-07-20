@@ -65,7 +65,8 @@ def plot_mnist_unlabeled(voltages, data, transformation="mds", landmarkSize=3, a
 	visualHelpers.standard_save_display(out_file)
 
 
-def scatter_plot(points,transformed_points, data, focus_on, labels, percent_size=0.01, alpha_actual=1, out_file=None, num_labels=10):
+def scatter_plot(points,transformed_points, data, focus_on, labels, 
+				 percent_size=0.01, alpha_actual=1, out_file=None, num_labels=10, element="digit"):
 	"""
 	Creates a scatter plot of transformed points with digit images.
 
@@ -79,6 +80,7 @@ def scatter_plot(points,transformed_points, data, focus_on, labels, percent_size
 		alpha_actual (float): Opacity of digit images (0.0 to 1.0).
 		out_file (Optional[str]): If provided, saves the output figure to this file path.
 		num_labels (int): Number of distinct labels for coloring.
+		element (str): The type of element being visualized, e.g., "digit" or "point".
 	"""
 	if out_file is None:
 		out_file = "mnist_visualization.png"
@@ -95,7 +97,10 @@ def scatter_plot(points,transformed_points, data, focus_on, labels, percent_size
 
 	image_size = (x_bound[1] + y_bound[1] - x_bound[0] - y_bound[0]) * percent_size / 2
 
+	count_nones=0		
+
 # iterate over each point and plot the corresponding digit image / landmark number
+
 	for i in range(transformed_points.shape[0]):
 	
 
@@ -106,30 +111,43 @@ def scatter_plot(points,transformed_points, data, focus_on, labels, percent_size
 		if (label != None):
 			
 			size = 1
-			if (np.min(point_voltages) == 0.0):
+			color = np.array(colors[int(label)])  # color for the point based on its label
+			x, y = transformed_points[i]
+
+			if (np.min(point_voltages) == 0.0):	
 				#If landmark mark it's index
 				#find the index of the minimal voltage
 				min_index = np.argmin(point_voltages)
 				min_index=focus_on[min_index]
 				#plot the landmark number in the current location defined by transformed_points[i]
-				plt.text(transformed_points[i, 0], transformed_points[i, 1], str(min_index), fontsize=20, color='white', ha='center', va='center')
+				plt.text(x,y , str(min_index), fontsize=20, color='white', ha='center', va='center')
 
-			# Create RGBA image of digit with alpha mask
-			rgb_image = np.zeros((28, 28, 4))
-			alpha_mask = np.clip(data[i].reshape(28, 28), 0, 255) / 255  #The mask defines the silhouette of the digit
-			color = np.array(colors[int(label)])
-			rgb_image[..., 0:3] = color
-			rgb_image[..., 3] = alpha_mask * alpha_actual  # Alpha from pixel intensity
+			if element=="digit":
 
-			x, y = transformed_points[i]
-			ax.imshow(rgb_image, extent=(x - image_size * size, x + image_size * size, y - image_size * size, y + image_size * size), origin='upper')
-	
+				# Create RGBA image of mnist digit with alpha mask
+				rgb_image = np.zeros((28, 28, 4))
+				alpha_mask = np.clip(data[i].reshape(28, 28), 0, 255) / 255  #The mask defines the silhouette of the digit
+		
+				rgb_image[..., 0:3] = color
+				rgb_image[..., 3] = alpha_mask * alpha_actual  # Alpha from pixel intensity
+
+				ax.imshow(rgb_image, extent=(x - image_size * size, x + image_size * size, y - image_size * size, y + image_size * size), origin='upper')
+			elif element=="point":
+				plt.plot(x, y, marker='o', markersize=6, color=color)
+
+			else:
+				raise ValueError("element must be either 'digit' or 'point'")
+		else:
+			# If the label is None, we do not plot the point
+			count_nones+=1
 	# finish the plot
 	ax.set_xlim(x_bound[0] - image_size , x_bound[1] + image_size)
 	ax.set_ylim(y_bound[0] - image_size , y_bound[1] + image_size)
 	ax.set_facecolor('black')
 	fig.patch.set_facecolor('black')
 	plt.title("Visualization of Digits")
+
+	print(f"Number of points with no label: {count_nones}")
 
 	visualHelpers.standard_save_display(out_file)
 
