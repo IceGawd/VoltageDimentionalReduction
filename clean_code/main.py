@@ -30,7 +30,7 @@ def compute_voltages(centroids):
 def main(filepath):
 	timer=Timer()
 	# generate centroids using streaming k-means
-	points, counters, majority_labels, label_counts, _,_=kmeans.Streaming_Kmeans(config.params['file_path'])
+	points, counters, majority_labels, label_counts, rms=kmeans.Streaming_Kmeans(config.params['file_path'])
 	timer.mark("Streaming K-means completed")
 	
 	X=np.stack(points)

@@ -165,13 +165,10 @@ def Streaming_Kmeans(filepath):
     ######################################
     centroids = skmeans.get_centroids()  #extract centroids from the faiss index
     counters=np.ones(centroids.shape[0], dtype=np.int32)  # Initialize counters for each centroid
-    total_d2 = 0    # Initialize total distance squared to zero
-    initial_mean_d2=0
+    
     total_count = 0  # Total number of vectors processed
      # compute for each centroid a label that is the majority of examples that are assigned to it
 
-    # Initialize a list to store the labels assigned to each centroid
-    centroid_labels = [ [] for _ in range(centroids.shape[0]) ]
 
     def refine_centroids(centroids, vectors,labels):
         """ Refine centroids using the current batch of vectors. This is done based on the observation that with the current update rule 
@@ -179,6 +176,8 @@ def Streaming_Kmeans(filepath):
         that are assigned too many vectors.
 
         """
+
+        
         D, vec_assignments = skmeans._compute_distances_squared(vectors, skmeans.index)
         # Assign vectors and labels to centroids
 
@@ -188,37 +187,37 @@ def Streaming_Kmeans(filepath):
         for idx, centroid_idx in enumerate(vec_assignments):
             centroid_stats[centroid_idx]['labels'].append(labels[idx])
             centroid_stats[centroid_idx]['vectors'].append(vectors[idx])
-        
+
+        # Compute RMS of distances from each vector to the closest centroid        
+        rms=0
+        for i in centroid_stats:
+            if len(centroid_stats[i]['vectors']) > 0:
+                rms += np.mean(np.square(centroid_stats[i]['vectors'] - centroid_stats[i]['centroid']))
+        rms = np.sqrt(rms / len(centroid_stats))
+
         # choose which centroids to remove and which to split
-        big_threshold = config.params['batch_size']/config.params['max_centroids']*3
         small_threshold = 2
-        too_big=[]
+
         too_small=[]
         for i in range(len(centroid_stats)):
-            if len(centroid_stats[i]['vectors']) > big_threshold:
-                too_big.append(i)
             if len(centroid_stats[i]['vectors']) < small_threshold:
                 too_small.append(i)
-        
-        ## Remove centroids that are too small
-        for i in too_small:
-            if config.params['verbosity']>=2:
-                print(f"Removing centroid {i} with {len(centroid_stats[i]['vectors'])} vectors")
-            # Remove the centroid
-            del centroid_stats[i]
 
-        ## split centroids that are too big
-            # Reset the centroid to zero
-        available_index=len(centroids)
-        for i in too_big:
-            if config.params['verbosity']>=2:
-                print(f"Splitting centroid {i} with {len(centroid_stats[i]['vectors'])} vectors")
-            # Split the centroid into two new centroids
-            # Randomly select two vectors from the centroid's vectors
-            new_centroid1 = centroid_stats[i]['vectors'][np.random.choice(len(centroid_stats[i]['vectors']))] 
-            new_centroid2 = centroid_stats[i]['vectors'][np.random.choice(len(centroid_stats[i]['vectors']))]
-            centroid_stats[i]['centroid'] = new_centroid1
-            centroid_stats[available_index]={'centroid':new_centroid2}
+        sizes = np.array([len(centroid_stats[i]['vectors']) for i in centroid_stats])
+        order = np.argsort(sizes)[::-1]  # Sort indices by size in descending order
+        sorted_sizes = np.sort(sizes)[::-1]  # Sorted sizes in descending order
+        print(f"sorted_sizes={sorted_sizes[:5]}")  # Print the top 5 sizes for debugging
+        ## Remove centroids that are too small
+        for j in range(len(too_small)):
+            i1 = too_small[j]   #points to the j'th small centroid
+            i2 = order[j] # points to the j'th largest centroid
+            #define two centroids that spit the largest centroid
+            print(f"{len(centroid_stats[i2]['vectors'])} vectors assigned to centroid {i2}")
+            new_centroid1 = centroid_stats[i2]['vectors'][np.random.choice(len(centroid_stats[i2]['vectors']))]
+            new_centroid2 = centroid_stats[i2]['vectors'][np.random.choice(len(centroid_stats[i2]['vectors']))]
+            centroid_stats[i1]['centroid'] = new_centroid1
+            centroid_stats[i2]['centroid'] = new_centroid2
+
 
         new_centroids = np.array([centroid_stats[i]['centroid'] for i in centroid_stats])
         for i in range(5):
@@ -232,22 +231,23 @@ def Streaming_Kmeans(filepath):
         # Update faiss index with new centroids
         skmeans.index.reset()  # Reset index to ensure it's empty
         skmeans.index.add(new_centroids)  # Add the final centroids to the index
-        return centroid_stats, too_big, too_small
+        return centroid_stats, rms, len(too_small)
 
     
         
     for vectors, labels in reader.stream_batches(config.params['batch_size']):
+        if len(vectors)<config.params['batch_size']:
+            break
         if config.params['normalize_vecs']:
             vectors = vectors / np.linalg.norm(vectors, axis=1, keepdims=True)
 
-        too_big=[1]
-        too_small=[1]
-        while len(too_big)>0 or len(too_small)>0:
+        too_small=1
+        while too_small>0:
             # Refine centroids using the current batch of vectors
-            # This function will return the updated index and centroid statistics 
-            print(f"\nrefining vectors")   
-            centroid_stats,too_big, too_small=refine_centroids(centroids,vectors,labels)
-            print(f"len(too_big)={len(too_big)}, len(too_small)={len(too_small)}")
+            # This function will return the updated index and centroid statistics
+            print(f"\nrefining vectors")
+            centroid_stats, rms, too_small = refine_centroids(centroids, vectors, labels)
+            print(f"too_small={too_small}, rms={rms}")
 
     
     # Compute majority label for each centroid
@@ -269,7 +269,7 @@ def Streaming_Kmeans(filepath):
     print("\nClosing reader...")
     reader.close()
 
-    return centroids, counters, majority_labels, label_counters, initial_mean_d2, mean_d2
+    return centroids, counters, majority_labels, label_counters, rms
 
 
 # ------------------- Main ---------------------
@@ -288,18 +288,16 @@ def main():
     config.params['batch_size']= 100
     config.params['output']=None
 
-    centroids,counters,majority_labels,label_counters,inital_mean_d2,mean_d2=Streaming_Kmeans(config.params['file_path'])
+    centroids,counters,majority_labels,label_counters,rms=Streaming_Kmeans(config.params['file_path'])
 
     # Finalization and saving
-    if config.params['verbosity']>=1:
-        print(f"\nNumber of centroids in index after finalization: {centroids.shape[0]}")
-        print('Initial mean squared distance:', inital_mean_d2)
-        print('Final mean squared distance:', mean_d2)
-        if config.params['test']:
-            if mean_d2>0.04 or mean_d2<0.035:
-                raise ValueError(f"test failed, mean_d2={mean_d2} is outside the range [0.035,0.04]")
-            else:
-                print('Test Passed')
+    print(f"\nNumber of centroids in index after finalization: {centroids.shape[0]}")
+    print('Final mean squared distance:', rms)
+    if config.params['test']:
+        if rms>0.04 or rms<0.035:
+            raise ValueError(f"test failed, rms={rms} is outside the range [0.035,0.04]")
+        else:
+            print('Test Passed')
     if config.params['output'] is not None:
         np.savez(config.params['output'], centroids=centroids, counters=counters, majority_labels=majority_labels,)
         print(f"Centroids saved to {config.params['output']}")
