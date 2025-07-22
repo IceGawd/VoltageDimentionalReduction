@@ -177,7 +177,6 @@ def Streaming_Kmeans(filepath):
 
         """
 
-        
         D, vec_assignments = skmeans._compute_distances_squared(vectors, skmeans.index)
         # Assign vectors and labels to centroids
 
@@ -196,11 +195,11 @@ def Streaming_Kmeans(filepath):
         rms = np.sqrt(rms / len(centroid_stats))
 
         # choose which centroids to remove and which to split
-        small_threshold = 2
+
 
         too_small=[]
         for i in range(len(centroid_stats)):
-            if len(centroid_stats[i]['vectors']) < small_threshold:
+            if len(centroid_stats[i]['vectors']) ==0:
                 too_small.append(i)
 
         sizes = np.array([len(centroid_stats[i]['vectors']) for i in centroid_stats])
@@ -212,21 +211,18 @@ def Streaming_Kmeans(filepath):
             i1 = too_small[j]   #points to the j'th small centroid
             i2 = order[j] # points to the j'th largest centroid
             #define two centroids that spit the largest centroid
-            print(f"{len(centroid_stats[i2]['vectors'])} vectors assigned to centroid {i2}")
-            new_centroid1 = centroid_stats[i2]['vectors'][np.random.choice(len(centroid_stats[i2]['vectors']))]
-            new_centroid2 = centroid_stats[i2]['vectors'][np.random.choice(len(centroid_stats[i2]['vectors']))]
-            centroid_stats[i1]['centroid'] = new_centroid1
-            centroid_stats[i2]['centroid'] = new_centroid2
+            #print(f"{len(centroid_stats[i2]['vectors'])} vectors assigned to centroid {i2}")
+
+            # perturb the centroid vector to create a new centroid
+            v = centroid_stats[i2]['centroid']  # Current centroid vector
+            d = v.shape[0]  # Dimensionality of the centroid
+            e = np.random.randn(d)
+            e = e * 1e-6 / np.linalg.norm(e)  # Normalize to unit length
+
+            centroid_stats[i1]['centroid'] = v+e
 
 
         new_centroids = np.array([centroid_stats[i]['centroid'] for i in centroid_stats])
-        for i in range(5):
-            if i in centroid_stats:
-                print(f"centroid_stats[{i}]['centroid'].shape={centroid_stats[i]['centroid'].shape}")
-            else:
-                print(f"centroid_stats[{i}] does not exist")
-        
-        print(f"new_centroids.shape={new_centroids.shape}")
 
         # Update faiss index with new centroids
         skmeans.index.reset()  # Reset index to ensure it's empty
