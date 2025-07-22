@@ -30,11 +30,11 @@ def compute_voltages(centroids):
 def main(filepath):
 	timer=Timer()
 	# generate centroids using streaming k-means
-	points, counters, majority_labels, _,_=kmeans.Streaming_Kmeans(config.params['file_path'])
+	points, counters, label_counts, _,_=kmeans.Streaming_Kmeans(config.params['file_path'])
 	timer.mark("Streaming K-means completed")
 	
-	X=np.stack(points)
-	y= np.array(majority_labels)
+	#X=np.stack(points)
+	#y= np.array(label_counts)
 
 	# define set of set of centroids
 	centroids = setofpoints.SetOfPoints(points=points, weights=counters)
@@ -55,7 +55,7 @@ def main(filepath):
 
 	import pickle
 	data_to_save = {
-		'majority_labels': majority_labels,	# your labels
+		'label_counts': label_counts,	# your labels
 		'all_voltages': all_voltages,		# your VoltageMap object
 		'centroids': centroids,				# your SetOfPoints object
 	}

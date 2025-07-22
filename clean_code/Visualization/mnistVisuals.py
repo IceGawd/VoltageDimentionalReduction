@@ -65,8 +65,35 @@ def plot_mnist_unlabeled(voltages, data, transformation="mds", landmarkSize=3, a
 	visualHelpers.standard_save_display(out_file)
 
 
-def scatter_plot(points,transformed_points, data, focus_on, labels, 
-				 percent_size=0.01, alpha_actual=1, out_file=None, num_labels=10, element="digit"):
+def compute_labels(label_counts,ratio_threshold=0.6, size_threshold=5):
+    """
+    Compute labels based on the label counts, ratio threshold, and size threshold.
+    Args:
+        label_counts (list): List of Counter objects containing label counts.
+        ratio_threshold (float): Threshold for the ratio of the most common label.
+        size_threshold (int): Minimum size for a label to be considered valid.
+    Returns:
+        list: List of labels based on the computed criteria."""
+    str_labels = []
+    for label_count in label_counts:   # Print the first 10 label counts   
+        if label_count is None:
+            label = "small"
+        else:
+            common = label_count.most_common()
+            total_count = sum([c[1] for c in common])
+            ratio = common[0][1] / total_count
+            if total_count < size_threshold:
+                label = "small"
+            else:
+                if ratio > ratio_threshold:
+                    label = common[0][0]  
+                else:
+                    label = "weak_maj"
+        str_labels.append(label)
+    return str_labels
+
+def scatter_plot(points,transformed_points, data, focus_on, labels, reverse_dict_labels,
+				 percent_size=0.01, alpha_actual=1, out_file=None, element="digit"):
 	"""
 	Creates a scatter plot of transformed points with digit images.
 
@@ -76,10 +103,10 @@ def scatter_plot(points,transformed_points, data, focus_on, labels,
 		data (np.ndarray): The raw MNIST images (each as a 784-length array) corresponding to the digits.
 		focus_on (List[int]): List of indices to translate column in points to landmark numbers.
 		labels ([np.ndarray]): Labels for coloring points.
+		reverse_dict_labels (dict): Dictionary mapping label indices back to original labels.
 		percent_size (float): Relative size of digit images as a fraction of plot range.
 		alpha_actual (float): Opacity of digit images (0.0 to 1.0).
 		out_file (Optional[str]): If provided, saves the output figure to this file path.
-		num_labels (int): Number of distinct labels for coloring.
 		element (str): The type of element being visualized, e.g., "digit" or "point".
 	"""
 	if out_file is None:
@@ -89,7 +116,7 @@ def scatter_plot(points,transformed_points, data, focus_on, labels,
 
 	# Assign distinct colors for each digit
 	from Visualization.visualHelpers import generate_vivid_colors
-	colors = generate_vivid_colors(num_labels)
+	colors = generate_vivid_colors(len(reverse_dict_labels))
 
 	# Define the boundaries of the plot based on transformed points
 	x_bound = (transformed_points[:, 0].min(), transformed_points[:, 0].max())
@@ -108,7 +135,7 @@ def scatter_plot(points,transformed_points, data, focus_on, labels,
 
 		label = labels[i]
 
-		if (label != None):
+		if (label != None) & (label != 0):
 			
 			size = 1
 			color = np.array(colors[int(label)])  # color for the point based on its label
@@ -122,23 +149,26 @@ def scatter_plot(points,transformed_points, data, focus_on, labels,
 				#plot the landmark number in the current location defined by transformed_points[i]
 				plt.text(x,y , str(min_index), fontsize=20, color='white', ha='center', va='center')
 
-			if element=="digit":
-
-				# Create RGBA image of mnist digit with alpha mask
-				rgb_image = np.zeros((28, 28, 4))
-				alpha_mask = np.clip(data[i].reshape(28, 28), 0, 255) / 255  #The mask defines the silhouette of the digit
-		
-				rgb_image[..., 0:3] = color
-				rgb_image[..., 3] = alpha_mask * alpha_actual  # Alpha from pixel intensity
-
-				ax.imshow(rgb_image, extent=(x - image_size * size, x + image_size * size, y - image_size * size, y + image_size * size), origin='upper')
-			elif element=="point":
-				plt.plot(x, y, marker='o', markersize=6, color=color)
-
+			if label==1:  # If the label is 'weak_maj'
+				# Plot the point with a smaller size
+				plt.plot(x, y, marker='o', markersize=1, color=color)
 			else:
-				raise ValueError("element must be either 'digit' or 'point'")
+				if element=="digit":
+
+					# Create RGBA image of mnist digit with alpha mask
+					rgb_image = np.zeros((28, 28, 4))
+					alpha_mask = np.clip(data[i].reshape(28, 28), 0, 255) / 255  #The mask defines the silhouette of the digit
+			
+					rgb_image[..., 0:3] = color
+					rgb_image[..., 3] = alpha_mask * alpha_actual  # Alpha from pixel intensity
+
+					ax.imshow(rgb_image, extent=(x - image_size * size, x + image_size * size, y - image_size * size, y + image_size * size), origin='upper')
+				elif element=="point":
+					plt.plot(x, y, marker='o', markersize=6, color=color)
+
+				else:
+					raise ValueError("element must be either 'digit' or 'point'")
 		else:
-			# If the label is None, we do not plot the point
 			count_nones+=1
 	# finish the plot
 	ax.set_xlim(x_bound[0] - image_size , x_bound[1] + image_size)
@@ -153,7 +183,7 @@ def scatter_plot(points,transformed_points, data, focus_on, labels,
 
 
 
-def plot_landmark_subset(points,centroids,labels, focus_on = None, log_transform=True, transformation='pca',**kwargs):
+def plot_landmark_subset(points,centroids,label_counts, focus_on = None, log_transform=True, transformation='pca',**kwargs):
 	"""Visualizes a subset of points in 2D space after dimensionality reduction, focusing on specific landmarks.
 	Specificaly, we filter out points whos closest landmark is not in focus_on. 
 	We then remove the voltage maps that do not correspond to the voltage map.
@@ -161,7 +191,7 @@ def plot_landmark_subset(points,centroids,labels, focus_on = None, log_transform
 	Args:
 		points (np.ndarray): Original points defined by the voltage maps
 		centroids (np.ndarray): The centroids of the clusters
-		labels (np.ndarray): Labels for coloring points
+		label_counts: (List[Counter]): List of label counts for each point, used for coloring.
 		focus_on (List[int]): List of landmark indices on which to focus.
 		log_transform (bool): Whether to apply log transformation to the points.
 		transformation (str): The type of transformation to apply (e.g., 'pca').
@@ -172,6 +202,15 @@ def plot_landmark_subset(points,centroids,labels, focus_on = None, log_transform
 		focus_on = np.array(range(points.shape[1]))  
 	if log_transform:
 		points = -np.log(points)	
+
+	str_labels = compute_labels(label_counts)
+	possible_labels = set(str_labels) - set(['small', 'weak_maj'])
+	dict_labels = {label: i+2 for i, label in enumerate(sorted(list(possible_labels)))}
+	dict_labels['small'] = 0
+	dict_labels['weak_maj'] = 1
+	labels=[dict_labels[label] for label in str_labels]
+	reverse_dict_labels={ value:key for key, value in dict_labels.items()}
+
 
 	# identify the points for whom the closest landmark is in focus_on
 	closest_landmarks=np.argmin(points,axis=1)
@@ -192,4 +231,4 @@ def plot_landmark_subset(points,centroids,labels, focus_on = None, log_transform
 	# perform the dimensionality reduction:
 	transformed_points = visualHelpers.transform(points, transformation)
 
-	scatter_plot(points, transformed_points, centroids, focus_on, labels,**kwargs)
+	scatter_plot(points, transformed_points, centroids, focus_on, labels, reverse_dict_labels, **kwargs)

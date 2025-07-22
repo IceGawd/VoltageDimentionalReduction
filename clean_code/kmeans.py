@@ -168,7 +168,6 @@ def Streaming_Kmeans(filepath):
     initial_mean_d2=0
     total_count = 0  # Total number of vectors processed
      # compute for each centroid a label that is the majority of examples that are assigned to it
-     # why are you not doing anything with labels?
     # Initialize a list to store the labels assigned to each centroid
     centroid_labels = [ [] for _ in range(centroids.shape[0]) ]
 
@@ -197,13 +196,13 @@ def Streaming_Kmeans(filepath):
         skmeans.index.add(centroids)  # Add the final centroids to the index
 
     # Compute majority label for each centroid
-    majority_labels = []
+    label_counts = []
     for labels_list in centroid_labels:
         if labels_list:
-            majority_label = Counter(labels_list).most_common(1)[0][0]
+            label_count = Counter(labels_list)
         else:
-            majority_label = None
-        majority_labels.append(majority_label)
+            label_count = None
+        label_counts.append(label_count)
     
     for vectors, labels in reader.stream_batches(config.params['batch_size']):
         if config.params['normalize_vecs']:
@@ -230,7 +229,7 @@ def Streaming_Kmeans(filepath):
     print("\nClosing reader...")
     reader.close()
 
-    return centroids, counters, majority_labels, initial_mean_d2, mean_d2
+    return centroids, counters, label_counts, initial_mean_d2, mean_d2
 
 
 # ------------------- Main ---------------------
@@ -250,7 +249,7 @@ def main():
         config.params['batch_size']= 100
         config.params['output']=None
 
-    centroids,counters,majority_labels,inital_mean_d2,mean_d2=Streaming_Kmeans(config.params['file_path'])
+    centroids,counters,label_counts,inital_mean_d2,mean_d2=Streaming_Kmeans(config.params['file_path'])
 
     # Finalization and saving
     if config.params['verbosity']>=1:
@@ -263,14 +262,14 @@ def main():
             else:
                 print('Test Passed')
     if config.params['output'] is not None:
-        np.savez(config.params['output'], centroids=centroids, counters=counters, majority_labels=majority_labels,)
+        np.savez(config.params['output'], centroids=centroids, counters=counters, label_counts=label_counts,)
         print(f"Centroids saved to {config.params['output']}")
     else:
         print("No output file specified, centroids not saved.")
 
     # if 2d test then visualize datapoints, centroids labels
     if config.params['test']:
-        generalVisualization.plot_centroids(centroids, counters, majority_labels)
+        generalVisualization.plot_centroids(centroids, counters, label_counts)
     
 if __name__ == "__main__":
     main()
