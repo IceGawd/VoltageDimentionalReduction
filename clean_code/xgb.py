@@ -11,7 +11,6 @@ from Utilities import config
 import os
 import subprocess
 import sys
-from Utilities import config
 
 # ---------- Data Loading Functions ----------
 
@@ -100,7 +99,7 @@ def train_and_evaluate(X, y):
 def main():
     if config.params['test']:
      
-        voltage_map_path = "../../Voltage_Temp/Results/voltage_map.npy"
+        voltage_map_path = "../../Voltage_Temp/Results/saved_data.pkl"
         data_path = "../../Voltage_Data/mnist/mnist.csv"
     else:
         # call select_landmarks here

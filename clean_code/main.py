@@ -10,7 +10,6 @@ import landmark
 import voltagemap
 import problem
 import solver
-import visualization
 import setofpoints
 import kmeans
 from Utilities import config
@@ -20,7 +19,7 @@ import faiss
 def compute_voltages(centroids):
 	""" compute the voltage map for each centroid """
 	all_voltages = voltagemap.VoltageMap()	
-	_problem = problem.Problem(centroids,r=0.01)
+	_problem = problem.Problem(centroids,r=config.params['r'])
 	_solver=solver.Solver(_problem)
 	for index in range(len(centroids)):
 		_landmark= landmark.Landmark(index, voltage=1.0)
@@ -28,14 +27,14 @@ def compute_voltages(centroids):
 		all_voltages.add_solution(_landmark, voltages=voltages)
 	return all_voltages
 
-def main():
+def main(filepath):
 	timer=Timer()
 	# generate centroids using streaming k-means
-	points, counters, majority_labels, _,_=kmeans.Streaming_Kmeans(config.params['file_path'])
+	points, counters, label_counts, _,_=kmeans.Streaming_Kmeans(config.params['file_path'])
 	timer.mark("Streaming K-means completed")
 	
-	X=np.stack(points)
-	y= np.array(majority_labels)
+	#X=np.stack(points)
+	#y= np.array(label_counts)
 
 	# define set of set of centroids
 	centroids = setofpoints.SetOfPoints(points=points, weights=counters)
@@ -56,33 +55,27 @@ def main():
 
 	import pickle
 	data_to_save = {
-	'majority_labels': majority_labels,  # your labels
-	'all_voltages': all_voltages,  # your VoltageMap object
-    'centroids': centroids,        # your SetOfPoints object
-	'k': config.params['k']     # your VoltageMap object
+		'label_counts': label_counts,	# your labels
+		'all_voltages': all_voltages,		# your VoltageMap object
+		'centroids': centroids,				# your SetOfPoints object
 	}
-	with open(config.params['Voltage_map_output'], 'wb') as f:
+
+
+	with open(config.params['save_data'], 'wb') as f:
 		pickle.dump(data_to_save, f)
-	print(f"Voltage map saved to {config.params['Voltage_map_output']}")
+	print(f"Voltage map saved to {config.params['save_data']}")
+
+	return data_to_save
 
 if __name__ == "__main__":
+	#import faulthandler
+	#faulthandler.enable()
+
 	from Utilities.set_params import set_params
 	set_params()
-	if config.params['test']:
-		# Load configuration parameters
-		#config.params['file_path']= '../data/glove/shuffled_output.txt'
-		#config.params['split_char']= ' '
-		#config.params['normalize_vecs']= True
+	filepath = config.params['file_path']
+	import os
+	if not os.path.exists(filepath):
+		raise FileNotFoundError(f"Input file {filepath} does not exist.")
 
-		config.params['file_path']= '../../Voltage_Data/mnist/mnist.csv'
-		config.params['split_char']= ','
-		config.params['normalize_vecs']= False
-
-		config.params['max_centroids']= 1000
-		config.params['init_size']= 5000
-		config.params['batch_size']= 1000
-		config.params['kmeans_output']= '../../Voltage_Temp/Results/streaming_centroids.npy'
-		config.params['Voltage_map_output']= '../../Voltage_Temp/Results/voltage_map.npy'
-		config.params['k']=10
-
-		main()
+	main(filepath)

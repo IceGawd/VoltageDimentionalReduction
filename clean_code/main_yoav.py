@@ -1,28 +1,28 @@
-# Standard library imports
-import os
-from typing import Union, Optional, List, Any, Tuple
-
-# Third-party imports
 import numpy as np
-from sklearn.datasets import fetch_openml
-import faiss
+from typing import Union, Optional, List, Any, Tuple, Callable, Dict
+from itertools import product
+import pandas
+import matplotlib.pyplot as plt
 
-# Local imports - core functionality
+from scipy.sparse.linalg import cg
+from sklearn.neighbors import NearestNeighbors
+from scipy.sparse import lil_matrix, csr_matrix
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+from sklearn.decomposition import PCA
+from sklearn.manifold import MDS
+from sklearn.datasets import fetch_openml
+
+import importlib
+
 import landmark
 import voltagemap
 import problem
 import solver
+import visualization
 import setofpoints
 import kmeans
-
-# Local imports - utilities
 from Utilities import config
-from Utilities.distances import compute_distances
-
-# Optional imports for visualization (commented out until needed)
-# import matplotlib.pyplot as plt
-# from sklearn.manifold import MDS
-# from sklearn.decomposition import PCA
+import faiss
 
 def test_voltage(voltages, ignore_fraction:float=0.90, thr:float=0.05):
 	sorted = np.sort(voltages.flatten())
@@ -40,74 +40,85 @@ def test_voltage(voltages, ignore_fraction:float=0.90, thr:float=0.05):
 		return advantage, False, None
 
 
+def compute_distances(centroids, voltages):
+	"""
+	Compute three types of pairwise distances between points using Faiss.
+	This function calculates:
+		1. Euclidean distances between points in the centroid set.
+		2. Euclidean (L2) distances between points based on their voltage representations.
+		3. (Commented out) L1 distances between points based on their voltage representations.
+	The function uses Faiss for efficient computation of L2 distances.
+	Args:
+		centroids: A pointset object with `.points` attribute, representing the coordinates of the centroids as a list of NumPy arrays of shape (n_features).
+		voltages:  a voltageMap.VoltageMap object containing voltage vectors for each landmark.
+	Returns:
+		tuple:
+			D1 (np.ndarray): Pairwise Euclidean distances between centroids (with diagonal set to -inf).
+			D2 (np.ndarray): Pairwise Euclidean distances between voltage vectors (with diagonal set to -inf).
+	Note:
+		- The third distance matrix (L1 distance) is currently commented out and not returned.
+		- The diagonal of each distance matrix is set to -inf to ignore self-distances.
+	"""
+
+	if not isinstance(centroids, setofpoints.SetOfPoints):
+		raise TypeError("centroids must be an instance of setofpoints.SetOfPoints")
+	if not isinstance(voltages, voltagemap.VoltageMap):
+		raise TypeError("voltages must be an instance of voltagemap.VoltageMap")
+	# 1. Euclidean distance
+	# Using the centroids directly
+	print("Computing distances...", flush=True)
+	X = np.stack(centroids.points)  # Expecting centroids to have a .points attribute
+	print(f"type(X): {type(X)}", flush=True)
+	print("X.shape:", X.shape, flush=True)
+	index = faiss.IndexFlatL2(X.shape[1])  # L2 distance index
+	index.add(X.astype(np.float32))  # Add points to the index
+	D1, _ = index.search(X.astype(np.float32), X.shape[0])
+	np.fill_diagonal(D1, -np.inf)
+
+	# 2. Distance based on voltages
+	# using L2 distance
+
+	vectors = voltages.all_solutions().astype(np.float32)  # Convert to float32 for Faiss compatibility
+	index = faiss.IndexFlatL2(vectors.shape[1])  # L2 distance index
+
+	index.add(vectors)  # Add points to the index
+	D2, _ = index.search(vectors, vectors.shape[0])
+	np.fill_diagonal(D2, -np.inf)
+
+	# 3. Distance based on voltages
+	# using L1 distance
+	#print("vectors.shape:", vectors.shape, flush=True)
+	#D3 = np.abs(vectors[:, None, :] - vectors[None, :, :]).sum(axis=2)
+	#print("D3 shape:", D3.shape, flush=True)
+	#np.fill_diagonal(D3, -np.inf)
+
+	#print("Returning shapes:", D1.shape, D2.shape, D3.shape,flush=True)
+	Ds=[D1, D2]
+	print(len(Ds), flush=True)
+	return Ds
 
 
 if __name__ == "__main__":
-	# Setup directory structure
-	import os
-
-	# Get the directory containing the script
-	script_dir = os.path.dirname(os.path.abspath(__file__))
-	project_root = os.path.dirname(script_dir)  # Go up one level to VoltageDimentionalReduction
-
-	# Define all directory paths relative to project root
-	data_dir = os.path.join(project_root, "Voltage_Data", "mnist")
-	temp_dir = os.path.join(project_root, "Voltage_Temp")
-	results_dir = os.path.join(temp_dir, "Results")
-	intermediates_dir = os.path.join(temp_dir, "Intermediates")
-
-	print(f"Project root: {project_root}")
-	print(f"Looking for MNIST data in: {data_dir}")
-
-	# Create necessary directories
-	os.makedirs(data_dir, exist_ok=True)
-	os.makedirs(results_dir, exist_ok=True)
-	os.makedirs(intermediates_dir, exist_ok=True)
-
-	# Check if MNIST data exists, download if not
-	mnist_file = os.path.join(data_dir, "mnist.csv")
-	if not os.path.exists(mnist_file):
-		print(f"MNIST data file not found at {mnist_file}")
-		print("Downloading MNIST dataset...")
-		try:
-			# Load MNIST dataset using scikit-learn
-			X, y = fetch_openml('mnist_784', version=1, return_X_y=True, as_frame=False)
-			
-			# Save as CSV
-			print("Saving MNIST dataset...")
-			os.makedirs(os.path.dirname(mnist_file), exist_ok=True)
-			data = np.column_stack((X, y))  # Combine features and labels
-			np.savetxt(mnist_file, data, delimiter=',')
-			print(f"MNIST dataset saved to {mnist_file}")
-		except Exception as e:
-			print(f"Error downloading MNIST dataset: {e}")
-			print("Please ensure you have internet connection or manually place mnist.csv in the correct location.")
-			exit(1)
-
 	# Load configuration parameters
-	config.params['file_path'] = mnist_file
-	config.params['split_char'] = ','
-	config.params['normalize_vecs'] = False
+	#config.params['file_path']= '../data/glove/shuffled_output.txt'
+	#config.params['split_char']= ' '
+	#config.params['normalize_vecs']= True
 
-	config.params['max_centroids'] = 1000
-	config.params['init_size'] = 5000
-	config.params['batch_size'] = 1000
-	config.params['kmeans_output'] = os.path.join(results_dir, 'streaming_centroids.npy')
-	config.params['Voltage_map_output'] = os.path.join(results_dir, 'voltage_map.npy')
-	config.params['k'] = 10
+	config.params['file_path']= '../../Voltage_Data/mnist/mnist.csv'
+	config.params['split_char']= ','
+	config.params['normalize_vecs']= False
 
-	run_kmeans=True  # Set to True to generate initial workspace
+	config.params['max_centroids']= 1000
+	config.params['init_size']= 5000
+	config.params['batch_size']= 1000
+	config.params['kmeans_output']= '../../Voltage_Temp/Results/streaming_centroids.npy'
+	config.params['saved_data']= '../../Voltage_Temp/Results/saved_data.pkl'
+	config.params['k']=10
 
-	# Set workspace file path
-	workspace_file = os.path.join(intermediates_dir, "pointset.pkl")
-	
-	# Check for required packages
-	try:
-		import dill  # dill is used to save the workspace
-	except ImportError:
-		print("Error: The 'dill' package is required but not installed.")
-		print("Please install it using: pip install dill")
-		exit(1)
+	run_kmeans=False
+
+	workspace_file="../../Voltage_Temp/Intermediates/pointset.pkl"
+	import dill  # dill is used to save the workspace
 
 	if run_kmeans:
 		# generate centroids using streaming k-means
@@ -138,31 +149,17 @@ if __name__ == "__main__":
 
 
 ### Store /recover intermediate workspace
-		try:
-			dill.dump_session(workspace_file)
-			print(f"Saved workspace to {workspace_file}")
-		except Exception as e:
-			print(f"Warning: Could not save workspace: {e}")
+		dill.dump_session(workspace_file)
 	else:
-		try:
-			if not os.path.exists(workspace_file):
-				print(f"Error: Workspace file {workspace_file} not found!")
-				print("Please run with run_kmeans=True first to generate the workspace file.")
-				exit(1)
-			dill.load_session(workspace_file)
-			print(f"Loaded workspace from {workspace_file}")
-		except Exception as e:
-			print(f"Error loading workspace: {e}")
-			print("Please run with run_kmeans=True first to generate the workspace file.")
-			exit(1)
+		dill.load_session(workspace_file)
 	
 	print("starting building landmarks after kmeans is done")
 
 	# Initialize the map
-	voltage_map = voltagemap.VoltageMap()
-	first_entry = all_voltages.entries[0]  # get the first landmark and its voltages
-	voltage_map.add_solution(first_entry['landmark'], voltages=first_entry['voltages'])
-	max_voltage = np.zeros(len(all_voltages))  # to keep track of the maximum voltage for each landmark
+	voltage_map=voltagemap.VoltageMap()
+	lm, voltages, _ = all_voltages.entries[0]  # get the first landmark and its voltages
+	voltage_map.add_solution(lm, voltages=voltages)
+	max_voltage=np.zeros(len(all_voltages))  # to keep track of the maximum voltage for each landmark
 
 # repeatedly iteration all_voltages.entries and add the landmark with the largest distance to the selected landmarks to the voltage map	
 	for iteration in range(100):
@@ -170,98 +167,40 @@ if __name__ == "__main__":
 		max_min_dist = 2.0
 		best_idx = None
 		best_norm = 2.0
-		for idx, entry in enumerate(all_voltages.entries):
+		for idx, (lm, voltages, norm) in enumerate(all_voltages.entries):
 			# Skip if already in voltage_map
-			if any(np.array_equal(entry['landmark'].index, vmap_entry['landmark'].index) 
-				   for vmap_entry in voltage_map.entries):
+			if any(np.array_equal(lm.index, vmap_lm.index) for vmap_lm, _, _ in voltage_map.entries):
 				continue	
 			# Compute minimum distance to any entry in voltage_map
-			min_dist = np.min([np.linalg.norm(entry['voltages'] - vmap_entry['voltages']) 
-							  for vmap_entry in voltage_map.entries])
-			if min_dist > max_min_dist and entry['advantage'] > best_norm:
+			min_dist = np.min([np.linalg.norm(voltages - vm[1]) for vm in voltage_map.entries])
+			if min_dist > max_min_dist and norm> best_norm:
 				max_min_dist = min_dist
 				best_idx = idx
-				best_norm = entry['advantage']
+				best_norm = norm
 		print(f"Iteration {iteration}: Best landmark index {best_idx} norm={best_norm:.4f} with min distance {max_min_dist:.4f}")
 		if best_idx is not None:
-			entry = all_voltages.entries[best_idx]
-			voltage_map.add_solution(entry['landmark'], voltages=entry['voltages'])
+			lm, voltages, norm = all_voltages.entries[best_idx]
+			voltage_map.add_solution(lm, voltages=voltages)
 		else:
 			break
 
-	print("Applying voltage-based filtering")
-	from filter import filter_by_voltage, filter_by_weights
-
-	# Try different threshold values until we keep enough points
-	thresholds = [1.0, 0.7, 0.5, 0.3, 0.1]  # Start strict, gradually relax
-	min_maps_values = [2, 1]  # Try different min_maps values
-	filtered_points = None
-
-	filter_indices = None  # Store indices of filtered points
-	for threshold in thresholds:
-		for min_maps in min_maps_values:
-			filtered_points, filter_mask = filter_by_voltage(
-				voltage_map=voltage_map,
-				point_set=centroids,
-				threshold=threshold,
-				min_maps=min_maps
-			)
-			print(f"Threshold={threshold}, min_maps={min_maps}: "
-				  f"kept {len(filtered_points)} points out of {len(centroids)}")
-			
-			# If we have enough points, break out of both loops
-			if len(filtered_points) >= 100:  # Minimum desired number of points
-				print(f"Found good filtering parameters: threshold={threshold}, min_maps={min_maps}")
-				filter_indices = np.where(filter_mask)[0]  # Store indices where mask is True
-				break
-		if len(filtered_points) >= 100:
-			break
-
-	# If filtering was too strict, use original points
-	if len(filtered_points) < 100:
-		print("Warning: Filtering was too strict, using original points")
-		filtered_points = centroids
-
-	print(f"\nFinal filtered set: {len(filtered_points)} points")
-
-	print("Computing distances on filtered points")
-	if len(filtered_points) > 0:
-		# Convert filtered points to numpy array format
-		if isinstance(filtered_points, setofpoints.SetOfPoints):
-			points_array = filtered_points.points
-		else:
-			points_array = filtered_points
-
-		print(f"Points array shape: {points_array.shape}")
-		
-		# Extract voltage maps as numpy array and filter to match points
-		voltage_maps = voltage_map.all_solutions()
-		# Take only the voltage maps for the filtered points using the saved indices
-		if filter_indices is not None:
-			voltage_maps = voltage_maps[filter_indices]
-		print(f"Voltage maps shape: {voltage_maps.shape}")
-
-		# Compute distances
-		Ds = compute_distances(points_array, voltage_maps)
-		print(f"len(Ds) = {len(Ds)}")
-		print(f"Distance matrices shapes:")
-		print(f"D1 (Euclidean in original space): {Ds[0].shape}")
-		print(f"D2 (Euclidean in voltage space): {Ds[1].shape}")
-		print(f"D3 (Graph-based): {Ds[2].shape}")
-		Deuc = Ds[0]
-		Dvolt = Ds[1]
-		Dgraph = Ds[2]
-	else:
-		print("Error: No points to compute distances on")
-		exit(1)
+	print("About to call compute_distances")
+	#import pdb
+	#pdb.set_trace()
+	Ds = compute_distances(centroids, voltage_map)
+	print(f"len(Ds) = {len(Ds)}")
+	print(f"Computed distances: D1 shape {Ds[0].shape}, D2 shape {Ds[1].shape}")
+	Deuc =Ds[0]
+	Dvolt = Ds[1]
 	
 	# save the workspace for later use
-	workspace_final = os.path.join(intermediates_dir, "workspace.pkl")
-	dill.dump_session(workspace_final)
-	print(f"Workspace saved to {workspace_final}")
+
+	workspace_file="config.params['save_data']"
+	dill.dump_session(workspace_file)
+	print(f"Workspace saved to {workspace_file}")
 
 	import pickle
-	with open(config.params['Voltage_map_output'], 'wb') as f:
+	with open(config.params['saved_data'], 'wb') as f:
 		pickle.dump(voltage_map, f)
-	print(f"Voltage map saved to {config.params['Voltage_map_output']}")
+	print(f"Voltage map saved to {config.params['saved_data']}")
 

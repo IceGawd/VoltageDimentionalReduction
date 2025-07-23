@@ -1,13 +1,3 @@
-"""
-Distance computation utilities for point sets using various metrics.
-
-This module provides functionality to compute distances between points using different
-metrics: Euclidean distance, voltage-based distance, and graph-based distance.
-It utilizes FAISS for efficient distance computations and scikit-learn for
-k-nearest neighbors graph construction.
-
-"""
-
 import numpy as np
 
 # Try to import required packages
@@ -124,7 +114,7 @@ def compute_distances(points, voltages):
     D3 = csgraph.shortest_path(adjacency_matrix, method="auto", directed=False, unweighted=True)
     D3[np.isinf(D3)] = np.inf  # Replace scipy's inf with numpy's inf for consistency
 
-    return D1, D2, D3
+	return D1, D2, D3
 
 
 # ------------------- Test Function ---------------------

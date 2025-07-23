@@ -2,7 +2,7 @@ import numpy as np
 import faiss
 
 from Utilities import config
-import visualization
+from Visualization import generalVisualization
 from Utilities.reader import Reader
 
 import faulthandler
@@ -10,29 +10,24 @@ from collections import Counter
 faulthandler.enable()
 
 # ------------- Streaming KMeans++ --------------
-
 class StreamingKMeansPlusPlus:
     """
     Implements streaming k-means++ centroid selection using FAISS for efficient distance computation.
-
-    This class incrementally selects centroids from streaming data using a probabilistic
-    approach based on distance, and maintains a FAISS index for efficient nearest neighbor search.
 
     Attributes:
         d (int): Dimensionality of vectors.
         Z (float): Scaling constant for sampling probability.
         max_centroids (int): Maximum number of centroids to retain.
-        index (faiss.IndexFlatL2): FAISS index for centroid search.
     """
 
-    def __init__(self, d, max_dist2, min_dist2, index):
+    def __init__(self, d, max_dist2,min_dist2,index):
         """
         Initializes the streaming k-means++ class.
 
         Args:
             d (int): Vector dimensionality.
-            max_dist2 (float): Maximum squared distance in the initial buffer.
-            min_dist2 (float): Minimum squared distance in the initial buffer.
+            Z (float): Normalization constant for sampling.
+            max_centroids (int): Maximum number of centroids to store.
             index (faiss.IndexFlatL2): FAISS index for efficient distance computation.
         """
         self.d = d
@@ -54,9 +49,7 @@ class StreamingKMeansPlusPlus:
             index (faiss.IndexFlatL2): FAISS index of centroids.
 
         Returns:
-            tuple: (distances, indices)
-                distances (np.ndarray): Squared distances for each point in X.
-                indices (np.ndarray): Indices of nearest centroids.
+            np.ndarray: Squared distances for each point in X.
         """
         if self.index is None or self.index.ntotal == 0:
             print("Index is empty, returning infinity distances.")
@@ -103,23 +96,17 @@ class StreamingKMeansPlusPlus:
 
 # ------------------- Streaming_Kmeans----------
 def Streaming_Kmeans(filepath):
+
     """
-    Performs streaming k-means++ clustering using FAISS.
+    Main function to perform streaming k-means++ with FAISS.
 
-    Args:
-        filepath (str): Path to the input data file.
+    Steps:
+        1. Estimate normalization constant Z from an initial buffer.
+        2. Select centroids incrementally using streaming batches.
+        3. update centroids using a streaming version of the Kmeans algorithm
+        4. Save final centroids to a .npy file.
 
-    Returns:
-        tuple: (centroids, counters, majority_labels, initial_mean_d2, mean_d2)
-            - centroids (np.ndarray): Final centroid vectors.
-            - counters (np.ndarray): Number of points assigned to each centroid.
-            - majority_labels (list): Most common label for each centroid.
-            - initial_mean_d2 (float): Initial mean squared distance.
-            - mean_d2 (float): Final mean squared distance.
-
-    Notes:
-        Parameters are passed through config.params.
-        See argparse section for parameter listing.
+    parameters are passed through config.params, see listing of parameters in argparse section.
     """
     reader = Reader(filepath)
 
@@ -181,7 +168,6 @@ def Streaming_Kmeans(filepath):
     initial_mean_d2=0
     total_count = 0  # Total number of vectors processed
      # compute for each centroid a label that is the majority of examples that are assigned to it
-     # why are you not doing anything with labels?
     # Initialize a list to store the labels assigned to each centroid
     centroid_labels = [ [] for _ in range(centroids.shape[0]) ]
 
@@ -210,13 +196,13 @@ def Streaming_Kmeans(filepath):
         skmeans.index.add(centroids)  # Add the final centroids to the index
 
     # Compute majority label for each centroid
-    majority_labels = []
+    label_counts = []
     for labels_list in centroid_labels:
         if labels_list:
-            majority_label = Counter(labels_list).most_common(1)[0][0]
+            label_count = Counter(labels_list)
         else:
-            majority_label = None
-        majority_labels.append(majority_label)
+            label_count = None
+        label_counts.append(label_count)
     
     for vectors, labels in reader.stream_batches(config.params['batch_size']):
         if config.params['normalize_vecs']:
@@ -243,7 +229,7 @@ def Streaming_Kmeans(filepath):
     print("\nClosing reader...")
     reader.close()
 
-    return centroids, counters, majority_labels, initial_mean_d2, mean_d2
+    return centroids, counters, label_counts, initial_mean_d2, mean_d2
 
 
 # ------------------- Main ---------------------
@@ -254,7 +240,7 @@ def main():
     set_params()  #set parameters accordinig to the command line            
     if config.params['test']:
         
-        config.params['file_path']= '../data/synthetic/2drandom10000.csv'
+        config.params['file_path']= '../../Voltage_Data/synthetic/2drandom10000.csv'
         config.params['split_char']= ','
         config.params['normalize_vecs']= False
 
@@ -263,7 +249,7 @@ def main():
         config.params['batch_size']= 100
         config.params['output']=None
 
-    centroids,counters,majority_labels,inital_mean_d2,mean_d2=Streaming_Kmeans(config.params['file_path'])
+    centroids,counters,label_counts,inital_mean_d2,mean_d2=Streaming_Kmeans(config.params['file_path'])
 
     # Finalization and saving
     if config.params['verbosity']>=1:
@@ -276,14 +262,14 @@ def main():
             else:
                 print('Test Passed')
     if config.params['output'] is not None:
-        np.savez(config.params['output'], centroids=centroids, counters=counters, majority_labels=majority_labels,)
+        np.savez(config.params['output'], centroids=centroids, counters=counters, label_counts=label_counts,)
         print(f"Centroids saved to {config.params['output']}")
     else:
         print("No output file specified, centroids not saved.")
 
     # if 2d test then visualize datapoints, centroids labels
     if config.params['test']:
-        visualization.Visualization.plot_centroids(centroids, counters, majority_labels)
+        generalVisualization.plot_centroids(centroids, counters, label_counts)
     
 if __name__ == "__main__":
     main()
