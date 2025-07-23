@@ -28,6 +28,7 @@ def set_params():
     # parameters for landmark selection
     parser.add_argument("--NoOfLandmarks", type=int, default=10, help="Number of landmarks to select for the voltage map")
     parser.add_argument("--DepthOfLandmarkSearch", type=int, default=100, help="Depth of landmark search")
+    parser.add_argument("--n_rows", type=int, default=None, help="Number of rows to read")
  
     # parameters for visualization
 

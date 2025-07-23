@@ -11,7 +11,8 @@ from Utilities import config
 import os
 import subprocess
 import sys
-
+import io
+from sklearn.preprocessing import LabelEncoder
 # ---------- Data Loading Functions ----------
 
 # def load_voltage_map(path: str):
@@ -26,14 +27,33 @@ import sys
 def load_voltage_and_centroids(path: str):
     with open(path, "rb") as f:
         data = pickle.load(f)
-    return data['centroids'], data['voltage_map'], data.get('k', 5)  # default to 5
+    return data['centroids'], data['voltage_map']
 
-def load_labeled_data(path: str):
-    df = pd.read_csv(path, dtype=str, low_memory=False)
+def load_labeled_data(path: str, n_rows: int = None):
+    cleaned_lines = []
+    with open(path, "r", encoding="utf-8") as f:
+        for i, line in enumerate(f):
+            if n_rows is not None and i >= n_rows:
+                break
+            # Remove inline comments
+            line = line.split('#')[0].strip()
+            if not line:
+                continue  # skip empty lines
+            cleaned_lines.append(line)
+    # Convert to a string buffer and use pandas
+    cleaned_text = "\n".join(cleaned_lines)
+    buffer = io.StringIO(cleaned_text)
+    df = pd.read_csv(buffer, sep=config.params['split_char'],dtype=str, low_memory=False, nrows=n_rows)
     df = df[df.iloc[:, 0] != "label"]
-    df = df.astype(np.float32)
-    y = df.iloc[:, 0].astype(int).values
-    X = df.iloc[:, 1:].values
+    try:
+        y = df.iloc[:, 0].astype(int).values
+    except ValueError:
+        y = df.iloc[:, 0].values
+        le = LabelEncoder()
+        y = le.fit_transform(y)
+        label_mapping = dict(zip(le.classes_, le.transform(le.classes_)))
+        print("Label mapping:", label_mapping)
+    X = df.iloc[:, 1:].astype(np.float32).values
     return X, y
 
 # ---------- Voltage Embedding Function ----------
@@ -97,21 +117,14 @@ def train_and_evaluate(X, y):
 # ---------- Main Block ----------
 
 def main():
-    if config.params['test']:
-     
-        voltage_map_path = "../../Voltage_Temp/Results/saved_data.pkl"
-        data_path = "../../Voltage_Data/mnist/mnist.csv"
-    else:
-        # call select_landmarks here
-        voltage_map_path = config.params['voltage_map']
-        data_path = config.params['data']
-
+    voltage_map_path = config.params['save_data']
+    data_path = config.params['file_path']
+    n_rows = config.params['n_rows']
     from Utilities.timer import Timer
     timer = Timer()
     timer.mark("Loading voltage map and centroids")
-    centroids, voltage_map, k = load_voltage_and_centroids(voltage_map_path)
-    config.params['k'] = k 
-    X_data, y_data = load_labeled_data(data_path)
+    centroids, voltage_map= load_voltage_and_centroids(voltage_map_path)
+    X_data, y_data = load_labeled_data(data_path,n_rows)
 
     X_voltage = embed_voltage_features(X_data, centroids, voltage_map,sigma=config.params['sigma'])
     timer.mark("Embedded voltage features")
