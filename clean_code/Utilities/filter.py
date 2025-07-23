@@ -7,7 +7,6 @@ import random
 from typing import List, Tuple, Optional
 from voltagemap import VoltageMap
 from setofpoints import SetOfPoints
-from visualization import Visualization
 
 def filter_by_voltage(voltage_map: VoltageMap, 
                      point_set: SetOfPoints,
