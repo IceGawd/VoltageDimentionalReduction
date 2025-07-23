@@ -78,8 +78,11 @@ def set_params():
     # parameters for streaming k-means
     parser.add_argument("--normalize_vecs", action="store_true", help="normalize vectors to L_2=1 before calculating distances")
     parser.add_argument("--max-centroids", type=int, default=1000, help="Maximum number of centroids")
-    parser.add_argument("--init-size", type=int, default=5000, help="Number of points to estimate Z")
-    parser.add_argument("--batch-size", type=int, default=1000, help="Batch size for streaming")
+    parser.add_argument("--init-size", type=int, default=10000, help="Number of points to estimate Z")
+    parser.add_argument("--batch-size", type=int, default=10000, help="Batch size for streaming")
+    parser.add_argument("--alpha", type=float, default=0.1, 
+                        help="defines fraction of new centroid that comes from the average of assigned vectors (0.0 to 1.0)")
+    parser.add_argument("--equalize_centroids", action="store_true", help="Equalize centroids by removing small ones and splitting large ones")
 
     # parameters for computing voltage maps
     parser.add_argument("--k", type=int, default=10, help="k-connectivity for the k-nearest neighbor graph")
