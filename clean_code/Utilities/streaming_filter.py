@@ -1,17 +1,52 @@
 """
-Streaming filter utilities for processing large datasets with voltage-based filtering.
+Streaming Filter Module for Large-Scale Data Processing
 
-This module provides functionality to filter large datasets in a streaming manner,
-applying voltage-based filtering or weight-based filtering to points as they are
-read from input files. The filtered results are written to output files in batches
-to handle memory-efficient processing of large datasets.
+This module provides memory-efficient streaming processing of large datasets using
+various filtering methods. It handles multiple file formats and supports batched
+processing for datasets that don't fit in memory.
+
+Main Classes:
+    StreamingFilter:
+        Main class for stream processing with methods:
+        - apply_voltage_filter(): Filter based on voltage thresholds
+        - apply_weight_filter(): Probabilistic sampling based on weights
+        - create_partitions(): Create spatial partitions
+        - get_statistics(): Get processing statistics
+
+Command Line Usage:
+    python streaming_filter.py
+        Runs comprehensive test suite
+        No additional parameters required
+        Exit code 0 if successful, 1 if tests fail
+
+File Format Support:
+    Input/Output:
+        - .txt: Space-separated text files
+        - .csv: Comma-separated files
+        - .npy: NumPy binary format
+        - .gz: Compressed text files
+
+Configuration Options:
+    batch_size (int): Points to process per batch (default: 1000)
+    filter_type (str): Type of filter to apply:
+        - 'voltage': Threshold-based filtering
+        - 'weights': Probabilistic sampling
+        - 'partition': Space partitioning
+
+Example Usage:
+    >>> from streaming_filter import StreamingFilter
+    >>> # Initialize filter for voltage-based filtering
+    >>> filter = StreamingFilter('input.txt', 'output.txt', 'voltage')
+    >>> # Apply filter with voltage map
+    >>> filter.apply_filter(voltage_map=vmap, threshold=0.5)
+    >>> filter.close()
 
 Dependencies:
     - numpy: For numerical computations
-    - filter: For filtering functions
-    - reader: For streaming data reading
-    - setofpoints: For point set management
-    - voltagemap: For voltage map management
+    - filter: Core filtering functions
+    - reader: Streaming data reading
+    - setofpoints: Point set management
+    - voltagemap: Voltage map handling
 """
 
 import numpy as np

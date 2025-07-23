@@ -1,5 +1,37 @@
 """
-Filter module for processing voltage maps and partitioning space.
+Filter Module for Voltage-Based Data Processing and Space Partitioning
+
+This module provides tools for filtering and partitioning data based on voltage
+patterns and weights. It includes three main functions and a comprehensive test suite.
+
+Main Functions:
+    filter_by_voltage(voltage_map, point_set, threshold=0.5, min_maps=1)
+        Filter points based on voltage thresholds:
+        - Keeps points where sufficient voltage maps exceed threshold
+        - Returns filtered points and selection mask
+        
+    partition_space(voltage_map, threshold=0.5)
+        Create space partitions based on voltage patterns:
+        - Generates boolean masks for each region
+        - Each region corresponds to points above threshold
+        
+    filter_by_weights(point_set, sample_size=None, random_state=None)
+        Perform weighted random sampling:
+        - Sample points based on their weights
+        - Useful for boosting algorithms
+        
+Command Line Usage:
+    python filter.py
+        Runs the test suite to verify all functionality
+        No additional parameters required
+        Exit code 0 if successful, 1 if tests fail
+
+Example:
+    >>> from filter import filter_by_voltage, partition_space
+    >>> # Filter points above 0.7 voltage threshold
+    >>> filtered_points, mask = filter_by_voltage(voltage_map, points, 0.7)
+    >>> # Create space partitions
+    >>> regions = partition_space(voltage_map, 0.5)
 """
 
 import numpy as np
