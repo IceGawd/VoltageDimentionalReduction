@@ -60,7 +60,7 @@ class StreamingKMeansPlusPlus:
 
     def update(self, X_batch):
         """
-        Updates centroid list with new vectors selected via probabilistic sampling.
+        Add a centroid to the list via probabilistic sampling. (Similar to KMeans++)
 
         Args:
             X_batch (np.ndarray): Normalized batch of vectors.
@@ -174,12 +174,12 @@ def Streaming_Kmeans(filepath):
         """ Refine centroids using the current batch of vectors. This is done based on the observation that with the current update rule 
         some centroids are assigned many vectors and some none. The idea here is to eliminate those that are assigned too few and on the other hand split those
         that are assigned too many vectors.
-
         """
 
-        D, vec_assignments = skmeans._compute_distances_squared(vectors, skmeans.index)
+        _, vec_assignments = skmeans._compute_distances_squared(vectors, skmeans.index)
         # Assign vectors and labels to centroids
 
+        # Create a dictionary to hold centroid statistics
         centroids = skmeans.get_centroids()  # Get the current centroids from the index
         centroid_stats = {i:{'centroid':centroids[i], 'vectors': [], 'labels': []} for i in range(centroids.shape[0])}
 
@@ -187,44 +187,54 @@ def Streaming_Kmeans(filepath):
             centroid_stats[centroid_idx]['labels'].append(labels[idx])
             centroid_stats[centroid_idx]['vectors'].append(vectors[idx])
 
-        # Compute RMS of distances from each vector to the closest centroid        
+        # Compute RMS error and updated mid-point for each centroid
         rms=0
+        alpha=config.params['alpha']
         for i in centroid_stats:
             if len(centroid_stats[i]['vectors']) > 0:
                 rms += np.mean(np.square(centroid_stats[i]['vectors'] - centroid_stats[i]['centroid']))
+                old_centroid = centroid_stats[i]['centroid']
+                vectors_mean = np.mean(centroid_stats[i]['vectors'], axis=0)
+                new_centroid= vectors_mean*alpha + old_centroid*(1-alpha)
+                if config.params['normalize_vecs']:
+                    new_centroid = new_centroid / np.linalg.norm(new_centroid)
+                centroid_stats[i]['centroid'] = new_centroid
         rms = np.sqrt(rms / len(centroid_stats))
 
-        # choose which centroids to remove and which to split
+        if config.params['equalize centroids']:
+            # choose which centroids to remove and which to split
 
+            too_small=[]
+            for i in range(len(centroid_stats)):
+                if len(centroid_stats[i]['vectors']) ==0:
+                    too_small.append(i)
 
-        too_small=[]
-        for i in range(len(centroid_stats)):
-            if len(centroid_stats[i]['vectors']) ==0:
-                too_small.append(i)
+            sizes = np.array([len(centroid_stats[i]['vectors']) for i in centroid_stats])
+            order = np.argsort(sizes)[::-1]  # Sort indices by size in descending order
+            sorted_sizes = np.sort(sizes)[::-1]  # Sorted sizes in descending order
+            print(f"sorted_sizes={sorted_sizes[:5]}")  # Print the top 5 sizes for debugging
+            ## Remove centroids that are too small
+            for j in range(len(too_small)):
+                i1 = too_small[j]   #points to the j'th small centroid
+                i2 = order[j] # points to the j'th largest centroid
+                #define two centroids that spit the largest centroid
+                #print(f"{len(centroid_stats[i2]['vectors'])} vectors assigned to centroid {i2}")
 
-        sizes = np.array([len(centroid_stats[i]['vectors']) for i in centroid_stats])
-        order = np.argsort(sizes)[::-1]  # Sort indices by size in descending order
-        sorted_sizes = np.sort(sizes)[::-1]  # Sorted sizes in descending order
-        print(f"sorted_sizes={sorted_sizes[:5]}")  # Print the top 5 sizes for debugging
-        ## Remove centroids that are too small
-        for j in range(len(too_small)):
-            i1 = too_small[j]   #points to the j'th small centroid
-            i2 = order[j] # points to the j'th largest centroid
-            #define two centroids that spit the largest centroid
-            #print(f"{len(centroid_stats[i2]['vectors'])} vectors assigned to centroid {i2}")
+                # perturb the centroid vector to create a new centroid
+                v = centroid_stats[i2]['centroid']  # Current centroid vector
+                d = v.shape[0]  # Dimensionality of the centroid
+                e = np.random.randn(d)
+                e = e * 1e-6 / np.linalg.norm(e)  # Normalize to unit length
 
-            # perturb the centroid vector to create a new centroid
-            v = centroid_stats[i2]['centroid']  # Current centroid vector
-            d = v.shape[0]  # Dimensionality of the centroid
-            e = np.random.randn(d)
-            e = e * 1e-6 / np.linalg.norm(e)  # Normalize to unit length
-
-            centroid_stats[i1]['centroid'] = v+e
+                centroid_stats[i1]['centroid'] = v+e
 
 
         new_centroids = np.array([centroid_stats[i]['centroid'] for i in centroid_stats])
+        if config.params['normalize_vecs']:
+            centroids=centroids/ np.linalg.norm(centroids, axis=1, keepdims=True)
 
         # Update faiss index with new centroids
+        
         skmeans.index.reset()  # Reset index to ensure it's empty
         skmeans.index.add(new_centroids)  # Add the final centroids to the index
         return centroid_stats, rms, len(too_small)
