@@ -17,7 +17,6 @@ import faiss
 import sys
 from pathlib import Path
 
-# Add the parent directory to Python path for imports
 sys.path.append(str(Path(__file__).parent.parent))
 from clean_code.Utilities import config
 from clean_code.Utilities.set_params import set_params
@@ -35,7 +34,6 @@ def create_faiss_index(dim: int, use_gpu: bool = False) -> faiss.Index:
         faiss.Index: Optimized FAISS index
     """
     if use_gpu and hasattr(faiss, 'StandardGpuResources'):
-        # Use GPU if available and requested
         res = faiss.StandardGpuResources()
         config = faiss.GpuIndexFlatConfig()
         config.device = 0  # Use first GPU
@@ -44,7 +42,6 @@ def create_faiss_index(dim: int, use_gpu: bool = False) -> faiss.Index:
         if dim <= 4:
             return faiss.IndexFlatL2(dim)  # Exact search for low dimensions
         else:
-            # Use HNSW index for higher dimensions - much faster with minimal accuracy loss
             index = faiss.IndexHNSWFlat(dim, 32)  # 32 neighbors per layer
             index.hnsw.efConstruction = 40  # Higher accuracy construction
             index.hnsw.efSearch = 16  # Compromise between speed and accuracy
