@@ -196,23 +196,20 @@ def Streaming_Kmeans(filepath):
                 old_centroid = centroid_stats[i]['centroid']
                 vectors_mean = np.mean(centroid_stats[i]['vectors'], axis=0)
                 new_centroid= vectors_mean*alpha + old_centroid*(1-alpha)
-                if config.params['normalize_vecs']:
-                    new_centroid = new_centroid / np.linalg.norm(new_centroid)
                 centroid_stats[i]['centroid'] = new_centroid
         rms = np.sqrt(rms / len(centroid_stats))
 
-        if config.params['equalize centroids']:
-            # choose which centroids to remove and which to split
+        too_small=[]
+        # collect information about too large and too small centroids
+        for i in range(len(centroid_stats)):
+            if len(centroid_stats[i]['vectors']) ==0:
+                too_small.append(i)
 
-            too_small=[]
-            for i in range(len(centroid_stats)):
-                if len(centroid_stats[i]['vectors']) ==0:
-                    too_small.append(i)
-
-            sizes = np.array([len(centroid_stats[i]['vectors']) for i in centroid_stats])
-            order = np.argsort(sizes)[::-1]  # Sort indices by size in descending order
-            sorted_sizes = np.sort(sizes)[::-1]  # Sorted sizes in descending order
-            print(f"sorted_sizes={sorted_sizes[:5]}")  # Print the top 5 sizes for debugging
+        sizes = np.array([len(centroid_stats[i]['vectors']) for i in centroid_stats])
+        order = np.argsort(sizes)[::-1]  # Sort indices by size in descending order
+        sorted_sizes = np.sort(sizes)[::-1]  # Sorted sizes in descending order
+        print(f"sorted_sizes={sorted_sizes[:5]}")  # Print the top 5 sizes for debugging
+        if config.params['equalize_centroids']:
             ## Remove centroids that are too small
             for j in range(len(too_small)):
                 i1 = too_small[j]   #points to the j'th small centroid
@@ -224,7 +221,7 @@ def Streaming_Kmeans(filepath):
                 v = centroid_stats[i2]['centroid']  # Current centroid vector
                 d = v.shape[0]  # Dimensionality of the centroid
                 e = np.random.randn(d)
-                e = e * 1e-6 / np.linalg.norm(e)  # Normalize to unit length
+                e = e * 1e-20 / np.linalg.norm(e)  # Normalize to unit length
 
                 centroid_stats[i1]['centroid'] = v+e
 
@@ -237,7 +234,8 @@ def Streaming_Kmeans(filepath):
         
         skmeans.index.reset()  # Reset index to ensure it's empty
         skmeans.index.add(new_centroids)  # Add the final centroids to the index
-        return centroid_stats, rms, len(too_small)
+        finished=not config.params['equalize_centroids'] or len(too_small)==0
+        return centroid_stats, rms,len(too_small),finished
 
     
         
@@ -247,13 +245,13 @@ def Streaming_Kmeans(filepath):
         if config.params['normalize_vecs']:
             vectors = vectors / np.linalg.norm(vectors, axis=1, keepdims=True)
 
-        too_small=1
-        while too_small>0:
+        finished = False
+        while not finished:
             # Refine centroids using the current batch of vectors
             # This function will return the updated index and centroid statistics
             print(f"\nrefining vectors")
-            centroid_stats, rms, too_small = refine_centroids(centroids, vectors, labels)
-            print(f"too_small={too_small}, rms={rms}")
+            centroid_stats, rms, len_too_small, finished = refine_centroids(centroids, vectors, labels)
+            print(f"too_small={len_too_small}, rms={rms}, finished={finished}")
 
     
     # Compute majority label for each centroid
