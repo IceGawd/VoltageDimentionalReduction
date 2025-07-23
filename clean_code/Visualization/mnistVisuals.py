@@ -199,7 +199,7 @@ def plot_landmark_subset(points,centroids,label_counts, focus_on = None, log_tra
 	"""
 
 	if focus_on is None: 
-		focus_on = np.array(range(points.shape[1]))  
+		focus_on = np.array(range(points.shape[1]),**kwargs)  
 	if log_transform:
 		points = -np.log(points)	
 

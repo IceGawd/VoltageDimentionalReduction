@@ -33,6 +33,7 @@ def set_params():
     parser.add_argument("--DepthOfLandmarkSearch", type=int, default=100, help="Depth of landmark search")
  
     # parameters for visualization
+    parser.add_argument("--ratio_threshold", type=float, default=0.5, help="Threshold for ratio of the most common label to total count")
 
 
 
