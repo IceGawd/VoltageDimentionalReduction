@@ -99,7 +99,6 @@ def compute_distances(point_set: SetOfPoints, voltages: np.ndarray,
     volts = voltages.astype(np.float32)
     n = len(points)
     
-    # Pre-allocate output matrices for better memory efficiency
     D1 = np.empty((n, n), dtype=np.float32)
     D2 = np.empty((n, n), dtype=np.float32)
     
@@ -107,19 +106,17 @@ def compute_distances(point_set: SetOfPoints, voltages: np.ndarray,
     index1 = create_faiss_index(points.shape[1], use_gpu)
     index1.add(points)
     D1, _ = index1.search(points, n)
-    # Make symmetric and set diagonal in one pass
     D1 = np.minimum(D1, D1.T)
     np.fill_diagonal(D1, -np.inf)
     
     # 2. Distance based on voltages
-    # Reuse memory by deleting first index
     del index1
     index2 = create_faiss_index(volts.shape[1], use_gpu)
     index2.add(volts)
     D2, _ = index2.search(volts, n)
     D2 = np.minimum(D2, D2.T)
     np.fill_diagonal(D2, -np.inf)
-    del index2  # Free memory explicitly
+    del index2  
 
     # 3. Distance based on k-connectivity graph
     if n == 1:
@@ -158,8 +155,7 @@ def compute_distances(point_set: SetOfPoints, voltages: np.ndarray,
             adjacency, method='D', directed=False, 
             unweighted=True, return_predecessors=False
         )
-        
-        # Optimize final operations
+
         mask = np.isinf(D3)
         D3[mask] = np.inf
         np.fill_diagonal(D3, -np.inf)

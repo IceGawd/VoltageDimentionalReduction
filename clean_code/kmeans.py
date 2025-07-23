@@ -1,5 +1,27 @@
+"""
+Streaming K-Means++ Implementation with FAISS
+
+This module implements a memory-efficient streaming version of the k-means++
+clustering algorithm using FAISS for fast nearest neighbor search. It is designed
+to handle large datasets that don't fit in memory by processing data in batches.
+
+Key Features:
+    - Streaming processing for memory efficiency
+    - FAISS-based distance computations for speed
+    - Automatic normalization constant estimation
+    - Support for normalized and unnormalized vectors
+    - Label tracking for supervised applications
+
+Example:
+    >>> from kmeans import Streaming_Kmeans
+    >>> centroids, counters, label_counts, init_d2, final_d2 = Streaming_Kmeans('data.csv')
+    >>> print(f"Found {len(centroids)} clusters")
+"""
+
 import numpy as np
 import faiss
+from typing import List, Tuple, Optional, Counter as CounterType
+import numpy.typing as npt
 
 from Utilities import config
 from Visualization import generalVisualization
@@ -14,21 +36,41 @@ class StreamingKMeansPlusPlus:
     """
     Implements streaming k-means++ centroid selection using FAISS for efficient distance computation.
 
+    This class implements a streaming version of the k-means++ initialization algorithm.
+    It processes data in batches and maintains a FAISS index for efficient nearest
+    neighbor searches. New centroids are selected probabilistically based on their
+    squared distances to existing centroids.
+
     Attributes:
-        d (int): Dimensionality of vectors.
-        Z (float): Scaling constant for sampling probability.
-        max_centroids (int): Maximum number of centroids to retain.
+        d (int): Dimensionality of the input vectors.
+        Z (float): Scaling constant for sampling probability (max_dist² - min_dist²).
+        shift (float): Minimum squared distance for probability calculation.
+        max_centroids (int): Maximum number of centroids to maintain.
+        index (faiss.IndexFlatL2): FAISS index for efficient distance computation.
+
+    Note:
+        - The algorithm maintains normalized probabilities using Z and shift parameters
+        - FAISS index must be of type IndexFlatL2 for correct distance calculations
+        - Vectors can optionally be normalized before processing
     """
 
-    def __init__(self, d, max_dist2,min_dist2,index):
+    def __init__(self, d: int, max_dist2: float, min_dist2: float, index: faiss.IndexFlatL2) -> None:
         """
-        Initializes the streaming k-means++ class.
+        Initialize the streaming k-means++ algorithm.
 
         Args:
-            d (int): Vector dimensionality.
-            Z (float): Normalization constant for sampling.
-            max_centroids (int): Maximum number of centroids to store.
-            index (faiss.IndexFlatL2): FAISS index for efficient distance computation.
+            d (int): Dimensionality of the input vectors.
+            max_dist2 (float): Maximum squared distance between any two points in initial buffer.
+            min_dist2 (float): Minimum squared distance between any two points in initial buffer.
+            index (faiss.IndexFlatL2): Pre-initialized FAISS index for distance computations.
+
+        Raises:
+            AssertionError: If the provided index is not of type faiss.IndexFlatL2.
+
+        Note:
+            - Z is computed as (max_dist² - min_dist²) for probability normalization
+            - The shift parameter ensures non-negative distance values
+            - max_centroids is loaded from the global config
         """
         self.d = d
         self.Z = max_dist2 - min_dist2  # Normalization constant for sampling probabilities
@@ -96,18 +138,42 @@ class StreamingKMeansPlusPlus:
 
 
 # ------------------- Streaming_Kmeans----------
-def Streaming_Kmeans(filepath):
-
+def Streaming_Kmeans(filepath: str) -> Tuple[npt.NDArray, npt.NDArray, List[Optional[CounterType]], float, float]:
     """
-    Main function to perform streaming k-means++ with FAISS.
+    Perform streaming k-means++ clustering with FAISS.
 
-    Steps:
-        1. Estimate normalization constant Z from an initial buffer.
-        2. Select centroids incrementally using streaming batches.
-        3. update centroids using a streaming version of the Kmeans algorithm
-        4. Save final centroids to a .npy file.
+    This function implements a complete streaming k-means++ pipeline, including initialization
+    and refinement. It processes data in batches to handle large datasets efficiently.
 
-    parameters are passed through config.params, see listing of parameters in argparse section.
+    Algorithm Steps:
+        1. Initialize: Read initial buffer to estimate distance parameters
+            - Compute pairwise distances using FAISS
+            - Determine max_dist² and min_dist² for probability scaling
+        2. Select Centroids: Stream data to select initial centroids
+            - Use distance-based probabilistic sampling
+            - Continue until max_centroids is reached
+        3. Refine Centroids: Stream data twice to update centroids
+            - First pass: Assign points and update centroids
+            - Second pass: Further refine centroids
+            - Track label distributions for each centroid
+
+    Args:
+        filepath (str): Path to the input data file containing vectors.
+
+    Returns:
+        Tuple containing:
+            - centroids (np.ndarray): Final centroid vectors (shape: [n_centroids, d])
+            - counters (np.ndarray): Number of points assigned to each centroid
+            - label_counts (List[Counter]): Distribution of labels for each centroid
+            - initial_mean_d2 (float): Initial mean squared distance to centroids
+            - mean_d2 (float): Final mean squared distance to centroids
+
+    Note:
+        Configuration parameters are read from config.params:
+            - 'init_size': Size of initial buffer for parameter estimation
+            - 'batch_size': Number of vectors to process per batch
+            - 'max_centroids': Maximum number of centroids to select
+            - 'normalize_vecs': Whether to normalize input vectors
     """
     reader = Reader(filepath)
 
@@ -279,18 +345,44 @@ def Streaming_Kmeans(filepath):
 # ------------------- Main ---------------------
 from Utilities.set_params import set_params
 
-def main():
-    
-    set_params()  #set parameters accordinig to the command line            
-        
-    config.params['file_path']= '../../Voltage_Data/synthetic/2drandom10000.csv'
-    config.params['split_char']= ','
-    config.params['normalize_vecs']= False
+def main() -> None:
+    """
+    Main entry point for the streaming k-means++ clustering algorithm.
 
-    config.params['max_centroids']= 20
-    config.params['init_size']= 1000
-    config.params['batch_size']= 100
-    config.params['output']=None
+    This function:
+        1. Sets up configuration parameters from command line arguments
+        2. Runs the clustering algorithm on the specified input file
+        3. Handles test mode with synthetic data
+        4. Saves results and generates visualizations if requested
+
+    Configuration (via config.params):
+        - test: Boolean, enables test mode with synthetic data
+        - file_path: Path to input data file
+        - split_char: Delimiter for CSV files
+        - normalize_vecs: Whether to normalize vectors
+        - max_centroids: Maximum number of centroids
+        - init_size: Size of initial buffer
+        - batch_size: Number of vectors per batch
+        - output: Path for saving results (optional)
+        - verbosity: Level of output detail
+
+    In test mode:
+        - Uses synthetic 2D random data
+        - Validates mean squared distance
+        - Generates visualization if successful
+    """
+    
+    set_params()  # Set parameters according to the command line           
+    if config.params['test']:
+ 
+      config.params['file_path']= '../../Voltage_Data/synthetic/2drandom10000.csv'
+      config.params['split_char']= ','
+      config.params['normalize_vecs']= False
+
+      config.params['max_centroids']= 20
+      config.params['init_size']= 1000
+      config.params['batch_size']= 100
+      config.params['output']=None
 
     centroids,counters,majority_labels,label_counters,rms=Streaming_Kmeans(config.params['file_path'])
 
