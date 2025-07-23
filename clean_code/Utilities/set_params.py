@@ -1,7 +1,60 @@
+"""
+Parameter Configuration Module for Voltage Dimensional Reduction Pipeline.
+
+This module provides functionality to set and validate configuration parameters
+for the voltage-based dimensional reduction algorithm pipeline. It handles
+command-line argument parsing for various stages of the pipeline including
+data reading, streaming k-means, voltage map computation, and visualization.
+
+The module uses argparse to define and parse command-line arguments, with
+defaults configured for the MNIST dataset. All parameters are stored in
+a central configuration object for access across the pipeline.
+
+Example:
+    Basic usage from command line:
+        $ python main.py --max-centroids 1000 --init-size 5000
+
+    Using custom data file:
+        $ python main.py path/to/data.csv --split_char "," --normalize_vecs
+
+Notes:
+    - Default parameters are optimized for MNIST dataset processing
+    - All intermediate results are saved in a single pickle file
+    - The configuration is shared across pipeline stages through the config module
+"""
+
 import argparse
 from Utilities import config
 
 def set_params():
+    """
+    Set and validate command-line parameters for the pipeline.
+
+    This function defines all available command-line arguments, their types,
+    default values, and help messages. It also performs validation on the
+    provided values to ensure they meet requirements.
+
+    The parameters are grouped into several categories:
+    - Data file reading parameters
+    - Streaming k-means parameters
+    - Voltage map computation parameters
+    - Intermediate results storage parameters
+    - Landmark selection parameters
+    - Visualization parameters
+    - Miscellaneous parameters
+
+    Returns:
+        None. Parameters are stored in config.params dictionary.
+
+    Raises:
+        ValueError: If any parameter validation fails (e.g., negative values
+            for parameters that should be positive).
+
+    Example:
+        >>> set_params()  # Called at start of pipeline
+        >>> print(config.params['max_centroids'])  # Access parameters anywhere
+        1000
+    """
     parser = argparse.ArgumentParser(description="Set parameters for the streaming centroids algorithm.")
     ## defaults are set for the MNIST dataset
 

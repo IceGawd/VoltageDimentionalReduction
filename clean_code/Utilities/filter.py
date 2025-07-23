@@ -31,6 +31,10 @@ def filter_by_voltage(voltage_map: VoltageMap,
         >>> filtered_points, mask = filter_by_voltage(voltage_map, points, threshold=0.7)
         >>> print(f"Kept {mask.sum()} points out of {len(points)}")
     """
+    # Validate threshold
+    if not 0 <= threshold <= 1:
+        raise ValueError("Threshold must be between 0 and 1")
+    
     # Get voltage maps as a matrix (landmarks × points)
     voltages = voltage_map.all_solutions()
     above_threshold = np.sum(voltages >= threshold, axis=1)
@@ -65,6 +69,10 @@ def partition_space(voltage_map: VoltageMap,
         >>> for i, part in enumerate(partitions):
         ...     print(f"Partition {i} contains {part.sum()} points")
     """
+    # Validate threshold
+    if not 0 <= threshold <= 1:
+        raise ValueError("Threshold must be between 0 and 1")
+
     # Get voltage maps as a matrix (landmarks × points)
     voltages = voltage_map.all_solutions()
     
