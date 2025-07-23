@@ -1,28 +1,81 @@
+"""
+Voltage Map Collection for Dimensionality Reduction
+
+This module manages collections of voltage solutions computed from multiple landmarks
+in an electrical network. It provides functionality to store, organize, and analyze
+voltage distributions across different landmark configurations.
+
+The voltage maps are used in the dimensionality reduction process, where each map
+represents how electrical potential spreads from a specific landmark through the
+network of points.
+
+Example:
+    >>> from voltagemap import VoltageMap
+    >>> vmap = VoltageMap()
+    >>> # Add solutions from multiple landmarks
+    >>> vmap.add_solution(landmark1, voltages1)
+    >>> vmap.add_solution(landmark2, voltages2)
+    >>> # Get combined voltage array for dimensionality reduction
+    >>> V = vmap.voltage_array()
+"""
+
 import landmark
 import solver
 import problem
 
 import numpy as np
-from typing import List, Dict
+from typing import List, Dict, Iterator, Optional
 
 class VoltageMap:
     """
-    Represents a collection of voltage solutions (voltage maps), one for each landmark.
-    Each voltage map corresponds to the solution from applying a Solver to a Problem with a specific Landmark.
+    Collection of voltage solutions for multiple landmarks in a resistance network.
+
+    This class manages voltage distributions computed from different landmark points,
+    storing both the landmark information and corresponding voltage solutions.
+    It provides methods to manipulate, sort, and analyze these solutions for
+    dimensionality reduction purposes.
+
+    Attributes:
+        entries (List[Dict]): List of dictionaries, each containing:
+            - landmark: Landmark object defining voltage source
+            - voltages: np.ndarray of computed voltages
+            - advantage: Optional quality metric for the solution
+
+    Note:
+        - Solutions can be sorted by advantage or other metrics
+        - Supports iteration over voltage solutions
+        - Provides methods to combine solutions into arrays
+        - Handles construction from problems and landmark sets
     """
 
     def __init__(self) -> None:
         """
-        Initializes an empty Map.
-        """
-        self.entries: list = []  # (landmark, voltages, advantage)
+        Initialize an empty voltage map collection.
 
-    def set_advantages(self, advantage: float, quantity="advantage") -> None:
+        Creates a new VoltageMap instance with no entries. Solutions can be
+        added later using add_solution() or created from a problem using
+        from_problem_and_landmarks().
         """
-        Sets the advantage for all entries in the map to a specific value.
+        self.entries: List[Dict] = []  # Stores (landmark, voltages, advantage)
+
+    def set_advantages(self, advantage: float, quantity: str = "advantage") -> None:
+        """
+        Set a quality metric value for all voltage solutions.
+
+        Updates the specified quality metric (default: 'advantage') for all
+        entries in the voltage map. This can be used to score or rank different
+        solutions based on their effectiveness.
 
         Args:
-            advantage (float): The advantage value to set for all entries.
+            advantage (float): The value to set for the quality metric.
+            quantity (str, optional): Name of the quality metric to set.
+                Defaults to "advantage".
+
+        Example:
+            >>> vmap = VoltageMap()
+            >>> # Add some solutions...
+            >>> vmap.set_advantages(0.5)  # Set default advantage
+            >>> vmap.set_advantages(0.8, "quality_score")  # Set custom metric
         """
         for i in range(len(self.entries)):
             self.entries[i][quantity] = advantage
@@ -40,18 +93,47 @@ class VoltageMap:
             "voltages":voltages})
 
 
-    def sort_by_advantage(self, quantity="advantage",reverse=True) -> None:
+    def sort_by_advantage(self, quantity: str = "advantage", reverse: bool = True) -> None:
         """
-        Sorts the entries by the quantity (default advantage).
+        Sort voltage solutions by their quality metric.
+
+        Sorts the entries in the voltage map based on the specified quality
+        metric. This is useful for ranking solutions or selecting the best
+        landmarks based on some criterion.
+
+        Args:
+            quantity (str, optional): The metric to sort by. Defaults to "advantage".
+            reverse (bool, optional): If True, sort in descending order
+                (highest value first). If False, sort in ascending order.
+                Defaults to True.
+
+        Note:
+            The specified quantity must exist in all entries. If an entry
+            is missing the quantity, a KeyError will be raised.
         """
         self.entries.sort(key=lambda x: x[quantity], reverse=reverse)
 
     def all_solutions(self) -> np.ndarray:
         """
-        Retrieves all voltage maps as a stacked 2D array (landmarks x points).
+        Get all voltage solutions as a transposed 2D array.
+
+        Combines all voltage solutions into a single array where each row
+        represents a point and each column represents a landmark's voltage
+        distribution.
 
         Returns:
-            np.ndarray: 2D array of shape (num_landmarks, num_points)
+            np.ndarray: 2D array of shape (num_points, num_landmarks) where:
+                - Each column is a voltage solution from one landmark
+                - Each row contains all landmark voltages for one point
+
+        Example:
+            >>> vmap = VoltageMap()
+            >>> # Add solutions for 3 landmarks on 100 points...
+            >>> V = vmap.all_solutions()  # Shape: (100, 3)
+
+        Note:
+            This method transposes the stacked solutions to match the
+            expected format for dimensionality reduction algorithms.
         """
         V=np.stack([E['voltages'] for E in self.entries], axis=0)
         return V.T
@@ -96,17 +178,42 @@ class VoltageMap:
 
     ##YF:Does this belong here?
     @staticmethod
-    def from_problem_and_landmarks(problem: problem.Problem, landmarks: list[landmark.Landmark], solver_cls: solver.Solver) -> "VoltageMap":
+    def from_problem_and_landmarks(
+        problem: problem.Problem,
+        landmarks: List[landmark.Landmark],
+        solver_cls: type[solver.Solver]
+    ) -> "VoltageMap":
         """
-        Constructs a VoltageMap by solving the Problem for each landmark.
+        Create a VoltageMap by solving a problem for multiple landmarks.
+
+        This factory method automates the process of:
+        1. Creating a solver for the given problem
+        2. Computing voltage solutions for each landmark
+        3. Collecting all solutions into a VoltageMap
 
         Args:
-            problem: An instance of a Problem class.
-            landmarks (List[Landmark]): List of Landmark instances.
-            solver_cls: A Solver class that takes a problem and a landmark.
+            problem (Problem): The resistance network problem to solve.
+                Contains network structure and parameters.
+            landmarks (List[Landmark]): List of landmarks to use as voltage
+                sources. Each landmark specifies a point and voltage.
+            solver_cls (type[Solver]): The Solver class to use for computing
+                voltage distributions. Must implement approximate_voltages().
 
         Returns:
-            VoltageMap: A populated VoltageMap instance.
+            VoltageMap: A new VoltageMap instance containing voltage solutions
+                for all specified landmarks.
+
+        Example:
+            >>> prob = Problem(points, k=10)
+            >>> landmarks = [Landmark(0, 1.0), Landmark(5, 1.0)]
+            >>> vmap = VoltageMap.from_problem_and_landmarks(
+            ...     prob, landmarks, Solver
+            ... )
+
+        Note:
+            The solver_cls must be compatible with the problem and landmark
+            types. It should implement the expected interface for voltage
+            computation.
         """
         voltage_map = VoltageMap()
         for lm in landmarks:
