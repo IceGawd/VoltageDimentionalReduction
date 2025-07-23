@@ -1,5 +1,27 @@
+"""
+Streaming K-Means++ Implementation with FAISS
+
+This module implements a memory-efficient streaming version of the k-means++
+clustering algorithm using FAISS for fast nearest neighbor search. It is designed
+to handle large datasets that don't fit in memory by processing data in batches.
+
+Key Features:
+    - Streaming processing for memory efficiency
+    - FAISS-based distance computations for speed
+    - Automatic normalization constant estimation
+    - Support for normalized and unnormalized vectors
+    - Label tracking for supervised applications
+
+Example:
+    >>> from kmeans import Streaming_Kmeans
+    >>> centroids, counters, label_counts, init_d2, final_d2 = Streaming_Kmeans('data.csv')
+    >>> print(f"Found {len(centroids)} clusters")
+"""
+
 import numpy as np
 import faiss
+from typing import List, Tuple, Optional, Counter as CounterType
+import numpy.typing as npt
 
 from Utilities import config
 from Visualization import generalVisualization
@@ -14,21 +36,41 @@ class StreamingKMeansPlusPlus:
     """
     Implements streaming k-means++ centroid selection using FAISS for efficient distance computation.
 
+    This class implements a streaming version of the k-means++ initialization algorithm.
+    It processes data in batches and maintains a FAISS index for efficient nearest
+    neighbor searches. New centroids are selected probabilistically based on their
+    squared distances to existing centroids.
+
     Attributes:
-        d (int): Dimensionality of vectors.
-        Z (float): Scaling constant for sampling probability.
-        max_centroids (int): Maximum number of centroids to retain.
+        d (int): Dimensionality of the input vectors.
+        Z (float): Scaling constant for sampling probability (max_dist² - min_dist²).
+        shift (float): Minimum squared distance for probability calculation.
+        max_centroids (int): Maximum number of centroids to maintain.
+        index (faiss.IndexFlatL2): FAISS index for efficient distance computation.
+
+    Note:
+        - The algorithm maintains normalized probabilities using Z and shift parameters
+        - FAISS index must be of type IndexFlatL2 for correct distance calculations
+        - Vectors can optionally be normalized before processing
     """
 
-    def __init__(self, d, max_dist2,min_dist2,index):
+    def __init__(self, d: int, max_dist2: float, min_dist2: float, index: faiss.IndexFlatL2) -> None:
         """
-        Initializes the streaming k-means++ class.
+        Initialize the streaming k-means++ algorithm.
 
         Args:
-            d (int): Vector dimensionality.
-            Z (float): Normalization constant for sampling.
-            max_centroids (int): Maximum number of centroids to store.
-            index (faiss.IndexFlatL2): FAISS index for efficient distance computation.
+            d (int): Dimensionality of the input vectors.
+            max_dist2 (float): Maximum squared distance between any two points in initial buffer.
+            min_dist2 (float): Minimum squared distance between any two points in initial buffer.
+            index (faiss.IndexFlatL2): Pre-initialized FAISS index for distance computations.
+
+        Raises:
+            AssertionError: If the provided index is not of type faiss.IndexFlatL2.
+
+        Note:
+            - Z is computed as (max_dist² - min_dist²) for probability normalization
+            - The shift parameter ensures non-negative distance values
+            - max_centroids is loaded from the global config
         """
         self.d = d
         self.Z = max_dist2 - min_dist2  # Normalization constant for sampling probabilities
@@ -49,7 +91,8 @@ class StreamingKMeansPlusPlus:
             index (faiss.IndexFlatL2): FAISS index of centroids.
 
         Returns:
-            np.ndarray: Squared distances for each point in X.
+            D: Squared distances for each point in X to the nearest centroid.
+            I: Indices of the nearest centroids in the index.
         """
         if self.index is None or self.index.ntotal == 0:
             print("Index is empty, returning infinity distances.")
@@ -59,7 +102,7 @@ class StreamingKMeansPlusPlus:
 
     def update(self, X_batch):
         """
-        Updates centroid list with new vectors selected via probabilistic sampling.
+        Add a centroid to the list via probabilistic sampling. (Similar to KMeans++)
 
         Args:
             X_batch (np.ndarray): Normalized batch of vectors.
@@ -95,18 +138,42 @@ class StreamingKMeansPlusPlus:
 
 
 # ------------------- Streaming_Kmeans----------
-def Streaming_Kmeans(filepath):
-
+def Streaming_Kmeans(filepath: str) -> Tuple[npt.NDArray, npt.NDArray, List[Optional[CounterType]], float, float]:
     """
-    Main function to perform streaming k-means++ with FAISS.
+    Perform streaming k-means++ clustering with FAISS.
 
-    Steps:
-        1. Estimate normalization constant Z from an initial buffer.
-        2. Select centroids incrementally using streaming batches.
-        3. update centroids using a streaming version of the Kmeans algorithm
-        4. Save final centroids to a .npy file.
+    This function implements a complete streaming k-means++ pipeline, including initialization
+    and refinement. It processes data in batches to handle large datasets efficiently.
 
-    parameters are passed through config.params, see listing of parameters in argparse section.
+    Algorithm Steps:
+        1. Initialize: Read initial buffer to estimate distance parameters
+            - Compute pairwise distances using FAISS
+            - Determine max_dist² and min_dist² for probability scaling
+        2. Select Centroids: Stream data to select initial centroids
+            - Use distance-based probabilistic sampling
+            - Continue until max_centroids is reached
+        3. Refine Centroids: Stream data twice to update centroids
+            - First pass: Assign points and update centroids
+            - Second pass: Further refine centroids
+            - Track label distributions for each centroid
+
+    Args:
+        filepath (str): Path to the input data file containing vectors.
+
+    Returns:
+        Tuple containing:
+            - centroids (np.ndarray): Final centroid vectors (shape: [n_centroids, d])
+            - counters (np.ndarray): Number of points assigned to each centroid
+            - label_counts (List[Counter]): Distribution of labels for each centroid
+            - initial_mean_d2 (float): Initial mean squared distance to centroids
+            - mean_d2 (float): Final mean squared distance to centroids
+
+    Note:
+        Configuration parameters are read from config.params:
+            - 'init_size': Size of initial buffer for parameter estimation
+            - 'batch_size': Number of vectors to process per batch
+            - 'max_centroids': Maximum number of centroids to select
+            - 'normalize_vecs': Whether to normalize input vectors
     """
     reader = Reader(filepath)
 
@@ -142,7 +209,7 @@ def Streaming_Kmeans(filepath):
     print(f"\nEstimated max pairwise distance squared, FAISS) = {max_dist2:.4f}")
     print(f" Estimated minimum distance squared = {min_dist2:.4f}")
 
-    # Step 2: Streaming centroid selection
+    # Step 2: Streaming centroid selection using kmeans++ like rule
     ######################################
     # For seeding, pick a random vector from the buffer
     centroids = buffer[:10,:]
@@ -162,105 +229,171 @@ def Streaming_Kmeans(filepath):
 
     # Step 3. update centroids using a streaming version of the Kmeans algorithm
     ######################################
-    centroids = skmeans.get_centroids()
+    centroids = skmeans.get_centroids()  #extract centroids from the faiss index
     counters=np.ones(centroids.shape[0], dtype=np.int32)  # Initialize counters for each centroid
-    total_d2 = 0    # Initialize total distance squared to zero
-    initial_mean_d2=0
+    
     total_count = 0  # Total number of vectors processed
      # compute for each centroid a label that is the majority of examples that are assigned to it
-    # Initialize a list to store the labels assigned to each centroid
-    centroid_labels = [ [] for _ in range(centroids.shape[0]) ]
 
+
+    def refine_centroids(centroids, vectors,labels):
+        """ Refine centroids using the current batch of vectors. This is done based on the observation that with the current update rule 
+        some centroids are assigned many vectors and some none. The idea here is to eliminate those that are assigned too few and on the other hand split those
+        that are assigned too many vectors.
+        """
+
+        _, vec_assignments = skmeans._compute_distances_squared(vectors, skmeans.index)
+        # Assign vectors and labels to centroids
+
+        # Create a dictionary to hold centroid statistics
+        centroids = skmeans.get_centroids()  # Get the current centroids from the index
+        centroid_stats = {i:{'centroid':centroids[i], 'vectors': [], 'labels': []} for i in range(centroids.shape[0])}
+
+        for idx, centroid_idx in enumerate(vec_assignments):
+            centroid_stats[centroid_idx]['labels'].append(labels[idx])
+            centroid_stats[centroid_idx]['vectors'].append(vectors[idx])
+
+        # Compute RMS error and updated mid-point for each centroid
+        rms=0
+        alpha=config.params['alpha']
+        for i in centroid_stats:
+            if len(centroid_stats[i]['vectors']) > 0:
+                rms += np.mean(np.square(centroid_stats[i]['vectors'] - centroid_stats[i]['centroid']))
+                old_centroid = centroid_stats[i]['centroid']
+                vectors_mean = np.mean(centroid_stats[i]['vectors'], axis=0)
+                new_centroid= vectors_mean*alpha + old_centroid*(1-alpha)
+                centroid_stats[i]['centroid'] = new_centroid
+        rms = np.sqrt(rms / len(centroid_stats))
+
+        too_small=[]
+        # collect information about too large and too small centroids
+        for i in range(len(centroid_stats)):
+            if len(centroid_stats[i]['vectors']) ==0:
+                too_small.append(i)
+
+        sizes = np.array([len(centroid_stats[i]['vectors']) for i in centroid_stats])
+        order = np.argsort(sizes)[::-1]  # Sort indices by size in descending order
+        sorted_sizes = np.sort(sizes)[::-1]  # Sorted sizes in descending order
+        print(f"sorted_sizes={sorted_sizes[:5]}")  # Print the top 5 sizes for debugging
+        if config.params['equalize_centroids']:
+            ## Remove centroids that are too small
+            for j in range(len(too_small)):
+                i1 = too_small[j]   #points to the j'th small centroid
+                i2 = order[j] # points to the j'th largest centroid
+                #define two centroids that spit the largest centroid
+                #print(f"{len(centroid_stats[i2]['vectors'])} vectors assigned to centroid {i2}")
+
+                # perturb the centroid vector to create a new centroid
+                v = centroid_stats[i2]['centroid']  # Current centroid vector
+                d = v.shape[0]  # Dimensionality of the centroid
+                e = np.random.randn(d)
+                e = e * 1e-20 / np.linalg.norm(e)  # Normalize to unit length
+
+                centroid_stats[i1]['centroid'] = v+e
+
+
+        new_centroids = np.array([centroid_stats[i]['centroid'] for i in centroid_stats])
+        if config.params['normalize_vecs']:
+            centroids=centroids/ np.linalg.norm(centroids, axis=1, keepdims=True)
+
+        # Update faiss index with new centroids
+        
+        skmeans.index.reset()  # Reset index to ensure it's empty
+        skmeans.index.add(new_centroids)  # Add the final centroids to the index
+        finished=not config.params['equalize_centroids'] or len(too_small)==0
+        return centroid_stats, rms,len(too_small),finished
+
+    
+        
     for vectors, labels in reader.stream_batches(config.params['batch_size']):
+        if len(vectors)<config.params['batch_size']:
+            break
         if config.params['normalize_vecs']:
             vectors = vectors / np.linalg.norm(vectors, axis=1, keepdims=True)
-        D, vec_assignments = skmeans._compute_distances_squared(vectors, index)
-        # Assign labels to centroids
-        for idx, centroid_idx in enumerate(vec_assignments):
-            centroid_labels[centroid_idx].append(labels[idx])
-        # Count and average the vectors assigned to each centroid using numpy
-        unique_values, counts = np.unique(vec_assignments, return_counts=True)
-        for i, count in zip(unique_values, counts):
-            if count > 0:
-                # Update the centroid with the new vectors
-                centroids[i] = (centroids[i] * counters[i] + np.sum(vectors[vec_assignments == i], axis=0)) \
-                                / (counters[i] + count)
-                counters[i] += count
-                total_d2 += np.sum(D[vec_assignments == i])  # Sum of squared distances for this centroid
-                total_count += count
-        mean_d2 = total_d2 / total_count if total_count > 0 else 0
-        if initial_mean_d2 == 0:
-            initial_mean_d2 = mean_d2
-        print('mean d2=', mean_d2, end='')
-        skmeans.index.reset()  # Reset index to ensure it's empty
-        skmeans.index.add(centroids)  # Add the final centroids to the index
 
-    # Compute majority label for each centroid
-    label_counts = []
-    for labels_list in centroid_labels:
-        if labels_list:
-            label_count = Counter(labels_list)
-        else:
-            label_count = None
-        label_counts.append(label_count)
+        finished = False
+        while not finished:
+            # Refine centroids using the current batch of vectors
+            # This function will return the updated index and centroid statistics
+            print(f"\nrefining vectors")
+            centroid_stats, rms, len_too_small, finished = refine_centroids(centroids, vectors, labels)
+            print(f"too_small={len_too_small}, rms={rms}, finished={finished}")
+
     
-    for vectors, labels in reader.stream_batches(config.params['batch_size']):
-        if config.params['normalize_vecs']:
-            vectors=vectors/ np.linalg.norm(vectors, axis=1, keepdims=True)
-        D,vec_assignments= skmeans._compute_distances_squared(vectors, index)
-        #count and average the vectors assigned to each centroid using numpy
-        unique_values,counts=np.unique(vec_assignments, return_counts=True)
-        for i, count in zip(unique_values, counts):
-            if count > 0:
-                # Update the centroid with the new vectors
-                centroids[i] = (centroids[i] * counters[i] + np.sum(vectors[vec_assignments == i], axis=0)) \
-                                / (counters[i] + count)
-                counters[i] += count
-                total_d2 += np.sum(D[vec_assignments == i])  # Sum of squared distances for this centroid
-                total_count += count
-        mean_d2= total_d2 / total_count if total_count > 0 else 0
-        if initial_mean_d2 == 0:
-            initial_mean_d2 = mean_d2
-        print('mean d2=', mean_d2,end='')
-        skmeans.index.reset()  # Reset index to ensure it's empty
-        skmeans.index.add(centroids)  # Add the final centroids to the index
+    # Compute majority label for each centroid
+    majority_labels = []
+    label_counters =  []
+    for i in centroid_stats.keys():
+        labels_list = centroid_stats[i]['labels']
+        if labels_list:
+            majority_label = Counter(labels_list).most_common(1)[0][0]
+            label_counter = Counter(labels_list)
+        else:
+            majority_label = None
+            label_counter = None
+        majority_labels.append(majority_label)
+        label_counters.append(label_counter)
+    
 
     # Close the reader 
     print("\nClosing reader...")
     reader.close()
 
-    return centroids, counters, label_counts, initial_mean_d2, mean_d2
+    return centroids, counters, majority_labels, label_counters, rms
 
 
 # ------------------- Main ---------------------
 from Utilities.set_params import set_params
 
-def main():
+def main() -> None:
+    """
+    Main entry point for the streaming k-means++ clustering algorithm.
+
+    This function:
+        1. Sets up configuration parameters from command line arguments
+        2. Runs the clustering algorithm on the specified input file
+        3. Handles test mode with synthetic data
+        4. Saves results and generates visualizations if requested
+
+    Configuration (via config.params):
+        - test: Boolean, enables test mode with synthetic data
+        - file_path: Path to input data file
+        - split_char: Delimiter for CSV files
+        - normalize_vecs: Whether to normalize vectors
+        - max_centroids: Maximum number of centroids
+        - init_size: Size of initial buffer
+        - batch_size: Number of vectors per batch
+        - output: Path for saving results (optional)
+        - verbosity: Level of output detail
+
+    In test mode:
+        - Uses synthetic 2D random data
+        - Validates mean squared distance
+        - Generates visualization if successful
+    """
     
-    set_params()  #set parameters accordinig to the command line            
+    set_params()  # Set parameters according to the command line           
     if config.params['test']:
-        
-        config.params['file_path']= '../../Voltage_Data/synthetic/2drandom10000.csv'
-        config.params['split_char']= ','
-        config.params['normalize_vecs']= False
+ 
+      config.params['file_path']= '../../Voltage_Data/synthetic/2drandom10000.csv'
+      config.params['split_char']= ','
+      config.params['normalize_vecs']= False
 
-        config.params['max_centroids']= 20
-        config.params['init_size']= 1000
-        config.params['batch_size']= 100
-        config.params['output']=None
+      config.params['max_centroids']= 20
+      config.params['init_size']= 1000
+      config.params['batch_size']= 100
+      config.params['output']=None
 
-    centroids,counters,label_counts,inital_mean_d2,mean_d2=Streaming_Kmeans(config.params['file_path'])
+    centroids,counters,majority_labels,label_counters,rms=Streaming_Kmeans(config.params['file_path'])
 
     # Finalization and saving
-    if config.params['verbosity']>=1:
-        print(f"\nNumber of centroids in index after finalization: {centroids.shape[0]}")
-        print('Initial mean squared distance:', inital_mean_d2)
-        print('Final mean squared distance:', mean_d2)
-        if config.params['test']:
-            if mean_d2>0.04 or mean_d2<0.035:
-                raise ValueError(f"test failed, mean_d2={mean_d2} is outside the range [0.035,0.04]")
-            else:
-                print('Test Passed')
+    print(f"\nNumber of centroids in index after finalization: {centroids.shape[0]}")
+    print('Final mean squared distance:', rms)
+    if config.params['test']:
+        if rms>0.04 or rms<0.035:
+            raise ValueError(f"test failed, rms={rms} is outside the range [0.035,0.04]")
+        else:
+            print('Test Passed')
     if config.params['output'] is not None:
         np.savez(config.params['output'], centroids=centroids, counters=counters, label_counts=label_counts,)
         print(f"Centroids saved to {config.params['output']}")

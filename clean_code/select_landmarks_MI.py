@@ -1,3 +1,27 @@
+"""
+Mutual Information-based Landmark Selection
+
+This module implements an information-theoretic approach to landmark selection
+for dimensionality reduction. It uses mutual information (MI) between voltage
+patterns and centroid identities to select landmarks that maximize the
+information content about the data structure.
+
+The algorithm employs a greedy search strategy to:
+1. Evaluate individual landmarks based on their MI scores
+2. Incrementally build a set of landmarks that jointly maximize MI
+3. Consider interactions between landmarks through cumulative MI
+
+Configuration (via config.params):
+    NoOfLandmarks (int): Number of landmarks to select
+    DepthOfLandmarkSearch (int): How many candidates to consider at each step
+
+Example:
+    >>> from select_landmarks_MI import select_landmarks
+    >>> # Assuming we have voltage patterns
+    >>> selected = select_landmarks(all_voltages)
+    >>> print(f"Selected {len(selected)} informative landmarks")
+"""
+
 import voltagemap   
 import numpy as np
 from Utilities import config
@@ -5,10 +29,48 @@ from copy import copy
 from Mutual_Information import mutual_information
 from Utilities.set_params import set_params
 from Utilities.timer import Timer
+from typing import Optional
 
-def select_landmarks(all_voltages):
-    """Selects landmarks as a subset of all_voltages. Uses gready search on the mutual information between 
-    the landmarks and the identity of the centroid"""
+def select_landmarks(all_voltages: voltagemap.VoltageMap) -> voltagemap.VoltageMap:
+    """
+    Select landmarks using mutual information maximization.
+
+    This function implements a greedy algorithm that selects landmarks based on
+    their mutual information (MI) with centroid identities. The selection process:
+    1. Computes individual MI scores for each landmark
+    2. Sorts landmarks by their individual informativeness
+    3. Greedily adds landmarks that maximize cumulative MI
+
+    Algorithm Steps:
+        1. Initialize: Compute MI_1 (individual MI scores) for all landmarks
+        2. Sort by MI_1 to prioritize individually informative landmarks
+        3. Iteratively select N landmarks:
+           - For each step, evaluate MI of candidate combinations
+           - Choose landmark that maximizes cumulative MI
+           - Update rankings and continue
+
+    Args:
+        all_voltages (VoltageMap): Complete set of voltage patterns where each
+            entry contains:
+            - landmark: The landmark point
+            - voltages: Computed voltage distribution
+            - MI_1: Will store individual MI score
+            - MI_cumul: Will store cumulative MI score
+
+    Returns:
+        VoltageMap: Selected subset of landmarks that:
+            - Maximizes mutual information with centroid identities
+            - Contains exactly N landmarks (from config)
+            - Is ordered by cumulative MI contribution
+
+    Raises:
+        ValueError: If requested number of landmarks exceeds available landmarks
+
+    Note:
+        Uses parameters from config:
+        - NoOfLandmarks (N): Number of landmarks to select
+        - DepthOfLandmarkSearch (D): Number of candidates to evaluate at each step
+    """
     timer = Timer()
     timer.mark("Starting landmark selection based on mutual information")
     # Initialize the map
@@ -56,6 +118,25 @@ def select_landmarks(all_voltages):
     return voltage_map
 
 if __name__ == "__main__": 
+    """
+    Main execution script for landmark selection.
+
+    This script:
+    1. Loads parameters from command line or defaults
+    2. Reads voltage patterns from a pickle file
+    3. Performs MI-based landmark selection
+    4. Saves selected landmarks back to the same file
+
+    The pickle file should contain a dictionary with:
+    - 'all_voltages': VoltageMap with all computed patterns
+    - 'voltage_map': Will be added/updated with selected landmarks
+
+    Configuration:
+        Use command line arguments to set:
+        - save_data: Path to pickle file with voltage patterns
+        - NoOfLandmarks: Number of landmarks to select
+        - DepthOfLandmarkSearch: Search depth for selection
+    """
     set_params()  # Set parameters from command line or default values
 
     import pickle
