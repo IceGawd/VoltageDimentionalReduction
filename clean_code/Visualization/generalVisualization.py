@@ -36,6 +36,28 @@ def plot_centroids(centroids, counters, majority_labels, out_file=None):
 
 	visualHelpers.standard_save_display(out_file)
 
+def plot_with_landmarks_colored(data_to_save, transformation="mds"):
+	va = data_to_save['voltage_map'].voltage_array()
+	centroids = visualHelpers.transform(va, transformation)
+	all_voltages = data_to_save['all_voltages'].entries
+	
+	# Collect all landmark indices
+	landmark_indices = {entry['landmark'].index for entry in all_voltages}
+
+	plt.figure(figsize=(8, 6))
+	for i, point in enumerate(centroids):
+		if np.max(va[i]) == 1:
+			plt.scatter(point[0], point[1], color='yellow', label='Landmark' if i == list(landmark_indices)[0] else "")
+		else:
+			plt.scatter(point[0], point[1], color='blue', s=10)
+
+	plt.title("Centroid Points with Landmarks Highlighted")
+	plt.xlabel("X")
+	plt.ylabel("Y")
+	plt.legend()
+	plt.grid(True)
+	plt.show()
+
 def plot_landmark_covariance(voltage_map, out_file=None):
 	voltages = [entry['voltages'] for entry in voltage_map.entries]
 	plt.imshow(np.cov(voltages))

@@ -6,7 +6,7 @@ from sklearn.manifold import MDS
 import math
 import itertools
 from Utilities import config
-
+import colorsys
 
 def get_distinct_colors(N):
 	def inverse_pairwise_squared_distance_sum(points):
@@ -57,10 +57,23 @@ def standard_save_display(out_file):
 	if not ('no-show-plots' in config.params and config.params['no-show-plots']):
 		plt.show()
 
-import colorsys
-
 def generate_vivid_colors(n):
     """Generate N vivid RGB colors for visibility on black background."""
     C=[colorsys.hsv_to_rgb(h, 1.0, 1.0)  # hue ∈ [0, 1), full saturation and brightness
        for h in [i / n for i in range(n)]]
     return np.array(C)
+
+def compute_image_size(transformed_points, percent_size):
+	x_bound = (transformed_points[:, 0].min(), transformed_points[:, 0].max())
+	y_bound = (transformed_points[:, 1].min(), transformed_points[:, 1].max())
+	range_sum = (x_bound[1] + y_bound[1] - x_bound[0] - y_bound[0])
+	return (x_bound, y_bound, range_sum * percent_size / 2)
+
+def setup_figure(x_bound, y_bound, image_size, landmarkSize, title):
+	fig, ax = plt.subplots(figsize=(12, 10))
+	ax.set_xlim(x_bound[0] - image_size * landmarkSize, x_bound[1] + image_size * landmarkSize)
+	ax.set_ylim(y_bound[0] - image_size * landmarkSize, y_bound[1] + image_size * landmarkSize)
+	ax.set_facecolor('black')
+	fig.patch.set_facecolor('black')
+	plt.title(title)
+	return fig, ax
