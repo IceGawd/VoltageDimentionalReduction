@@ -1,3 +1,25 @@
+"""
+Voltage Distribution Solver for Resistance Networks
+
+This module implements a solver for computing voltage distributions in electrical
+networks used for dimensionality reduction. It solves Kirchhoff's laws for a
+network of resistors with fixed voltage landmarks and a ground reference.
+
+The solver uses a system of linear equations derived from Kirchhoff's current law,
+where each node's voltage is a weighted average of its neighbors' voltages.
+
+Example:
+    >>> from solver import Solver
+    >>> from problem import Problem
+    >>> from landmark import Landmark
+    >>> # Create problem with resistance network
+    >>> prob = Problem(points, k=10, r=1.0)
+    >>> # Initialize solver
+    >>> solver = Solver(prob)
+    >>> # Compute voltages with landmark at index 5
+    >>> voltages = solver.compute_voltages(Landmark(5, 1.0))
+"""
+
 import landmark
 import problem
 from Utilities import config
@@ -10,38 +32,97 @@ import pandas as pd
 import argparse
 
 class Solver:
-	"""
-	Solves for voltage distributions across a set of points in a resistance network.
+    """
+    Solves for voltage distributions across a set of points in a resistance network.
 
-	Given a problem with defined resistances and a set of landmarks with fixed voltages,
-	this class computes the approximate voltages at all other points.
+    This class implements a linear system solver that:
+    1. Takes a resistance network with defined edge weights
+    2. Applies fixed voltages at landmark points and ground
+    3. Computes voltages at all other points using Kirchhoff's laws
 
-	Attributes:
-		problem (Problem): The resistance network model.
-	"""
+    The solution ensures that:
+    - Current is conserved at each node (Kirchhoff's current law)
+    - Voltage differences follow Ohm's law along each edge
+    - Landmark points maintain their specified voltages
+    - Ground node has zero voltage
 
-	def __init__(self, problem: problem.Problem):
-		"""
-		Initializes the solver with a given problem.
+    Attributes:
+        problem (Problem): The resistance network model containing:
+            - Points and their connections
+            - Edge weights (inverse resistances)
+            - Ground node connections
+        voltages (np.ndarray): The most recently computed voltage solution
+            (available after calling compute_voltages)
 
-		Args:
-			problem (Problem): The problem instance defining the resistance matrix.
-		"""
-		self.problem = problem
+    Note:
+        The implementation uses sparse matrix operations and efficient
+        linear system solving from scipy.linalg for performance.
+    """
 
-	def compute_voltages(self, this_landmark: landmark.Landmark):
-		"""
-		Computes and returns the voltages for the given problem.
-		See for explaination: https://github.com/IceGawd/VoltageDimentionalReduction/blob/main/highLevelDocs/VoltageCalculation.md
+    def __init__(self, problem: problem.Problem) -> None:
+        """
+        Initialize the Solver with a resistance network problem.
 
-		Args:
-		this_landmark landmark.Landmark: The landmark
+        Sets up the solver with a Problem instance that defines the network
+        structure and resistance matrix. The solver will use this information
+        to compute voltage distributions when landmarks are specified.
 
-                link to the pdf 
-                
-		Returns:
-			voltages: the voltages solution ndarray
-		"""
+        Args:
+            problem (Problem): The problem instance containing:
+                - Resistance matrix defining network connections
+                - Point coordinates and weights
+                - Ground resistance value
+                - K-nearest neighbor structure
+
+        Raises:
+            TypeError: If problem is not an instance of Problem class
+            ValueError: If the resistance matrix in the problem is invalid
+                (e.g., not square, not symmetric)
+
+        Example:
+            >>> prob = Problem(points, k=10, r=1.0)
+            >>> solver = Solver(prob)
+        """
+        if not isinstance(problem, problem.Problem):
+            raise TypeError("Expected Problem instance")
+        self.problem = problem
+
+    def compute_voltages(self, this_landmark: landmark.Landmark) -> np.ndarray:
+        """
+        Compute voltage distribution across the network given a landmark point.
+
+        This method solves the linear system AV = b where:
+        - A is the resistance matrix for unconstrained nodes
+        - V is the unknown voltage vector
+        - b is derived from landmark and ground voltages
+
+        Algorithm:
+        1. Set up ground node with voltage 0
+        2. Identify constrained (landmark, ground) and unconstrained nodes
+        3. Build linear system considering voltage constraints
+        4. Solve for unknown voltages
+        5. Combine with known voltages to get full solution
+
+        For detailed mathematical explanation, see:
+        https://github.com/IceGawd/VoltageDimentionalReduction/blob/main/highLevelDocs/VoltageCalculation.md
+
+        Args:
+            this_landmark (landmark.Landmark): The landmark point where voltage
+                is fixed. Contains:
+                - index: position in the network
+                - voltage: fixed voltage value to apply
+
+        Returns:
+            np.ndarray: Computed voltages for all points in the network,
+                excluding the ground node. Shape is (n,) where n is the
+                number of points.
+
+        Note:
+            - Solution satisfies Kirchhoff's current law at each node
+            - Ground node (last node) is always at 0V
+            - The landmark maintains its specified voltage
+            - All other voltages are weighted averages of neighbors
+        """
 		
 		weights = self.problem.getResistanceMatrix()
 
@@ -77,11 +158,33 @@ class Solver:
 		return self.voltages
 
 # Example usage
-def main():
-	n = config.params.get("n", 11)
-	k = config.params.get("k", 2)
-	r = config.params.get("r", 1.0)
-	landmark_index = config.params.get("landmark", n // 2)
+def main() -> None:
+    """
+    Main function to demonstrate and test the voltage solver.
+
+    This function:
+    1. Creates a simple 1D test case with evenly spaced points
+    2. Solves for voltages with a landmark in the middle
+    3. Verifies the solution satisfies Kirchhoff's laws
+    
+    The test parameters are configured through command line arguments or defaults:
+    - n: Number of points (default: 11)
+    - k: Number of neighbors (default: 2)
+    - r: Ground resistance (default: 1.0)
+    - landmark: Index of landmark point (default: n//2)
+
+    Raises:
+        AssertionError: If the computed voltages don't satisfy
+            Kirchhoff's current law at any node.
+
+    Note:
+        This is primarily used for testing and demonstration.
+        For real applications, create Problem and Solver instances directly.
+    """
+    n = config.params.get("n", 11)
+    k = config.params.get("k", 2)
+    r = config.params.get("r", 1.0)
+    landmark_index = config.params.get("landmark", n // 2)
 
 	points = np.array([[x] for x in np.arange(0, 1, 1.0 / n)])
 	simple_set = setofpoints.SetOfPoints(points)

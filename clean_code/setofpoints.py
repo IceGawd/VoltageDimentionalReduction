@@ -1,26 +1,85 @@
+"""
+Weighted Point Set Management Module
+
+This module provides a class for managing collections of points in d-dimensional
+space, where each point has an associated weight. It supports operations like
+normalization, subsetting, and point access while maintaining weight consistency.
+
+The SetOfPoints class is particularly useful in dimensionality reduction and
+clustering applications where point weights influence the importance of each
+data point in the analysis.
+
+Example:
+    >>> import numpy as np
+    >>> from setofpoints import SetOfPoints
+    >>> # Create 100 2D points with equal weights
+    >>> points = np.random.randn(100, 2)
+    >>> point_set = SetOfPoints(points)
+    >>> # Create weighted points
+    >>> weights = np.random.uniform(0, 1, 100)
+    >>> weighted_set = SetOfPoints(points, weights)
+"""
+
 import numpy as np
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Union, List
+import numpy.typing as npt
 
 class SetOfPoints:
-	"""
-	Represents a set of points in a d-dimensional space along with associated weights.
+    """
+    A collection of points in d-dimensional space with associated weights.
 
-	Attributes:
-		points (np.ndarray): A 2D numpy array of shape (n, d), where each row is a point in d-dimensional space.
-		weights (np.ndarray): A 1D numpy array of shape (n,) representing the weight for each point.
-	"""
+    This class manages a set of points where each point has an associated weight,
+    maintaining consistency between points and weights, and providing operations
+    for manipulation and access. Weights are automatically normalized to sum to 1.
 
-	def __init__(self, points: np.ndarray, weights: Optional[np.ndarray] = None):
-		"""
-		Initializes a SetOfPoints instance.
+    Attributes:
+        points (np.ndarray): Points array of shape (n, d), where:
+            - n is the number of points
+            - d is the dimensionality of the space
+            - points[i] is the i-th point's coordinates
+        weights (np.ndarray): Weight array of shape (n,), where:
+            - weights[i] is the normalized weight of points[i]
+            - weights sum to 1.0
+        shape (Tuple[int, int]): Shape tuple (n, d) matching points array
 
-		Args:
-			points (np.ndarray): A (n, d) array of n points in d-dimensional space.
-			weights (Optional[np.ndarray]): A (n,) array of weights corresponding to the points.
+    Note:
+        - All weights are normalized during initialization
+        - Points must be 2D array even for 1D data (use shape (n, 1))
+        - Weights must be non-negative and sum to a positive value
+        - Supports numpy-style indexing and iteration
+    """
 
-		Raises:
-			ValueError: If points and weights have incompatible shapes.
-		"""
+    def __init__(self, points: npt.NDArray, weights: Optional[npt.NDArray] = None) -> None:
+        """
+        Initialize a new weighted point set.
+
+        Creates a set of weighted points, normalizing the weights to sum to 1.
+        If no weights are provided, uniform weights (1/n) are used.
+
+        Args:
+            points (np.ndarray): Array of points with shape (n, d) where:
+                - n is the number of points
+                - d is the dimensionality
+                - Must be a 2D array even for 1D data
+            weights (Optional[np.ndarray], optional): Array of weights with
+                shape (n,). If not provided, uniform weights are used.
+                Weights will be normalized to sum to 1. Defaults to None.
+
+        Raises:
+            TypeError: If points is not a numpy array
+            ValueError: If any of:
+                - points array is not 2D
+                - weights array is not 1D
+                - number of weights doesn't match number of points
+                - weights sum to zero
+
+        Example:
+            >>> # 3 points in 2D with custom weights
+            >>> pts = np.array([[0,0], [1,1], [2,2]])
+            >>> wts = np.array([1.0, 2.0, 1.0])
+            >>> point_set = SetOfPoints(pts, wts)
+            >>> print(point_set.weights)  # Shows normalized weights
+        """
 		
 		if not isinstance(points, np.ndarray):
 			raise TypeError("Points must be a 2Dnumpy array.")
@@ -42,37 +101,86 @@ class SetOfPoints:
 		self.points = points
 		self.shape = points.shape
 
-	def get_point(self, index: int) -> Tuple[np.ndarray, float]:
-		"""
-		Returns a specific point and its weight.
+    def get_point(self, index: int) -> Tuple[npt.NDArray, float]:
+        """
+        Retrieve a specific point and its associated weight.
 
-		Args:
-			index (int): Index of the point to retrieve.
+        Provides convenient access to both the coordinates and weight
+        of a point at the specified index.
 
-		Returns:
-			Tuple[np.ndarray, float]: A tuple containing the point (1D array) and its weight.
-		"""
+        Args:
+            index (int): Index of the point to retrieve. Must be in
+                range [0, n-1] where n is the number of points.
+
+        Returns:
+            Tuple[np.ndarray, float]: Tuple containing:
+                - Point coordinates as 1D array of shape (d,)
+                - Associated normalized weight as float
+
+        Raises:
+            IndexError: If index is out of range
+
+        Example:
+            >>> point_set = SetOfPoints(points)
+            >>> coords, weight = point_set.get_point(0)
+            >>> print(f"Point: {coords}, Weight: {weight:.3f}")
+        """
 		return self.points[index], self.weights[index]
 
-	def normalize_weights(self) -> None:
-		"""
-		Normalizes the weights so that they sum to 1.
-		"""
+    def normalize_weights(self) -> None:
+        """
+        Normalize the weights to sum to 1.0.
+
+        Adjusts all weights proportionally so their sum equals 1 while
+        maintaining their relative ratios. This ensures the weights
+        form a proper probability distribution over the points.
+
+        Raises:
+            ValueError: If all weights are zero (cannot normalize)
+
+        Example:
+            >>> points = np.array([[1,1], [2,2]])
+            >>> weights = np.array([2.0, 3.0])
+            >>> point_set = SetOfPoints(points, weights)
+            >>> point_set.weights  # array([0.4, 0.6])
+
+        Note:
+            This method is called automatically during initialization,
+            but can be used to re-normalize weights if they are
+            modified after creation.
+        """
 		total = np.sum(self.weights)
 		if total == 0:
 			raise ValueError("Total weight is zero. Cannot normalize.")
 		self.weights = self.weights / total
 
-	def subset(self, indices: np.ndarray) -> "SetOfPoints":
-		"""
-		Returns a new SetOfPoints object containing only the selected indices.
+    def subset(self, indices: npt.NDArray[np.int_]) -> "SetOfPoints":
+        """
+        Create a new SetOfPoints containing only specified points.
 
-		Args:
-			indices (np.ndarray): An array of indices to include in the new subset.
+        Creates a new instance containing only the points and weights at
+        the specified indices. The weights in the new set are normalized
+        to sum to 1.
 
-		Returns:
-			SetOfPoints: A new SetOfPoints object with selected points and weights.
-		"""
+        Args:
+            indices (np.ndarray): Integer array of indices to include.
+                Must be valid indices in range [0, n-1].
+
+        Returns:
+            SetOfPoints: New SetOfPoints instance containing:
+                - Selected points at specified indices
+                - Corresponding weights, renormalized to sum to 1
+
+        Example:
+            >>> point_set = SetOfPoints(points)  # 100 points
+            >>> # Select first 10 points
+            >>> subset = point_set.subset(np.arange(10))
+            >>> print(len(subset))  # 10
+
+        Note:
+            The returned subset is a new instance with independent
+            points and weights arrays.
+        """
 		return SetOfPoints(self.points[indices], self.weights[indices])
 
 	def __len__(self) -> int:
@@ -106,11 +214,23 @@ class SetOfPoints:
 		"""
 		self.points[index] = value
 
-	def dimension(self) -> int:
-		"""
-		Returns the dimensionality of the points.
+    def dimension(self) -> int:
+        """
+        Get the dimensionality of the point space.
 
-		Returns:
-			int: The dimension (d) of each point.
-		"""
+        Returns the number of dimensions (d) in which the points exist.
+        This is the second component of the points array shape (n, d).
+
+        Returns:
+            int: Number of dimensions in the point space
+
+        Example:
+            >>> points = np.random.randn(100, 3)  # 100 3D points
+            >>> point_set = SetOfPoints(points)
+            >>> print(point_set.dimension())  # 3
+
+        Note:
+            Even for 1D data, points are stored as 2D array with
+            shape (n, 1), so dimension() will return 1.
+        """
 		return self.points.shape[1]

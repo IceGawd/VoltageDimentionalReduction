@@ -6,6 +6,7 @@ from sklearn.manifold import MDS
 import math
 import itertools
 from Utilities import config
+import colorsys
 
 def get_distinct_colors(N):
 	def inverse_pairwise_squared_distance_sum(points):
@@ -55,6 +56,12 @@ def standard_save_display(out_file):
 		print(f"Plot saved to {out_file}")
 	if not ('no-show-plots' in config.params and config.params['no-show-plots']):
 		plt.show()
+
+def generate_vivid_colors(n):
+    """Generate N vivid RGB colors for visibility on black background."""
+    C=[colorsys.hsv_to_rgb(h, 1.0, 1.0)  # hue ∈ [0, 1), full saturation and brightness
+       for h in [i / n for i in range(n)]]
+    return np.array(C)
 
 def compute_image_size(transformed_points, percent_size):
 	x_bound = (transformed_points[:, 0].min(), transformed_points[:, 0].max())
