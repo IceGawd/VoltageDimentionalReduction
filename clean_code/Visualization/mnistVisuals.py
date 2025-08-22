@@ -62,10 +62,8 @@ def plot_mnist_unlabeled(voltages, data, transformation="mds", landmarkSize=3, a
 	fig.patch.set_facecolor('black')
 	plt.title("Visualization of K-Means MNIST")
 
-	visualHelpers.standard_save_display(out_file)
-
-
-def compute_labels(label_counts,ratio_threshold=0.6, size_threshold=5):
+import config
+def compute_labels(label_counts,ratio_threshold=config.params['ratio_threshold'], size_threshold=5):
     """
     Compute labels based on the label counts, ratio threshold, and size threshold.
     Args:
