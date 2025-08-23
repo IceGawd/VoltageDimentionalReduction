@@ -1,6 +1,5 @@
 import setofpoints
-import landmark
-import solver
+
 from Utilities import config
 
 import numpy as np
@@ -51,7 +50,6 @@ class Problem:
 			np.ndarray: (n+1)x(n+1) resistance matrix with rows summing to 1.
 		"""
 
-		print(type(self.centroids))
 		X = self.centroids.points						# shape (n, d)
 		n = X.shape[0]
 

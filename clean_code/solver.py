@@ -1,6 +1,6 @@
 import landmark
 import problem
-from Utilities import config
+from Utilities import config, timer
 import setofpoints
 
 from typing import Union, List
@@ -20,14 +20,14 @@ class Solver:
 		problem (Problem): The resistance network model.
 	"""
 
-	def __init__(self, problem: problem.Problem):
+	def __init__(self, this_problem: problem.Problem):
 		"""
 		Initializes the solver with a given problem.
 
 		Args:
 			problem (Problem): The problem instance defining the resistance matrix.
 		"""
-		self.problem = problem
+		self.problem = this_problem
 
 	def compute_voltages(self, this_landmark: landmark.Landmark):
 		"""
@@ -44,7 +44,6 @@ class Solver:
 		"""
 		
 		weights = self.problem.getResistanceMatrix()
-
 		n = weights.shape[0]
 
 		ground = landmark.Landmark(n - 1, 0)	
@@ -63,8 +62,8 @@ class Solver:
 
 		# print(A_unconstrained, b_unconstrained)
 
-		v_unconstrained = solve(A_unconstrained, b_unconstrained)
 
+		v_unconstrained = solve(A_unconstrained, b_unconstrained)
 		self.voltages = np.zeros(n)
 
 		for lm in landmarks:
@@ -86,7 +85,7 @@ def main():
 	points = np.array([[x] for x in np.arange(0, 1, 1.0 / n)])
 	simple_set = setofpoints.SetOfPoints(points)
 	simple_problem = problem.Problem(simple_set, k = k, r = r)
-	simple_solver = Solver(problem = simple_problem)
+	simple_solver = Solver(this_problem = simple_problem)
 	voltages = simple_solver.compute_voltages(landmark.Landmark(landmark_index, 1))
 
 	# Sanity check: each voltage should be a weighted average of its neighbors + ground
