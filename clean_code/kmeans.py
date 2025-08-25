@@ -13,16 +13,9 @@ faulthandler.enable()
 class StreamingKMeansPlusPlus:
     """
     Implements streaming k-means++ centroid selection using FAISS for efficient distance computation.
-
-    Attributes:
-        d (int): Dimensionality of vectors.
-        Z (float): Scaling constant for sampling probability.
-        max_centroids (int): Maximum number of centroids to retain.
     """
-
     def __init__(self, d, max_dist2,min_dist2,index):
         """
-        Initializes the streaming k-means++ class.
 
         Args:
             d (int): Vector dimensionality.

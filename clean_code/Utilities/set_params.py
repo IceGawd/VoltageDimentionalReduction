@@ -9,6 +9,8 @@ def set_params():
     parser.add_argument("file_path", nargs='?', default='../../Voltage_Data/mnist/mnist.csv', help="Path to a text file of vectors (word + floats)")
     parser.add_argument("--split_char", type=str, default=",", help="Character to split input vectors")
     
+    parser.add_argument("--output_path", type=str, default='', help="Path to the output filtered text file")
+
     # parameters for streaming k-means
     parser.add_argument("--normalize_vecs", action="store_true", help="normalize vectors to L_2=1 before calculating distances")
     parser.add_argument("--max-centroids", type=int, default=1000, help="Maximum number of centroids")
@@ -35,8 +37,9 @@ def set_params():
     # parameters for visualization
     parser.add_argument("--ratio_threshold", type=float, default=0.5, help="Threshold for ratio of the most common label to total count")
 
-
-
+    # parameters for filtering
+    parser.add_argument("--indices", type=int, nargs='+', help="List of indices of voltage maps accodring to which we filter the dataset")
+    
     # misc parameters
     parser.add_argument("--verbosity", type=int, default=1, help="Verbosity level of debug printouts (0: silent, 1: normal, 2: verbose)")
     parser.add_argument("--test", action="store_true", help="Run in test mode with reduced parameters for quick debugging")

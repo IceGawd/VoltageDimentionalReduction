@@ -41,9 +41,7 @@ def load_labeled_data(path: str):
 def embed_voltage_features(X_data, centroids, voltage_map, use_rbf=True, sigma=None):
     k = config.params['k']
     n_points = X_data.shape[0]
-    print(type(voltage_map))
     n_landmarks = len(voltage_map)
-    print("Number of landmarks:", n_landmarks)
     features = np.zeros((n_points, n_landmarks))
 
     knn = NearestNeighbors(n_neighbors=k, metric='euclidean')
