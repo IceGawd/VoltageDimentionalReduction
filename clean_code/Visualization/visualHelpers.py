@@ -58,10 +58,10 @@ def standard_save_display(out_file):
 		plt.show()
 
 def generate_vivid_colors(n):
-    """Generate N vivid RGB colors for visibility on black background."""
-    C=[colorsys.hsv_to_rgb(h, 1.0, 1.0)  # hue ∈ [0, 1), full saturation and brightness
-       for h in [i / n for i in range(n)]]
-    return np.array(C)
+	"""Generate N vivid RGB colors for visibility on black background."""
+	C=[colorsys.hsv_to_rgb(h, 1.0, 1.0)  # hue ∈ [0, 1), full saturation and brightness
+	   for h in [i / n for i in range(n)]]
+	return np.array(C)
 
 def compute_image_size(transformed_points, percent_size):
 	x_bound = (transformed_points[:, 0].min(), transformed_points[:, 0].max())

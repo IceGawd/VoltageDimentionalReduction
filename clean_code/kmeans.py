@@ -312,11 +312,15 @@ def Streaming_Kmeans(filepath: str) -> Tuple[npt.NDArray, npt.NDArray, List[Opti
             vectors = vectors / np.linalg.norm(vectors, axis=1, keepdims=True)
 
         finished = False
+        rms_old = -1 # not possible
         while not finished:
             # Refine centroids using the current batch of vectors
             # This function will return the updated index and centroid statistics
             print(f"\nrefining vectors")
             centroid_stats, rms, len_too_small, finished = refine_centroids(centroids, vectors, labels)
+            if rms_old == rms:
+                finished = True
+            rms_old = rms
             print(f"too_small={len_too_small}, rms={rms}, finished={finished}")
 
     

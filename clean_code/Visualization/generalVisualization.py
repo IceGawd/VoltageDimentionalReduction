@@ -63,3 +63,34 @@ def plot_landmark_covariance(voltage_map, out_file=None):
 	plt.imshow(np.cov(voltages))
 	plt.title("Covariance of Voltages")
 	visualHelpers.standard_save_display(out_file)
+
+def plot_3d_voltage_colored(vmap, points, out_file=None):
+	"""
+	Plot 3D scatter of points colored by their maximum voltage.
+
+	Parameters
+	----------
+	vmap : VoltageMap
+		Voltage map containing solutions.
+	points : np.ndarray
+		Array of shape (n_samples, n_dims).
+	"""
+	va = vmap.get_voltage_array()
+
+	if points.shape[1] < 3:
+		raise ValueError("Need at least 3 dimensions after transformation for 3D plot.")
+
+	voltages = np.max(va, axis=1)  # could use np.mean instead
+	norm = plt.Normalize(vmin=np.min(voltages), vmax=np.max(voltages))
+	colors = plt.cm.viridis(norm(voltages))
+
+	fig = plt.figure(figsize=(10, 8))
+	ax = fig.add_subplot(111, projection="3d")
+	ax.scatter(points[:, 0], points[:, 1], points[:, 2], c=colors, s=20)
+
+	ax.set_title("3D Voltage-Transformed Visualization")
+	ax.set_xlabel("X")
+	ax.set_ylabel("Y")
+	ax.set_zlabel("Z")
+	plt.tight_layout()
+	visualHelpers.standard_save_display(out_file)

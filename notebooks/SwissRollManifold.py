@@ -1,136 +1,107 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
-
-
 import sys
 import os
-sys.path.append(os.path.abspath("../clean_code/"))
-
-
-# In[30]:
-
-from Visualization import generalVisualization
-from Visualization import gloveVisuals
-from Visualization import visualHelpers
-from Utilities import config
-
-import pickle
-import select_landmarks_MI
 import importlib
+import pickle
+import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 (needed for 3D projection)
+from sklearn.datasets import make_swiss_roll
+
+# Local imports
+sys.path.append(os.path.abspath("../clean_code/"))
+from Visualization import generalVisualization, gloveVisuals, visualHelpers
+from Utilities import config
+import select_landmarks_MI
 import voltagemap
 import setofpoints
 import problem
 import solver
 import landmark
 import main
-from mpl_toolkits.mplot3d import Axes3D
-import matplotlib.pyplot as plt
-import numpy as np
 
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
-from sklearn.decomposition import PCA
-from sklearn.manifold import MDS
-from sklearn.datasets import make_swiss_roll
-
-
-# In[3]:
-
-
+# Reload in case modules are being iterated on interactively
 importlib.reload(generalVisualization)
 importlib.reload(gloveVisuals)
 importlib.reload(visualHelpers)
 importlib.reload(voltagemap)
 importlib.reload(main)
 
+# Configure parameters
+config.params["k"] = 2
+config.params["r"] = 1
+config.params["NoOfLandmarks"] = 10
+config.params["DepthOfLandmarkSearch"] = 3
 
-# In[6]:
-
-config.params['k']=2
-config.params['r']=1
-
-
+# --- Data generation ---
 def generate_swissroll_setofpoints(n_samples=1000, noise=0.0) -> setofpoints.SetOfPoints:
 	"""
-	Generates a Swiss roll dataset and returns it as a SetOfPoints instance.
+	Generate a Swiss roll dataset and wrap it in a SetOfPoints object.
 
-	Args:
-		n_samples (int): Number of data points to generate.
-		noise (float): Standard deviation of Gaussian noise added to the data.
+	Parameters
+	----------
+	n_samples : int
+		Number of data points.
+	noise : float
+		Standard deviation of Gaussian noise.
 
-	Returns:
-		SetOfPoints: An instance containing the Swiss roll points with uniform weights.
+	Returns
+	-------
+	SetOfPoints
+		The generated dataset with uniform weights.
 	"""
 	points, _ = make_swiss_roll(n_samples=n_samples, noise=noise)
 	return setofpoints.SetOfPoints(points)
 
 
-# In[8]:
+# --- Voltage computation ---
+def compute_voltages_with_landmarks(points, landmark_indices) -> voltagemap.VoltageMap:
+	"""
+	Compute the voltage map for specific landmark indices.
 
+	Parameters
+	----------
+	points : SetOfPoints
+		Dataset containing the points.
+	landmark_indices : list[int]
+		Indices of landmarks to compute voltages for.
 
-centroids = generate_swissroll_setofpoints()
+	Returns
+	-------
+	VoltageMap
+		The computed voltage map.
+	"""
+	vmap = voltagemap.VoltageMap(solver.Solver)
+	prob = problem.Problem(points, r=config.params["r"])
+	sol = solver.Solver(prob)
 
-def compute_voltages_with_landmarks(centroids, landmark_indices):
-    """ compute the voltage map for specific landmark indices """
-    all_voltages = voltagemap.VoltageMap()
-    _problem = problem.Problem(centroids, r=config.params['r'])
-    _solver = solver.Solver(_problem)
-    
-    for index in landmark_indices:
-        _landmark = landmark.Landmark(index, voltage=1.0)
-        voltages = _solver.compute_voltages(_landmark)
-        all_voltages.add_solution(_landmark, voltages=voltages)
-    
-    return all_voltages
+	for idx in landmark_indices:
+		lm = landmark.Landmark(idx, voltage=1.0)
+		voltages = sol.compute_voltages(lm)
+		vmap.add_entry([idx], voltages)
 
-distances = np.linalg.norm(centroids, axis=1)
+	return vmap
 
-closest_indices = np.argsort(distances)[:10]
+# --- Main workflow ---
+if __name__ == "__main__":
+	# Generate dataset
+	centroids = generate_swissroll_setofpoints()
 
-voltage_map = compute_voltages_with_landmarks(centroids, closest_indices)
+	"""
+	# Pick closest 10 points to origin as landmarks
+	distances = np.linalg.norm(centroids, axis=1)
+	closest_indices = np.argsort(distances)[:10]
+	"""
 
-# In[20]:
+	allVoltages = main.compute_voltages(centroids)
+	voltage_map = select_landmarks_MI.select_landmarks(allVoltages)
 
+	# Log-transform voltages for visualization
+	log_vmap = voltagemap.VoltageMap(solver.Solver)
+	for entry in voltage_map.entries:
+		log_vmap.add_entry(entry["landmark"], np.log(entry["voltages"]))
 
-log_voltage_map = voltagemap.VoltageMap()
-for entry in voltage_map.entries:
-    log_voltage_map.add_solution(entry["landmark"], np.log(entry["voltages"]))
-
-
-# In[31]:
-
-
-def plot_3d_voltage_colored(voltage_map, centroids):
-    va = voltage_map.voltage_array()
-
-    if centroids.shape[1] < 3:
-        raise ValueError("Need at least 3 dimensions after transformation for 3D plot.")
-
-    voltages = np.max(va, axis=1)  # or change to something else, like np.mean(va, axis=1)
-    norm = plt.Normalize(vmin=np.min(voltages), vmax=np.max(voltages))
-    colors = plt.cm.viridis(norm(voltages))
-
-    fig = plt.figure(figsize=(10, 8))
-    ax = fig.add_subplot(111, projection='3d')
-    ax.scatter(centroids[:, 0], centroids[:, 1], centroids[:, 2], c=colors, s=20)
-
-    ax.set_title("3D Voltage-Transformed Visualization")
-    ax.set_xlabel("X")
-    ax.set_ylabel("Y")
-    ax.set_zlabel("Z")
-    plt.tight_layout()
-    plt.show()
-
-
-# In[32]:
-
-
-plot_3d_voltage_colored(log_voltage_map, centroids)
-
-
-# In[ ]:
-
-
-
-
+	# Plot results
+	generalVisualization.plot_3d_voltage_colored(log_vmap, centroids, out_file="../../Voltage_Data/images/mnist_visualization.png")
