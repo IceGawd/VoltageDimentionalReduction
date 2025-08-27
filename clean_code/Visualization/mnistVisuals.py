@@ -65,7 +65,7 @@ def plot_mnist_unlabeled(voltages, data, transformation="mds", landmarkSize=3, a
 	visualHelpers.standard_save_display(out_file)
 
 
-def compute_labels(label_counts,ratio_threshold=0.6, size_threshold=5):
+def compute_labels(label_counts,ratio_threshold=0.6, size_threshold=1):
     """
     Compute labels based on the label counts, ratio threshold, and size threshold.
     Args:

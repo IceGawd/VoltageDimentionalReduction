@@ -52,6 +52,11 @@ def transform(points, transformation):
 
 def standard_save_display(out_file):
 	if out_file:
+		#check if directory exists and create if not
+		import os
+		dirname = os.path.dirname(out_file)
+		if not os.path.exists(dirname):
+			os.makedirs(dirname)	
 		plt.savefig(out_file)
 		print(f"Plot saved to {out_file}")
 	if not ('no-show-plots' in config.params and config.params['no-show-plots']):

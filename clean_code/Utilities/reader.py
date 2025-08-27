@@ -249,6 +249,15 @@ class Reader:
                     break
                 yield np.stack(vectors), np.array(labels)
 
+    def get_counter(self):
+        """
+        Get the total number of vectors read so far.
+        
+        Returns:
+            int: Total count of vectors successfully read from the file.
+        """
+        return self.counter
+        
     def close(self):
         """
         Close the file handle and release system resources.

@@ -66,9 +66,22 @@ if __name__ == "__main__":
     print(f"Data loaded from {save_data}")
     
     all_voltages = Data['all_voltages']
+    centroids = Data['centroids']
     voltage_map = select_landmarks(all_voltages)
 
     Data['voltage_map'] = voltage_map
+
+    from filter import count_neighborhoods
+    neighborhood = count_neighborhoods(input_path=config.params['file_path'], voltage_map=voltage_map, centroids=centroids)
+    Data['neighborhood'] = neighborhood
+
+    #pretty print the neighborhood matrix and the sum for each row.
+    np.set_printoptions(precision=3, suppress=True, linewidth=200)
+    print("Neighborhood matrix (rows sum to the number of times that landmark i was the highest voltage):")
+    print(neighborhood)
+    print("Row sums:")
+    print(np.sum(neighborhood, axis=1))     
+
     with open(save_data, 'wb') as f:
         pickle.dump(Data, f)
     print(f"added voltage_map to {save_data}")
