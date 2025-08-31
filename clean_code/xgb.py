@@ -44,6 +44,10 @@ def embed_voltage_features(X_data, centroids, voltage_map, use_rbf=True, sigma=N
     n_landmarks = len(voltage_map)
     features = np.zeros((n_points, n_landmarks))
 
+    print(f"Embedding {n_points} points using {len(centroids)} centroids and {n_landmarks} landmarks with k={k}")
+    print(f"X_data shape: {X_data.shape}")
+    print (f"Centroids shape: {centroids.points.shape}")
+    print(f"Voltage map shape: {voltage_map.voltage_array().shape}")
     knn = NearestNeighbors(n_neighbors=k, metric='euclidean')
     knn.fit(centroids)
     distances, indices = knn.kneighbors(X_data)

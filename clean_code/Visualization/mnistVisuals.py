@@ -183,7 +183,7 @@ def scatter_plot(points,transformed_points, data, focus_on, labels, reverse_dict
 
 
 
-def plot_landmark_subset(points,centroids,label_counts, focus_on = None, log_transform=True, transformation='pca',**kwargs):
+def plot_landmark_subset(points,centroids,label_counts, focus_on = [], log_transform=True, transformation='pca',**kwargs):
 	"""Visualizes a subset of points in 2D space after dimensionality reduction, focusing on specific landmarks.
 	Specificaly, we filter out points whos closest landmark is not in focus_on. 
 	We then remove the voltage maps that do not correspond to the voltage map.
@@ -198,8 +198,8 @@ def plot_landmark_subset(points,centroids,label_counts, focus_on = None, log_tra
 		**kwargs: Additional keyword arguments for customization.
 	"""
 
-	if focus_on is None: 
-		focus_on = np.array(range(points.shape[1]),**kwargs)  
+	if len(focus_on)==0: 
+		focus_on = np.array(range(points.shape[1]), dtype=int)  
 	if log_transform:
 		points = -np.log(points)	
 
@@ -216,6 +216,7 @@ def plot_landmark_subset(points,centroids,label_counts, focus_on = None, log_tra
 	closest_landmarks=np.argmin(points,axis=1)
 	mask = np.isin(closest_landmarks, focus_on)
 
+	print(f"focus_on: {focus_on}")
 	# remove far points and remove voltagemaps that do not belong to focus_on
 	points = points[mask,:]
 	points = points[:, focus_on] 

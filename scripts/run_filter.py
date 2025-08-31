@@ -4,7 +4,7 @@ landmarks indicated by their indices. Outputs to a csv file whose name is the or
 name concatenated with a comma separated list of indices.
 
 Usage:
-run_mnistPartial.py <input file path> <--save_data <data_file_path>> <--indices indices>
+run_filter .py <input file path> <--save_data <data_file_path>> <--indices indices>
 
 Example:
 

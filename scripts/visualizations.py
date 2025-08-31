@@ -36,12 +36,12 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Example:
-  python visualizations_notebook.py \\
+  python visualizations.py \\
     --data_file ../../Voltage_Temp/Results/mnist/saved_data_7.pkl \\
     --plot_dir ../../Voltage_Temp/Scatter_Plots/mnist/ \\
     --indices 1 9 18
 
-  python visualizations_notebook.py \\
+  python visualizations.py \\
     --data_file ../../Voltage_Temp/Results/mnist/saved_data.pkl \\
     --indices 7 10 14 15 16
         """
@@ -54,6 +54,12 @@ Example:
     )
     
     parser.add_argument(
+        '--show-plots',
+        action='store_true',
+        help='If set, display plots interactively'
+    )
+
+    parser.add_argument(
         '--plot_dir',
         default='../../Voltage_Temp/Scatter_Plots/mnist/',
         help='Directory to save output plots'
@@ -63,7 +69,7 @@ Example:
         '--indices',
         nargs='+',
         type=int,
-        default=list(range(10)),
+        default=[],
         help='List of landmark indices to focus on (focus_on in notebook)'
     )
     
@@ -74,7 +80,7 @@ Example:
     plots_dir = args.plot_dir
     focus_on = np.array(args.indices)
     
-    print("Starting MNIST voltage visualization from notebook")
+    print("Starting voltage visualization")
     print(f"Data file: {data_file}")
     print(f"Plot directory: {plots_dir}")
     print(f"Focus landmarks (indices): {focus_on}")
@@ -93,12 +99,6 @@ Example:
     print(f"Data loaded successfully")
     print(f"Available data keys: {list(data.keys())}")
     
-    # Focus landmarks are now set from command line arguments
-    # Alternative options from notebook (commented):
-    # focus_on = np.array([7,10,14,15,16])
-    # focus_on = np.array([1,9,18])
-    # focus_on = np.array([1,3,9,18])
-    
     print(f"Focus landmarks: {focus_on}")
     
     # Get voltage points
@@ -112,9 +112,13 @@ Example:
     # plots_dir is now set from arguments
     
     # Create filename from focus landmarks
-    focus_str = ','.join([str(x) for x in list(focus_on)])
+    if len(focus_on)==0:
+        focus_str = 'all'
+    else:
+        focus_str = ','.join([str(x) for x in list(focus_on)])
+
     out_plot = plots_dir + focus_str + '.png'
-    
+
     print(f"Output plot will be saved to: {out_plot}")
     
     # Ensure output directory exists

@@ -39,6 +39,8 @@ def set_params():
 
     # parameters for filtering
     parser.add_argument("--indices", type=int, nargs='+', help="List of indices of voltage maps accodring to which we filter the dataset")
+    parser.add_argument("--no_filter", action="store_true", help="If set, disables filtering by indices")
+    parser.add_argument("--filter_partition", action="store_true", help="If set, filter the dataset into one output file per landmark")
     
     # misc parameters
     parser.add_argument("--verbosity", type=int, default=1, help="Verbosity level of debug printouts (0: silent, 1: normal, 2: verbose)")

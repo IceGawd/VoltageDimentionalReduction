@@ -59,8 +59,8 @@ def standard_save_display(out_file):
 			os.makedirs(dirname)	
 		plt.savefig(out_file)
 		print(f"Plot saved to {out_file}")
-	if not ('no-show-plots' in config.params and config.params['no-show-plots']):
-		plt.show()
+	#if not ('no-show-plots' in config.params and config.params['no-show-plots']):
+	#	plt.show()
 
 import colorsys
 
