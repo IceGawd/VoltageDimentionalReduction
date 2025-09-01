@@ -22,7 +22,7 @@ Example:
 
 import landmark
 import problem
-from Utilities import config
+from Utilities import config, timer
 import setofpoints
 
 from typing import Union, List
@@ -125,7 +125,6 @@ class Solver:
 		"""
 		
 		weights = self.problem.getResistanceMatrix()
-
 		n = weights.shape[0]
 
 		ground = landmark.Landmark(n - 1, 0)	
@@ -144,8 +143,8 @@ class Solver:
 
 		# print(A_unconstrained, b_unconstrained)
 
-		v_unconstrained = solve(A_unconstrained, b_unconstrained)
 
+		v_unconstrained = solve(A_unconstrained, b_unconstrained)
 		self.voltages = np.zeros(n)
 
 		for lm in landmarks:

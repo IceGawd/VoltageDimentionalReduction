@@ -17,8 +17,7 @@ Example:
 """
 
 import setofpoints
-import landmark
-import solver
+
 from Utilities import config
 
 import numpy as np
@@ -114,7 +113,6 @@ class Problem:
 
 		"""
 
-		print(type(self.centroids))
 		X = self.centroids.points						# shape (n, d)
 		n = X.shape[0]
 

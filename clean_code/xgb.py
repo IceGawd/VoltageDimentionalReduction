@@ -30,12 +30,43 @@ def load_voltage_and_centroids(path: str):
 	return data['centroids'], data['voltage_map'], data.get('k', 5)  # default to 5
 
 def load_labeled_data(path: str):
-	df = pd.read_csv(path, dtype=str, low_memory=False)
-	df = df[df.iloc[:, 0] != "label"]
-	df = df.astype(np.float32)
-	y = df.iloc[:, 0].astype(int).values
-	X = df.iloc[:, 1:].values
-	return X, y
+    df = pd.read_csv(path, dtype=str, low_memory=False)
+    df = df[df.iloc[:, 0] != "label"]
+    df = df.astype(np.float32)
+    y = df.iloc[:, 0].astype(int).values
+    X = df.iloc[:, 1:].values
+    return X, y
+
+# ---------- Voltage Embedding Function ----------
+
+def embed_voltage_features(X_data, centroids, voltage_map, use_rbf=True, sigma=None):
+    k = config.params['k']
+    n_points = X_data.shape[0]
+    n_landmarks = len(voltage_map)
+    features = np.zeros((n_points, n_landmarks))
+
+    knn = NearestNeighbors(n_neighbors=k, metric='euclidean')
+    knn.fit(centroids)
+    distances, indices = knn.kneighbors(X_data)
+
+    if use_rbf:
+        if sigma is None:
+            sigma = np.median(distances)
+        weights_all = np.exp(-distances**2 / (2 * sigma**2))
+    else:
+        weights_all = 1 / (distances + 1e-8)
+
+    weights_all /= np.sum(weights_all, axis=1, keepdims=True)
+    # Don't read all of the data at once, instead read it in chunks using Reader
+    for i, entry in enumerate(voltage_map.entries):
+        v_vector = entry['voltages']
+        for j in range(n_points):
+            neighbor_ids = indices[j]
+            neighbor_voltages = v_vector[neighbor_ids]
+            weights = weights_all[j]
+            features[j, i] = np.dot(weights, neighbor_voltages)
+
+    return features
 
 # ---------- Modeling Function ----------
 
