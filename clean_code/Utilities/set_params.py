@@ -1,7 +1,73 @@
+"""
+Parameter Configuration Module for Voltage Dimensional Reduction.
+
+This module handles the configuration and validation of parameters for the voltage-based
+dimensional reduction pipeline. It provides a command-line interface for setting various
+parameters related to data processing, voltage map computation, and visualization.
+
+The configuration is organized into several categories:
+- Data file reading: Parameters for input file handling
+- Streaming k-means: Parameters for centroid computation
+- Voltage maps: Parameters for k-connectivity and resistance
+- Intermediate results: Storage locations for pipeline stages
+- Landmark selection: Parameters for choosing representative points
+- Visualization: Parameters for data visualization
+- Miscellaneous: Debug levels and test modes
+
+Example:
+    To use this module with default parameters:
+    >>> from Utilities.set_params import set_params
+    >>> set_params()  # Uses defaults for MNIST dataset
+    
+    To override defaults via command line:
+    $ python script.py --k 15 --normalize_vecs --batch-size 2000
+"""
+
 import argparse
 from Utilities import config
 
 def set_params():
+    """
+    Set and validate configuration parameters for the voltage dimensional reduction pipeline.
+    
+    This function initializes and processes command-line arguments, setting up all necessary
+    parameters for the pipeline. It performs validation on the parameters and stores them
+    in the global config object.
+    
+    Configuration Categories:
+        Data Reading:
+            - file_path: Path to input data file
+            - split_char: Delimiter for parsing input vectors
+            
+        Streaming K-means:
+            - normalize_vecs: Whether to normalize vectors to unit length
+            - max-centroids: Upper limit on number of centroids
+            - init-size: Sample size for Z estimation
+            - batch-size: Size of streaming batches
+            
+        Voltage Maps:
+            - k: Connectivity parameter for k-NN graph
+            - r: Ground resistance value
+            - sigma: RBF kernel parameter
+            
+        Results Storage:
+            - save_data: Path for intermediate results pickle file
+            
+        Landmark Selection:
+            - NoOfLandmarks: Number of landmarks to select
+            - DepthOfLandmarkSearch: Search depth for landmark selection
+    
+    Returns:
+        None. Parameters are stored in config.params dictionary.
+        
+    Raises:
+        ValueError: If any numerical parameters are invalid (<=0)
+        
+    Note:
+        - Default values are optimized for the MNIST dataset
+        - Use --test flag for quick debugging with reduced parameters
+        - Verbosity levels: 0 (silent), 1 (normal), 2 (verbose)
+    """
     parser = argparse.ArgumentParser(description="Set parameters for the streaming centroids algorithm.")
     ## defaults are set for the MNIST dataset
 

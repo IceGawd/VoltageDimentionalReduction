@@ -32,10 +32,13 @@ def compute_voltages(centroids):
 	timer.mark("Computed voltages for all centroids")
 	return all_voltages
 
-def main(filepath):
+def main(filepath=None, save=True):
+	if not filepath:
+		filepath = config.params['file_path']
+
 	timer=Timer()
 	# generate centroids using streaming k-means
-	points, counters, majority_labels, label_counts, rms=kmeans.Streaming_Kmeans(config.params['file_path'])
+	points, counters, majority_labels, label_counts, rms=kmeans.Streaming_Kmeans(filepath)
 	timer.mark("Streaming K-means completed")
 	
 	#X=np.stack(points)
@@ -67,9 +70,10 @@ def main(filepath):
 	}
 
 
-	with open(config.params['save_data'], 'wb') as f:
-		pickle.dump(data_to_save, f)
-	print(f"Voltage map saved to {config.params['save_data']}")
+	if save:
+		with open(config.params['save_data'], 'wb') as f:
+			pickle.dump(data_to_save, f)
+		print(f"Voltage map saved to {config.params['save_data']}")
 
 	return data_to_save
 

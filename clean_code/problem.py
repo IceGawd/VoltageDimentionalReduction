@@ -1,3 +1,21 @@
+"""
+Electrical Network Problem Definition for Dimensionality Reduction
+
+This module implements an electrical network model for dimensionality reduction
+using resistance networks. It creates a graph where nodes represent data points
+and edges represent electrical connections, with a ground node added for reference.
+
+The network is constructed using k-nearest neighbors to create sparse connections,
+and the resistance matrix is computed to model the electrical properties of the network.
+
+Example:
+	>>> from problem import Problem
+	>>> from setofpoints import SetOfPoints
+	>>> points = SetOfPoints(data, weights)
+	>>> problem = Problem(points, k=10, r=1.0)
+	>>> resistance_matrix = problem.getResistanceMatrix()
+"""
+
 import setofpoints
 
 from Utilities import config
@@ -10,25 +28,54 @@ import networkx as nx
 
 class Problem:
 	"""
-	Represents a kernel-based resistance model over a set of centroids with grounding.
+	Represents a kernel-based resistance network model over a set of centroids with grounding.
+
+	This class implements an electrical network where:
+	- Each centroid is a node in the network
+	- Connections between nodes are weighted by their kernel values
+	- A ground node is added with uniform resistance to all points
+	- The network is sparsified using k-nearest neighbors
 
 	Attributes:
-		centroids (SetOfPoints): The centroids object.
-		landmarks (List[Landmark])
-		c (float): Kernel width parameter used in the Gaussian kernel.
-		r (float): Resistance to ground.
+		centroids (SetOfPoints): Collection of points and their weights that form
+			the nodes of the network.
+		r (float): Resistance to ground, controls the strength of connection to
+			the reference ground node.
+		ResistanceMatrix (np.ndarray): The computed (n+1)x(n+1) resistance matrix,
+			where n is the number of centroids. The last row/column corresponds
+			to the ground node.
+
+	Note:
+		- The resistance matrix is computed during initialization
+		- The network is sparse, using only k-nearest neighbors
+		- All resistances are normalized to create a proper probability matrix
+		- See documentation link for detailed mathematical formulation
 	"""
 
-	def __init__(self, centroids: setofpoints.SetOfPoints, k: int = 10, r: float = 1.0):
+	def __init__(self, centroids: setofpoints.SetOfPoints, k: int = 10, r: float = 1.0) -> None:
 		"""
-		Initializes a Problem instance.
+		Initialize a new Problem instance with the given centroids and parameters.
+
+		Creates an electrical network model where centroids are nodes connected
+		through weighted edges, with an additional ground node. The network is
+		sparsified by only connecting each node to its k nearest neighbors.
 
 		Args:
-			centroids: A SetOfPoints: stores points and weights.
-			r (float): Resistance to the ground.
+			centroids (SetOfPoints): Collection of points that will form the network
+				nodes. Each point should have an associated weight.
+			k (int, optional): Number of nearest neighbors to connect each point to.
+				Controls the sparsity of the network. Defaults to 10.
+			r (float, optional): Resistance to the ground node. Higher values mean
+				weaker connection to ground. Defaults to 1.0.
 
 		Raises:
-			ValueError: If input dimensions are incorrect or parameters are non-positive.
+			ValueError: If ground resistance r is not positive.
+			TypeError: If centroids is not a SetOfPoints instance.
+			ValueError: If k is larger than the number of points.
+
+		Example:
+			>>> points = SetOfPoints(data, weights)
+			>>> problem = Problem(points, k=15, r=2.0)
 		"""
 		if r <= 0:
 			raise ValueError("Ground resistance (r) must be positive.")
@@ -37,17 +84,33 @@ class Problem:
 		self.r = r
 		self.ResistanceMatrix =  self.calcResistanceMatrix(k,r)
 
-	def calcResistanceMatrix(self, k: int = 10,r: float = 1.0) -> np.ndarray:
+	def calcResistanceMatrix(self, k: int = 10, r: float = 1.0) -> np.ndarray:
 		"""
-		Calculates the (n+1)x(n+1) row-normalized resistance matrix using k-nearest neighbors.
-		See for explaination: https://github.com/IceGawd/VoltageDimentionalReduction/blob/main/highLevelDocs/VoltageCalculation.md
+		Calculate the resistance matrix for the electrical network model.
+
+		Constructs a sparse resistance matrix using k-nearest neighbors approach:
+		1. Finds k nearest neighbors for each point
+		2. Creates weighted connections between neighbors
+		3. Adds ground node connections
+		4. Normalizes to create probability matrix
+		5. Converts to resistance matrix format
+
+		For detailed mathematical formulation, see:
+		https://github.com/IceGawd/VoltageDimentionalReduction/blob/main/highLevelDocs/VoltageCalculation.md
 
 		Args:
-			k (int): Number of nearest neighbors for sparse approximation.
-			r (float): Resistance to ground
+			k (int, optional): Number of nearest neighbors for sparse approximation.
+				Larger k means denser connections but slower computation. Defaults to 10.
+			r (float, optional): Resistance to ground node. Controls the strength of
+				the reference connection. Defaults to 1.0.
 
 		Returns:
-			np.ndarray: (n+1)x(n+1) resistance matrix with rows summing to 1.
+			np.ndarray: (n+1)x(n+1) resistance matrix where:
+				- First n rows/columns correspond to centroids
+				- Last row/column corresponds to ground node
+				- Matrix is symmetric and row-normalized
+				- Diagonal elements are 1
+
 		"""
 
 		X = self.centroids.points						# shape (n, d)
@@ -85,5 +148,12 @@ class Problem:
 		probabilties = full / row_sums
 		return np.identity(probabilties.shape[0]) - probabilties
 
-	def getResistanceMatrix(self):
+	def getResistanceMatrix(self) -> np.ndarray:
+		"""
+		Retrieve the pre-computed resistance matrix.
+
+		Returns:
+			np.ndarray: The (n+1)x(n+1) resistance matrix computed during
+			initialization, where n is the number of centroids.
+		"""
 		return self.ResistanceMatrix

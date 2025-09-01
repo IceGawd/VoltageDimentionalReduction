@@ -3,114 +3,112 @@ import solver
 import problem
 
 import numpy as np
-from typing import List, Dict
+from typing import List, Dict, Iterator, Optional
 
 class VoltageMap:
-    """
-    Represents a collection of voltage solutions (voltage maps), one for each landmark.
-    Each voltage map corresponds to the solution from applying a Solver to a Problem with a specific Landmark.
-    """
+	"""
+	Collection of voltage solutions for multiple landmarks in a resistance network.
 
-    def __init__(self) -> None:
-        """
-        Initializes an empty Map.
-        """
-        self.entries: list = []  # (landmark, voltages, advantage)
+	This class manages voltage distributions computed from different landmark points,
+	storing both the landmark information and corresponding voltage solutions.
+	It provides methods to manipulate, sort, and analyze these solutions for
+	dimensionality reduction purposes.
 
-    def set_advantages(self, advantage: float, quantity="advantage") -> None:
-        """
-        Sets the advantage for all entries in the map to a specific value.
+	Attributes:
+		entries (List[Dict]): List of dictionaries, each containing:
+			- landmark: Landmark object defining voltage source
+			- voltages: np.ndarray of computed voltages
+			- advantage: Optional quality metric for the solution
 
-        Args:
-            advantage (float): The advantage value to set for all entries.
-        """
-        for i in range(len(self.entries)):
-            self.entries[i][quantity] = advantage
-            
-    def add_solution(self, landmark_obj: landmark.Landmark, voltages: np.ndarray) -> None:
-        """
-        Adds a voltage map corresponding to a specific landmark.
+	Note:
+		- Solutions can be sorted by advantage or other metrics
+		- Supports iteration over voltage solutions
+		- Provides methods to combine solutions into arrays
+		- Handles construction from problems and landmark sets
+	"""
 
-        Args:
-            landmark_obj (Landmark): The landmark used in the problem.
-            voltages (np.ndarray): The computed voltage map for that landmark.
-        """
-        self.entries.append({
-            "landmark":landmark_obj, 
-            "voltages":voltages})
+	def __init__(self) -> None:
+		"""
+		Initialize an empty voltage map collection.
+		"""
+		self.entries: List[Dict] = []  # Stores dicts: {"landmark", "voltages", "advantage"}
 
+	def set_advantages(self, advantage: float, quantity: str = "advantage") -> None:
+		"""
+		Set a quality metric value for all voltage solutions.
+		"""
+		for i in range(len(self.entries)):
+			self.entries[i][quantity] = advantage
+			
+	def add_solution(self, landmark_obj: landmark.Landmark, voltages: np.ndarray) -> None:
+		"""
+		Adds a voltage map corresponding to a specific landmark.
+		"""
+		self.entries.append({
+			"landmark": landmark_obj, 
+			"voltages": voltages
+		})
 
-    def sort_by_advantage(self, quantity="advantage",reverse=True) -> None:
-        """
-        Sorts the entries by the quantity (default advantage).
-        """
-        self.entries.sort(key=lambda x: x[quantity], reverse=reverse)
+	def sort_by_advantage(self, quantity: str = "advantage", reverse: bool = True) -> None:
+		"""
+		Sort voltage solutions by their quality metric.
+		"""
+		self.entries.sort(key=lambda x: x[quantity], reverse=reverse)
 
-    def all_solutions(self) -> np.ndarray:
-        """
-        Retrieves all voltage maps as a stacked 2D array (landmarks x points).
+	def all_solutions(self) -> np.ndarray:
+		"""
+		Get all voltage solutions as a transposed 2D array (num_points x num_landmarks).
+		"""
+		V = np.stack([E["voltages"] for E in self.entries], axis=0)
+		return V.T
 
-        Returns:
-            np.ndarray: 2D array of shape (num_landmarks, num_points)
-        """
-        V=np.stack([E['voltages'] for E in self.entries], axis=0)
-        return V.T
+	def voltage_array(self) -> np.ndarray:
+		"""
+		Returns an (N x L) array of voltages, where N = number of data points
+		and L = number of landmarks.
+		"""
+		if not self.entries:
+			raise ValueError("VoltageMap has no entries.")
+		return np.column_stack([entry["voltages"] for entry in self.entries])
 
-    def voltage_array(self) -> np.ndarray:
-        """
-        Returns an (N x L) array of voltages, where N is the number of data points
-        and L is the number of landmarks.
+	def get_all_landmarks(self) -> List[landmark.Landmark]:
+		"""
+		Returns a list of all Landmark objects in the VoltageMap.
+		"""
+		return [entry["landmark"] for entry in self.entries]
 
-        Each column corresponds to the voltage map from one landmark.
-        """
-        if not self.entries:
-            raise ValueError("VoltageMap has no entries.")
-        
-        return np.column_stack([entry['voltages'] for entry in self.entries])
+	def __len__(self) -> int:
+		return len(self.entries)
 
-    def __len__(self) -> int:
-        return len(self.entries)
+	def __iter__(self) -> Iterator[np.ndarray]:
+		"""
+		Returns an iterator over the voltage maps for use in for-loops.
+		"""
+		self._iter_idx = 0
+		return self
 
-    def __iter__(self):
-        """
-        Returns an iterator over the voltage maps for use in for-loops.
-        """
-        self._iter_idx = 0
-        return self
+	def __next__(self) -> np.ndarray:
+		"""
+		Retrieves the next voltage map in an iteration.
+		"""
+		if self._iter_idx >= len(self.entries):
+			raise StopIteration
+		voltages = self.entries[self._iter_idx]["voltages"]
+		self._iter_idx += 1
+		return voltages
 
-    def __next__(self):
-        """
-        Retrieves the next voltage map in an iteration.
-
-        Returns:
-            np.ndarray: The next voltage map.
-
-        Raises:
-            StopIteration: If the end of the map is reached.
-        """
-        if self._iter_idx >= len(self.entries):
-            raise StopIteration
-        voltages = self.entries[self._iter_idx][1]
-        self._iter_idx += 1
-        return voltages
-
-    ##YF:Does this belong here?
-    @staticmethod
-    def from_problem_and_landmarks(problem: problem.Problem, landmarks: list[landmark.Landmark], solver_cls: solver.Solver) -> "VoltageMap":
-        """
-        Constructs a VoltageMap by solving the Problem for each landmark.
-
-        Args:
-            problem: An instance of a Problem class.
-            landmarks (List[Landmark]): List of Landmark instances.
-            solver_cls: A Solver class that takes a problem and a landmark.
-
-        Returns:
-            VoltageMap: A populated VoltageMap instance.
-        """
-        voltage_map = VoltageMap()
-        for lm in landmarks:
-            solver_instance = solver_cls(problem, lm)
-            voltages = solver_instance.approximate_voltages()
-            voltage_map.add_solution(lm, voltages)
-        return voltage_map
+	@staticmethod
+	def from_problem_and_landmarks(
+		problem: problem.Problem,
+		landmarks: List[landmark.Landmark],
+		solver_cls: type[solver.Solver]
+	) -> "VoltageMap":
+		"""
+		Create a VoltageMap by solving a problem for multiple landmarks.
+		"""
+		voltage_map = VoltageMap()
+		for lm in landmarks:
+			solver_instance = solver_cls(problem, lm)
+			voltages = solver_instance.approximate_voltages()
+			voltage_map.add_solution(lm, voltages)
+		return voltage_map
