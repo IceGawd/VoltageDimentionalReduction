@@ -51,18 +51,32 @@ def filter_voltages(input_path: str, output_path: str, data_path: str, indices: 
         data = pickle.load(f)
     centroids, voltage_map = data['centroids'], data['voltage_map']
 
+    n_landmarks = len(voltage_map)
     
     counter=0
     stream = stream_voltages(input_path, voltage_map, centroids, BatchSize)
-    outfile = open(output_path, 'w')
+    from Utilities import config
+    if not config.params['filter_partition']:
+        outfile = open(output_path, 'w')
 
-    for label, vector, feature in stream:
-        if np.argmax(feature) in indices:
-            # Write the corresponding line to the output file
+        for label, vector, feature in stream:
+            if np.argmax(feature) in indices:
+                # Write the corresponding line to the output file
+                String=np.array2string(vector, separator=",", max_line_width=np.inf)[1:-1].replace(" ", "")
+                outfile.write(f"{label},{String}\n")
+                counter+=1
+        outfile.close()
+    else:
+        # partition the output into multiple files, one for each index in indices
+        print(f"Partitioning output into {n_landmarks} files")
+        outfiles = {index: open(f"{output_path}_part{index}.csv", 'w') for index in range(n_landmarks)}
+        for label, vector, feature in stream:
+            index = np.argmax(feature)
             String=np.array2string(vector, separator=",", max_line_width=np.inf)[1:-1].replace(" ", "")
-            outfile.write(f"{label},{String}\n")
+            outfiles[index].write(f"{label},{String}\n")
             counter+=1
-    outfile.close
+        for outfile in outfiles.values(): 
+            outfile.close()
     return counter
 
 
