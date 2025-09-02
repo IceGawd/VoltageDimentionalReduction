@@ -9,8 +9,9 @@ The implementation uses streaming of the input and output so as to minimize memo
 
 import numpy as np
 import pickle
+from Utilities.reader import Reader, Writer
 
-def stream_voltages(input_path: str, voltage_map, centroids,BatchSize:int = 10000):
+def stream_voltages(reader: Reader, voltage_map, centroids,BatchSize:int = 10000):
     """
     reads lines from a large text file an transforms them to voltage features using precomputed centroids and voltage map.
 
@@ -25,17 +26,15 @@ def stream_voltages(input_path: str, voltage_map, centroids,BatchSize:int = 1000
     """
 
     from xgb import embed_voltage_features
-    from Utilities.reader import Reader
+    
 
-    reader = Reader(input_path)
-
-    for vectors,labels in reader.stream_batches(BatchSize):
+    for vectors,other in reader.stream_batches(BatchSize):
         # Assuming vectors is a 2D numpy array where each row is a data point
         # and labels is a 1D numpy array of corresponding labels.
         features = embed_voltage_features(vectors, centroids, voltage_map)
 
         for i, feature in enumerate(features):
-            yield labels[i], vectors[i], features[i]
+            yield other[i], vectors[i], features[i]
     print(f"Total lines processed in stream_voltags: {reader.get_counter()}")
 
 def filter_voltages(input_path: str, output_path: str, data_path: str, indices: list[int], BatchSize: int = 10000) -> int:
@@ -54,29 +53,39 @@ def filter_voltages(input_path: str, output_path: str, data_path: str, indices: 
     n_landmarks = len(voltage_map)
     
     counter=0
-    stream = stream_voltages(input_path, voltage_map, centroids, BatchSize)
+    reader = Reader(input_path)
+    stream = stream_voltages(reader, voltage_map, centroids, BatchSize)
     from Utilities import config
     if not config.params['filter_partition']:
-        outfile = open(output_path, 'w')
-
-        for label, vector, feature in stream:
+        writer=Writer(output_path,reader)
+        writer.write_header()
+        collected_rows=pd.DataFrame(columns=reader.df_sample.columns)
+        for other, vector, feature in stream:
             if np.argmax(feature) in indices:
-                # Write the corresponding line to the output file
-                String=np.array2string(vector, separator=",", max_line_width=np.inf)[1:-1].replace(" ", "")
-                outfile.write(f"{label},{String}\n")
-                counter+=1
-        outfile.close()
+               #write out the row
+               writer.write_row(vector, other)
+
+               counter+=1
+               if counter % 10000 ==0:
+                   print(f"Filtered {counter} lines so far",end='\r')
+        writer.write_batch(collected_rows)
     else:
         # partition the output into multiple files, one for each index in indices
         print(f"Partitioning output into {n_landmarks} files")
         outfiles = {index: open(f"{output_path}_part{index}.csv", 'w') for index in range(n_landmarks)}
+        writers = {index: Writer(f"{output_path}_part{index}.csv",reader) for index in range(n_landmarks)}
+        for writer in writers.values():
+            writer.write_header()
         for label, vector, feature in stream:
             index = np.argmax(feature)
-            String=np.array2string(vector, separator=",", max_line_width=np.inf)[1:-1].replace(" ", "")
-            outfiles[index].write(f"{label},{String}\n")
+            # add row to writers
+            writers[index].write_row(vector, label)
             counter+=1
-        for outfile in outfiles.values(): 
-            outfile.close()
+            if counter % 10000 ==0:
+                print(f"Filtered {counter} lines so far",end='\r')
+
+            
+        
     return counter
 
 

@@ -248,11 +248,14 @@ def Streaming_Kmeans(filepath):
 
     
         
-    for vectors, labels in reader.stream_batches(config.params['batch_size']):
+    for vectors, other in reader.stream_batches(config.params['batch_size']):
+
         if len(vectors)<config.params['batch_size']:
             break
         if config.params['normalize_vecs']:
             vectors = vectors / np.linalg.norm(vectors, axis=1, keepdims=True)
+
+        labels = np.array([int(item['label']) for item in other])
 
         finished = False
         while not finished:
