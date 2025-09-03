@@ -47,7 +47,6 @@ def readvec(file, is_binary=False):
 	if not line:
 		return None, None
 
-	line = line.split('#')[0]
 	split_char = config.params['split_char']
 
 	if split_char == '' or split_char is None:# default: split on any whitespace

@@ -125,19 +125,22 @@ def scatter_plot(point_voltages, point_transformed_voltages, data, focus_on, lab
 	"""
 	Creates a scatter plot of transformed point_voltages with digit images or point_voltages.
 	"""
+
 	if out_file is None:
 		out_file = "mnist_visualization.png"
 
 	fig, ax = plt.subplots(figsize=(12, 10))
 
-	from Visualization.visualHelpers import generate_vivid_colors
-	colors = generate_vivid_colors(len(reverse_dict_labels))
+	colors = visualHelpers.generate_vivid_colors(len(reverse_dict_labels))
 
 	x_bound = (point_transformed_voltages[:, 0].min(), point_transformed_voltages[:, 0].max())
 	y_bound = (point_transformed_voltages[:, 1].min(), point_transformed_voltages[:, 1].max())
 	image_size = (x_bound[1] + y_bound[1] - x_bound[0] - y_bound[0]) * percent_size / 2
 
 	count_nones = 0
+
+	if element == "label":
+		fontsize = fontsize_for_data_height(ax, percent_size)
 
 	for i in range(point_transformed_voltages.shape[0]):
 		voltages = point_voltages[i, :]
@@ -163,8 +166,8 @@ def scatter_plot(point_voltages, point_transformed_voltages, data, focus_on, lab
 				elif element == "point":
 					plt.plot(x, y, marker='o', markersize=6, color=color)
 				elif element == "label":
-					ax.text(x, y, str(label),
-							color=color, fontsize=fontsize_for_data_height(ax, image_size), alpha=alpha_actual,
+					ax.text(x, y, str(reverse_dict_labels[label]),
+							color=color, fontsize=fontsize, alpha=alpha_actual,
 							ha='center', va='center')
 				else:
 					raise ValueError("element must be either 'digit', 'point' or 'label'")
