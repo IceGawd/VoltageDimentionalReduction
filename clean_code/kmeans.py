@@ -198,7 +198,7 @@ def Streaming_Kmeans(filepath):
 
         # Compute RMS error and updated mid-point for each centroid
         rms=0
-        alpha=config.params['alpha']
+        alpha=config.params['kmeans_alpha']
         for i in centroid_stats:
             if len(centroid_stats[i]['vectors']) > 0:
                 rms += np.mean(np.square(centroid_stats[i]['vectors'] - centroid_stats[i]['centroid']))
@@ -255,7 +255,7 @@ def Streaming_Kmeans(filepath):
         if config.params['normalize_vecs']:
             vectors = vectors / np.linalg.norm(vectors, axis=1, keepdims=True)
 
-        labels = np.array([int(item['label']) for item in other])
+        labels = np.array([item['label'] for item in other])
 
         finished = False
         while not finished:

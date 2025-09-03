@@ -72,8 +72,16 @@ def filter_voltages(input_path: str, output_path: str, data_path: str, indices: 
     else:
         # partition the output into multiple files, one for each index in indices
         print(f"Partitioning output into {n_landmarks} files")
-        outfiles = {index: open(f"{output_path}_part{index}.csv", 'w') for index in range(n_landmarks)}
-        writers = {index: Writer(f"{output_path}_part{index}.csv",reader) for index in range(n_landmarks)}
+        # define output_indexed to be the output path without the suffix and suffix to be the suffix
+
+        output_indexed = output_path.rsplit('.', 1)[0]
+        suffix = output_path.rsplit('.', 1)[1]
+        print(f"output_path: {output_path}, output_indexed={output_indexed}, suffix={suffix}")
+
+        # create output files
+        outfiles = {index: open(f"{output_indexed}_{index}.{suffix}", 'w') for index in range(n_landmarks)}
+        writers = {index: Writer(f"{output_indexed}_{index}.{suffix}",reader) for index in range(n_landmarks)}
+
         for writer in writers.values():
             writer.write_header()
         for label, vector, feature in stream:
@@ -107,7 +115,8 @@ def count_neighborhoods(input_path: str, voltage_map: np.ndarray, centroids: np.
 
                     It follows the same design pattern as filter_voltages and uses stream_voltages
     """
-    stream = stream_voltages(input_path, voltage_map, centroids, BatchSize)
+    reader = Reader(input_path)
+    stream = stream_voltages(reader, voltage_map, centroids, BatchSize)
 
     num_landmarks = len(voltage_map)
 

@@ -5,7 +5,7 @@ from typing import List
 from Visualization import visualHelpers
 
 ###Yoav: I think the functionality of plot_mnist_unlabeled can be merged with scatter_plot.
-def plot_mnist_unlabeled(voltages, data, transformation="mds", landmarkSize=3, alpha_actual=1, percent_size=0.02, out_file=None):
+def plot_mnist_unlabeled(voltages, data, transformation="mds", out_file=None):
 	"""
 	Visualizes MNIST digits in 2D space after dimensionality reduction (MDS or PCA),
 	coloring and sizing them based on their voltage values.
@@ -22,6 +22,15 @@ def plot_mnist_unlabeled(voltages, data, transformation="mds", landmarkSize=3, a
 	Returns:
 		None
 	"""
+
+# landmarkSize=3, alpha_actual=1, percent_size=0.02, 
+	landmarkSize=config.params['landmarkSize']
+	alpha_actual=config.params['alpha']
+	percent_size=config.params['percent_size']
+	if out_file is None:
+		raise ValueError("out_file must be provided to save the plot")
+	if transformation not in ["mds", "pca"]:
+		raise ValueError("transformation must be either 'mds' or 'pca'")
 
 	points = voltages.voltage_array()
 
@@ -92,8 +101,14 @@ def compute_labels(label_counts,ratio_threshold=0.6, size_threshold=1):
         str_labels.append(label)
     return str_labels
 
+from Utilities import config, set_params
+set_params.set_params()  # Ensure parameters are set
+
 def scatter_plot(points,transformed_points, data, focus_on, labels, reverse_dict_labels,
-				 percent_size=0.01, alpha_actual=1, out_file=None, element="digit"):
+				percent_size=config.params['percent_size'],
+				alpha_actual=config.params['alpha'], 
+				out_file=None, 
+				element=config.params['scatter_element']):
 	"""
 	Creates a scatter plot of transformed points with digit images.
 
