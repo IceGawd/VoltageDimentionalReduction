@@ -79,10 +79,10 @@ def set_params():
 
     # parameters for streaming k-means
     parser.add_argument("--normalize_vecs", action="store_true", help="normalize vectors to L_2=1 before calculating distances")
-    parser.add_argument("--max-centroids", type=int, default=1000, help="Maximum number of centroids")
-    parser.add_argument("--init-size", type=int, default=10000, help="Number of points to estimate Z")
-    parser.add_argument("--batch-size", type=int, default=10000, help="Batch size for streaming")
-    parser.add_argument("--alpha", type=float, default=0.1, 
+    parser.add_argument("--max_centroids", type=int, default=1000, help="Maximum number of centroids")
+    parser.add_argument("--init_size", type=int, default=1000, help="Number of points to estimate Z")
+    parser.add_argument("--batch_size", type=int, default=1000, help="Batch size for streaming")
+    parser.add_argument("--kmeans_alpha", type=float, default=0.1, 
                         help="defines fraction of new centroid that comes from the average of assigned vectors (0.0 to 1.0)")
     parser.add_argument("--equalize_centroids", action="store_true", help="Equalize centroids by removing small ones and splitting large ones")
 
@@ -101,10 +101,19 @@ def set_params():
     parser.add_argument("--DepthOfLandmarkSearch", type=int, default=100, help="Depth of landmark search")
  
     # parameters for visualization
+    parser.add_argument("--plot_dir", type=str, default='', help="Directory to save output plots")
+    parser.add_argument("--num_labels", type=int, default=10, help="Number of labels for visualization")
     parser.add_argument("--ratio_threshold", type=float, default=0.5, help="Threshold for ratio of the most common label to total count")
-
+    parser.add_argument("--scatter_element", type=str, default='digit', help="Element type for scatter plot")
+    parser.add_argument("--landmarkSize", type=int, default=3, help="Size of landmark markers in scatter plot")
+    parser.add_argument("--alpha", type=float, default=1.0, help="Alpha value for scatter plot")
+    parser.add_argument("--percent_size", type=float, default=0.02, help="Percentage size for scatter plot")
+    parser.add_argument("--no_log_transform", action="store_true", help="Disable log transformation of voltages for visualization")
+    
     # parameters for filtering
-    parser.add_argument("--indices", type=int, nargs='+', help="List of indices of voltage maps accodring to which we filter the dataset")
+    parser.add_argument("--indices", type=list, default=[],nargs='+', help="List of indices of voltage maps accodring to which we filter the dataset")
+    parser.add_argument("--no_filter", action="store_true", help="If set, disables filtering by indices")
+    parser.add_argument("--filter_partition", action="store_true", help="If set, filter the dataset into one output file per landmark")
     
     # misc parameters
     parser.add_argument("--verbosity", type=int, default=1, help="Verbosity level of debug printouts (0: silent, 1: normal, 2: verbose)")

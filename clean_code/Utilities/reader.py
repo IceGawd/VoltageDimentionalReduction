@@ -1,345 +1,227 @@
+""" The Reader class for reading large text files in a memory-efficient manner.
+"""
+
 import numpy as np
-import setofpoints
+import gzip
+import os
+import pandas as pd
+
+import sys, os
+sys.path.append(os.path.abspath("../clean_code/"))
 from Utilities import config
-from Utilities.set_params import set_params
-
-class ParseException(Exception):
-	"""
-	Exception raised when parsing vector data from text files fails.
-	
-	This exception is raised when a line in the input file cannot be parsed
-	into the expected format of label followed by numerical values.
-	"""
-	pass
-
-def readvec(file, is_binary=False):
-	"""
-	Read a single vector and its label from a text file.
-	
-	Parses one line from the input file and extracts the label and vector data.
-	Lines starting with '#' are treated as comments and ignored. The function
-	expects each line to have at least 2 parts: a label and one or more numerical values.
-	
-	Args:
-		file (TextIO): Open file handle to read from.
-		is_binary (bool, optional): If True, indicates binary format (not supported 
-			by this function). Defaults to False.
-	
-	Returns:
-		tuple: A tuple containing:
-			- label (str or None): The label/identifier for the vector, or None if EOF/error.
-			- vec (np.ndarray or None): NumPy array of float32 values, or None if EOF/error.
-	
-	Raises:
-		ParseException: If the line has fewer than 2 parts or cannot be parsed.
-		
-	Example:
-		>>> file = open('vectors.txt', 'r')
-		>>> label, vec = readvec(file)
-		>>> print(f"Label: {label}, Vector shape: {vec.shape}")
-		Label: word1, Vector shape: (300,)
-	"""
-	if is_binary:
-		# For binary formats, this function shouldn't be called
-		return None, None
-	
-	line = file.readline()
-	if not line:
-		return None, None
-
-	split_char = config.params['split_char']
-
-	if split_char == '' or split_char is None:# default: split on any whitespace
-		parts = line.strip().split()
-	else:
-		parts = line.strip().split(split_char)
-	if len(parts) < 2:
-		print(line)
-		print('no of parts=', len(parts))
-		raise ParseException(parts)
-
-	try:
-		label = parts[0]
-		vec = np.array([float(x) for x in parts[1:]], dtype=np.float32)
-		return label, vec
-	except ValueError:
-		return None, None  # Skip lines with bad floats
-	except ValueError:
-		raise ParseException(parts)
+from Utilities import set_params
 
 class Reader:
-	"""
-	A versatile reader for loading vector data from multiple file formats.
-	
-	This class provides a unified interface for reading vector data and labels from various
-	file formats including text files, CSV files, gzipped files, and NumPy binary files.
-	The reader supports streaming data in batches to handle large datasets efficiently.
+    """
+    Reader class for reading large text files in a memory-efficient manner.
 
-	Supported File Formats:
-		- Text files (.txt): Space/tab delimited format
-		- CSV files (.csv): Comma-separated values
-		- Gzipped files (.txt.gz, .csv.gz): Compressed versions of above formats
-		- NumPy files (.npy): Binary arrays with shape (n_samples, n_features+1)
+    The main public methods are:
+    - __init__(self, file_path): Initializes the Reader with the given file path.
+    - stream_batches(self, batch_size): Generator that yields batches of vectors and additional fields.
+    - peak_forward(self, n): Peeks ahead n lines without advancing the file pointer. Returns true if n rows remain.
+    """
+    def __init__(self, file_path):
+        self.file_path = file_path
+        
+        # Check if file is gzipped
+        self.is_gzipped = file_path.endswith('.gz')
+        
+        # Pandas automatically handles gzipped files when compression is specified or inferred
+        df = pd.read_csv(self.file_path, nrows=0)
+        self._find_column_types()
+        self.df = pd.read_csv(self.file_path, nrows=0, dtype=self.column_types)
+        self.counter=0
 
-	File Format Examples:
-		Text/CSV format:
-			word1 0.1 0.2 0.3 ... # optional comment
-			word2 0.4 0.5 0.6 ...
-			
-		NumPy format:
-			Array shape: (n_samples, n_features+1)
-			First column: labels (converted to strings)
-			Remaining columns: feature vectors
+        # Initialize persistent CSV reader
+        self._csv_reader = None
+        self._is_exhausted = False
 
-	Attributes:
-		file_path (str): Path to the input file.
-		file (TextIO or None): Open file handle (None for .npy files).
-		counter (int): Total number of vectors successfully read.
-		file_type (str): Type of file being read ('text', 'gzip', or 'npy').
-		npy_data (np.ndarray or None): Loaded NumPy data for .npy files.
-		npy_index (int): Current reading position in .npy data.
-		
-	Example:
-		>>> reader = Reader('data.txt')
-		>>> for vectors, labels in reader.stream_batches(100):
-		...     print(f"Batch shape: {vectors.shape}, Labels: {len(labels)}")
-		>>> reader.close()
-	"""
-	def __init__(self, file_path):
-		"""
-		Initialize the Reader with automatic file type detection.
+    def _find_column_types(self):
+        # Pandas automatically handles gzipped files
+        self.df_sample = pd.read_csv(self.file_path, nrows=0,header=0)
+        self.column_types = {col: 'float32' if col.startswith('d') else 'str' for col in self.df_sample.columns}
+        # find range of columns that are float32, if this is not contiguous, raise an error
+        self.float_cols = [i for i, col in enumerate(self.df_sample.columns) if col.startswith('d')]
+        if self.float_cols != list(range(min(self.float_cols), max(self.float_cols)+1)):
+            raise ValueError("Columns starting with 'd' must be contiguous")
+        
+        # Print file type for debugging
+        file_type = "gzipped CSV" if self.is_gzipped else "CSV"
+        print(f"Reading {file_type} file: {self.file_path}")
+        return
 
-		Opens the specified file and determines the appropriate reading strategy
-		based on the file extension. Supports automatic decompression for gzipped files.
+    def stream_batches(self, batch_size):
+        """ generate batches of vectors and additional fields from df.
+        Use pandas read_csv as a generator with chunksize=batch_size.
+        Maintains position between calls for persistent reading.
+        """
+        # Initialize the CSV reader if not already done
+        if self._csv_reader is None and not self._is_exhausted:
+            read_kwargs = {
+                'chunksize': batch_size,
+                'dtype': self.column_types,
+                'on_bad_lines': 'skip',  # Skip rows that can't be parsed
+                'engine': 'python'       # Required for on_bad_lines='skip'
+            }
+            self._csv_reader = pd.read_csv(self.file_path, **read_kwargs)
+        
 
-		Args:
-			file_path (str): Absolute or relative path to the input file.
-						   Supported extensions: .txt, .csv, .npy, .gz
-						   
-		Raises:
-			FileNotFoundError: If the specified file does not exist.
-			IOError: If the file cannot be opened or read.
-			
-		Example:
-			>>> reader = Reader('/path/to/vectors.txt')
-			>>> reader = Reader('/path/to/data.npy') 
-			>>> reader = Reader('/path/to/compressed.txt.gz')
-		"""
-		self.file_path = file_path
-		self.counter = 0
-		self.npy_data = None
-		self.npy_index = 0
-		
-		# Determine file type and open accordingly
-		if file_path.endswith('.npy'):
-			self.file_type = 'npy'
-			self.npy_data = np.load(file_path)
-			self.file = None
-		elif file_path.endswith('.gz'):
-			self.file_type = 'gzip'
-			import gzip
-			self.file = gzip.open(file_path, 'rt', encoding='utf-8')
-		else:
-			self.file_type = 'text'
-			self.file = open(file_path, 'r', encoding='utf-8')
+        # Continue reading from where we left off
+        if self._csv_reader is not None and not self._is_exhausted:
+            try:
+                for chunk in self._csv_reader:
+                    # extract vectors that are stored in columns starting with 'd'
+                    vectors = chunk.iloc[:, self.float_cols].to_numpy()
+                    # extract labels and other fields that are not part of the vectors
+                    additional_fields = chunk.drop(columns=chunk.columns[self.float_cols]).to_dict(orient='records')
+                    self.counter+=len(vectors)
+                    yield vectors, additional_fields
+            except StopIteration:
+                self._is_exhausted = True
+                self._csv_reader = None 
+                
+    
+    def get_counter(self):
+        """ Return the number of lines read so far. """
+        return self.counter
 
-	def _read_npy_batch(self, batch_size):
-		"""
-		Read a batch of vectors from a NumPy (.npy) file.
-		
-		This internal method handles reading batches from pre-loaded NumPy arrays.
-		It assumes the array has labels in the first column and features in remaining columns.
-		
-		Args:
-			batch_size (int): Maximum number of vectors to read in this batch.
-							Actual batch size may be smaller if near end of file.
-			
-		Returns:
-			tuple: A tuple containing:
-				- vectors (np.ndarray or None): Array of shape (batch_size, n_features) 
-				  containing the feature vectors, or None if end of file reached.
-				- labels (np.ndarray or None): Array of shape (batch_size,) containing 
-				  string labels, or None if end of file reached.
-				  
-		Note:
-			- If the .npy file contains only vectors (no labels), sequential indices 
-			  are generated as string labels.
-			- Handles both 1D and 2D NumPy arrays automatically.
-		"""
-		if self.npy_index >= len(self.npy_data):
-			return None, None
-			
-		end_index = min(self.npy_index + batch_size, len(self.npy_data))
-		batch_data = self.npy_data[self.npy_index:end_index]
-		
-		# Assume first column is labels, rest are features
-		if batch_data.ndim == 2 and batch_data.shape[1] > 1:
-			labels = batch_data[:, 0].astype(str)  # Convert to string labels
-			vectors = batch_data[:, 1:].astype(np.float32)
-		else:
-			# If only one column or 1D array, treat as vectors with index as labels
-			vectors = batch_data.astype(np.float32)
-			if vectors.ndim == 1:
-				vectors = vectors.reshape(-1, 1)
-			labels = np.array([str(i) for i in range(self.npy_index, end_index)])
-		
-		self.npy_index = end_index
-		self.counter += len(vectors)
-		
-		return vectors, labels
+    def peek_forward(self, n):
+        """ Peek ahead n lines without advancing the file pointer.
+        Returns true if n rows remain, false otherwise.
+        """
+        current_pos = self.df.index.stop
+        self.df = pd.read_csv(self.file_path, skiprows=current_pos, nrows=n, dtype=self.column_types)
+        has_n_rows = len(self.df) == n
+        # reset df to original position
+        self.df = pd.read_csv(self.file_path, skiprows=current_pos, nrows=0, dtype=self.column_types)
+        return has_n_rows   
+    
+    def reset_reader(self):
+        """Reset the CSV reader to start from the beginning of the file."""
+        self._csv_reader = None
+        self._is_exhausted = False
+    
+    def is_exhausted(self):
+        """Check if the CSV reader has reached the end of the file."""
+        return self._is_exhausted
+    
+    def close(self):
+        """Close the CSV reader and clean up resources."""
+        if self._csv_reader is not None:
+            try:
+                self._csv_reader.close()
+            except AttributeError:
+                pass  # Some pandas versions don't have close method
+        self._csv_reader = None
+        self._is_exhausted = False
 
-	def stream_batches(self, batch_size):
-		"""
-		Generate batches of vectors and labels from the input file.
+class Writer:
+    """ Writer class for writing batches of vectors and additional fields to a CSV file.
+    """
 
-		This generator method provides a memory-efficient way to process large datasets
-		by reading and yielding data in configurable batch sizes. It automatically
-		handles different file formats and provides progress feedback.
+    def __init__(self, output_path, reader: Reader):
+        self.output_path = output_path
+        self.reader = reader
+        # If file exists, remove it to start fresh
+        if os.path.exists(output_path):
+            os.remove(output_path)
 
-		Args:
-			batch_size (int): Number of vectors to include in each batch.
-							Must be a positive integer. The last batch may contain
-							fewer vectors if the total number of vectors is not
-							evenly divisible by batch_size.
+        # Track if header has been written
+        self.header_written = False
 
-		Yields:
-			tuple: Each iteration yields a tuple containing:
-				- vectors (np.ndarray): Array of shape (actual_batch_size, vector_dim) 
-				  containing the feature vectors as float32 values.
-				- labels (np.ndarray): Array of shape (actual_batch_size,) containing 
-				  string labels corresponding to each vector.
+    def write_header(self):
+        """ Write the header to the output CSV file. The header is derived from the reader's dataframe, with the other fields coming first and the vector fields following
+        This is called automatically by write_batch on the first call.
+        """
+        if self.header_written:
+            return
+        #
+        header = list(self.reader.df_sample.columns)
+        #reorganize the header so that the first columns are the non-vector columns, followed by the vector columns
+        non_vector_cols = [col for col in header if not col.startswith('d')]
+        vector_cols = [col for col in header if col.startswith('d')]
+        self.header = non_vector_cols + vector_cols
 
-		Raises:
-			ParseException: If any line in text/CSV files cannot be parsed correctly.
-			ValueError: If batch_size is not a positive integer.
-			
-		Example:
-			>>> reader = Reader('embeddings.txt')
-			>>> for vectors, labels in reader.stream_batches(1000):
-			...     print(f"Processing batch: {vectors.shape}")
-			...     # Process the batch of vectors and labels
-			...     model.train_step(vectors, labels)
-			
-		Note:
-			- Progress is automatically printed every config.params['batch_size'] vectors
-			- For .npy files, batches are read directly from memory
-			- For text/CSV/gzip files, batches are constructed by parsing individual lines
-		"""
-		if self.file_type == 'npy':
-			while True:
-				vectors, labels = self._read_npy_batch(batch_size)
-				if vectors is None:
-					break
-				if self.counter % config.params['batch_size'] == 0:
-					print(f"\rRead {self.counter} vectors", end='', flush=True)
-				yield vectors, labels
-		else:
-			while True:
-				vectors = []
-				labels = []
-				for _ in range(batch_size):
-					label, vec = readvec(self.file, is_binary=(self.file_type == 'npy'))
-					if vec is not None:
-						vectors.append(vec)
-						labels.append(label)
-						self.counter += 1
-						if self.counter % config.params['batch_size'] == 0:
-							print(f"\rRead {self.counter} vectors", end='', flush=True)
-				if not vectors:
-					break
-				yield np.stack(vectors), np.array(labels)
+        with open(self.output_path, 'w') as f:
+            f.write(','.join(self.header) + '\n')
+        self.header_written = True
 
-	def close(self):
-		"""
-		Close the file handle and release system resources.
-		
-		This method should be called when finished reading to properly close
-		file handles and free system resources. It's safe to call multiple times.
-		For .npy files (which don't have file handles), this method does nothing.
-		
-		Example:
-			>>> reader = Reader('data.txt')
-			>>> # ... process data ...
-			>>> reader.close()  # Always close when done
-			
-		Note:
-			Consider using the Reader in a context manager pattern:
-			>>> with Reader('data.txt') as reader:  # If __enter__/__exit__ implemented
-			...     for batch in reader.stream_batches(100):
-			...         process(batch)
-		"""
-		if self.file is not None:
-			self.file.close()
-
-def set_of_points_from_file(filepath):
-	reader = Reader(filepath)
-
-	points = []
-	for vectors, _ in reader.stream_batches(config.params['batch_size']):
-		points.append(vectors)
-
-	return setofpoints.SetOfPoints(np.vstack(points))
+    def write_row(self, vector, other):
+        """ Write a single row to the writer's output file"""
+        with open(self.output_path, 'a') as f:
+            #generate a comma separated string from vector and other, with fields ordered as in self.header
+            row = [other.get(col, '') for col in self.header if col in other] + list(vector)
+            f.write(','.join(map(str, row)) + '\n')
 
 
-# ------------------- Main ---------------------
+
 def main():
-	"""
-	Test function demonstrating the Reader class functionality.
-	
-	This function serves as both a test suite and usage example for the Reader class.
-	It loads test configuration, initializes a Reader with sample data, and demonstrates
-	basic batch processing functionality.
-	
-	The function tests various file formats and provides example usage patterns.
-	Test file paths can be modified by uncommenting different options.
-	
-	Configuration:
-		- Automatically sets split_char based on file extension
-		- Uses test batch size of 100 vectors
-		- Provides comprehensive error handling examples
-		
-	Example Output:
-		Testing Reader...
-		Read 100 vectors, shape = (100, 300)
-		Sample labels: ['word1' 'word2' 'word3' 'word4' 'word5']
-		Sample vector[0]: [0.1 0.2 0.3 ...]
-		Test successful
-	"""
-	set_params()
-	if config.params['test']:
-		config.params['file_path'] = '../Voltage_Data/glove/glove_with_pos.txt'
-		#config.params['file_path'] = '../Voltage_Data/mnist/mnist.csv'
-		#config.params['file_path'] = '../Voltage_Data/data.npy'
-		#config.params['file_path'] = '../Voltage_Data/data.txt.gz'
-		config.params['batch_size'] = 100
-		
-		# Set split character based on file type
-		if config.params['file_path'].endswith('.txt') or config.params['file_path'].endswith('.txt.gz'):
-			config.params['split_char'] = ''
-		elif config.params['file_path'].endswith('.csv') or config.params['file_path'].endswith('.csv.gz'):
-			config.params['split_char'] = ','
-		elif config.params['file_path'].endswith('.npy'):
-			config.params['split_char'] = None  # Not used for .npy files
-		else:
-			config.params['split_char'] = ','  # Default to comma
-		
-		print("Testing Reader...")
-		try:
-			reader = Reader(config.params['file_path'])
-			vectors, labels = next(reader.stream_batches(config.params['batch_size']))
-			print(f"\nRead {len(vectors)} vectors, shape = {vectors.shape}")
-			print("Sample labels:", labels[:5])
-			print("Sample vector[0]:", vectors[0])
-			reader.close()
-			print("Test successful")
-		except FileNotFoundError:
-			print(f"File not found: {config.params['file_path']}")
-		except ParseException as e:
-			print(f"Parse error: {e}")
-		except Exception as e:
-			print(f"Unexpected error: {e}")
+    """
+    Main function to demonstrate the usage of the Reader class.
+    """
+    set_params.set_params()
+    
+    # Test with regular CSV file
+    #reader = Reader("../../Voltage_Data/glove/glove_with_pos_label.csv")
+    reader = Reader("../../Voltage_Data/mnist/mnist.csv")
+    
+    # Uncomment to test with gzipped CSV file:
+    # reader = Reader("../../Voltage_Data/glove/glove_with_pos_label.csv.gz")
+    
+    i=0
+    batch_size=10
+    from Utilities.timer import Timer
+    timer = Timer()
+    timer.mark("Reader initialized")
+
+    for vectors, additional_fields in reader.stream_batches(batch_size=batch_size):
+        print(f"i={i}, vectors.shape=",vectors.shape)
+        print(f"additional_fields=",additional_fields)
+        i+=1
+        if i>5:
+            break
+    timer.mark(f"Read batch {i} of size {batch_size}")
+#        if not reader.peek_forward(10*batch_size):  #using peek_forward is very time consuming. 
+#                                                     better predefine number of rows for each phase
+#            print(f"There are less than {10*batch_size} more rows to read.")
+#            break
+
+def batch_csv_example():
+    """
+    Example of how to use Reader and Writer for batch processing large CSV files.
+    """
+    # Initialize reader and writer
+    reader = Reader("input.csv")
+    writer = Writer("output.csv", reader)
+    
+    try:
+        # Process file in batches
+        for vectors, additional_fields in reader.stream_batches(batch_size=1000):
+            # Process your data here (e.g., apply transformations)
+            processed_vectors = vectors * 2  # Example transformation
+            
+            # Write batch to output file
+            writer.write_batch(processed_vectors, additional_fields)
+            
+            print(f"Processed batch with {len(vectors)} rows")
+    
+    finally:
+        # Clean up resources
+        writer.close()
+        reader.close()
+        print("Batch processing completed")
 
 if __name__ == "__main__":
-	main()
-
-
+    try:
+        main()
+    except FileNotFoundError as e:
+        print(f"File not found: {e}")
+    except pd.errors.EmptyDataError as e:
+        print(f"Empty data error: {e}")
+    except pd.errors.ParserError as e:
+        print(f"Parse error: {e}")
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        #write a traceback to stderr
+        import traceback
+        traceback.print_exc()

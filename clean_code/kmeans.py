@@ -213,19 +213,34 @@ def Streaming_Kmeans(filepath: str) -> Tuple[npt.NDArray, npt.NDArray, List[Opti
     ######################################
     # For seeding, pick a random vector from the buffer
     centroids = buffer[:10,:]
-    index.reset()  # Reset index to ensure it's empty
-    index.add(centroids)  # Add the initial centroid to the index
-    print(index.ntotal, "vectors in index after adding initial centroid")
-    skmeans = StreamingKMeansPlusPlus(d=d, max_dist2=max_dist2, min_dist2=min_dist2,index=index)
-    
-    for vectors, _ in reader.stream_batches(config.params['batch_size']):
-        if config.params['normalize_vecs']:
-            vectors=vectors/ np.linalg.norm(vectors, axis=1, keepdims=True)
-        
-        skmeans.update(vectors)
-        if(index.ntotal >= config.params['max_centroids']):
-            print(f"Reached maximum number of centroids: {index.ntotal}")
-            break
+
+    reached_max_centroids=False
+    while not reached_max_centroids:
+        print(f"\nStarting a new attempt to select up to {config.params['max_centroids']} centroids")
+        index.reset()  # Reset index to ensure it's empty
+        index.add(centroids)  # Add the initial centroid to the index
+        print(index.ntotal, "vectors in index after adding initial centroid")
+        skmeans = StreamingKMeansPlusPlus(d=d, max_dist2=max_dist2, min_dist2=min_dist2,index=index)    
+
+        for vectors, _ in reader.stream_batches(config.params['batch_size']):
+            if config.params['normalize_vecs']:
+                vectors=vectors/ np.linalg.norm(vectors, axis=1, keepdims=True)
+            
+            skmeans.update(vectors)
+            if(index.ntotal >= config.params['max_centroids']):
+                print(f"Reached maximum number of centroids: {index.ntotal}")
+                reached_max_centroids=True
+                break
+        if not reached_max_centroids:
+            if reader.get_counter() < config.params['batch_size']*2:
+                raise ValueError(f"Only reached {index.ntotal} and {reader.get_counter()}<{config.params['batch_size']*2}, not enough data to continue, exiting")
+            print(f"Only reached {index.ntotal} centroids, restarting with a smaller Z")
+            max_dist2 -= (max_dist2 - min_dist2) * 0.5  # Reduce max_dist2 to increase sampling probability
+            print(f"New max_dist2={max_dist2}, min_dist2={min_dist2}")
+            reader.close()
+            reader = Reader(filepath)  # reopen the data file
+
+
 
     # Step 3. update centroids using a streaming version of the Kmeans algorithm
     ######################################
@@ -255,7 +270,7 @@ def Streaming_Kmeans(filepath: str) -> Tuple[npt.NDArray, npt.NDArray, List[Opti
 
         # Compute RMS error and updated mid-point for each centroid
         rms=0
-        alpha=config.params['alpha']
+        alpha=config.params['kmeans_alpha']
         for i in centroid_stats:
             if len(centroid_stats[i]['vectors']) > 0:
                 rms += np.mean(np.square(centroid_stats[i]['vectors'] - centroid_stats[i]['centroid']))
@@ -305,11 +320,14 @@ def Streaming_Kmeans(filepath: str) -> Tuple[npt.NDArray, npt.NDArray, List[Opti
 
     
         
-    for vectors, labels in reader.stream_batches(config.params['batch_size']):
+    for vectors, other in reader.stream_batches(config.params['batch_size']):
+
         if len(vectors)<config.params['batch_size']:
             break
         if config.params['normalize_vecs']:
             vectors = vectors / np.linalg.norm(vectors, axis=1, keepdims=True)
+
+        labels = np.array([item['label'] for item in other])
 
         finished = False
         rms_old = -1 # not possible
