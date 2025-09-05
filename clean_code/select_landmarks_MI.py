@@ -108,7 +108,7 @@ def select_landmarks(all_voltages: voltagemap.VoltageMap) -> voltagemap.VoltageM
                 best_landmark = j
 
         # move the best landmark to the voltage map
-        print(f"Adding landmark index={best_landmark} lm_index={voltage_map.entries[best_landmark]['landmark'].index} with MI={max_mi:.4f}")
+        print(f"{i})Adding landmark index={best_landmark} lm_index={voltage_map.entries[best_landmark]['landmark'].index} with MI={max_mi:.4f}")
         voltage_map.entries[best_landmark]['MI_cumul'] = max_mi  # Update the advantage of the best landmark
         # Sort the voltage map by advantage
         voltage_map.sort_by_advantage(quantity="MI_cumul", reverse=True)

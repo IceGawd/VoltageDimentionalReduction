@@ -34,9 +34,9 @@ def main():
             sys.executable, '../clean_code/main.py',
             str(input_file),
             '--save_data', str(data_file),
-            '--init-size', '500',
-            '--batch-size', '251',
-            '--max-centroids', '1000',
+            '--init_size', '100',
+            '--batch_size', '500',
+            '--max_centroids', '1000',
             '--split_char', ',']
 
         description = "running kmeans and solver"
@@ -59,17 +59,17 @@ def main():
         if not success:
             sys.exit(1)
 
-    command_visualize = [
-        sys.executable, 'visualizations.py',
-        '--data_file', str(data_file),
-        '--plot_dir', str(args.plot_dir)
-    ]
+    # command_visualize = [
+    #     sys.executable, 'visualizations.py',
+    #     '--data_file', str(data_file),
+    #     '--plot_dir', str(args.plot_dir)
+    # ]
 
-    description = "running visualization"
+    # description = "running visualization"
 
-    success = run_command(command_visualize, description)
-    if not success:
-        sys.exit(1)
+    # success = run_command(command_visualize, description)
+    # if not success:
+    #     sys.exit(1)
 
 if __name__ == "__main__":
     main()

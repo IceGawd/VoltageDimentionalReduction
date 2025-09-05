@@ -75,6 +75,7 @@ class Reader:
                     # extract labels and other fields that are not part of the vectors
                     additional_fields = chunk.drop(columns=chunk.columns[self.float_cols]).to_dict(orient='records')
                     self.counter+=len(vectors)
+                    print(f"Read {len(vectors)} rows, total so far: {self.counter}",end='\r')
                     yield vectors, additional_fields
             except StopIteration:
                 self._is_exhausted = True

@@ -231,19 +231,22 @@ def Streaming_Kmeans(filepath: str) -> Tuple[npt.NDArray, npt.NDArray, List[Opti
                 print(f"Reached maximum number of centroids: {index.ntotal}")
                 reached_max_centroids=True
                 break
-        if not reached_max_centroids:
-            if reader.get_counter() < config.params['batch_size']*2:
-                raise ValueError(f"Only reached {index.ntotal} and {reader.get_counter()}<{config.params['batch_size']*2}, not enough data to continue, exiting")
-            print(f"Only reached {index.ntotal} centroids, restarting with a smaller Z")
+
+        # check if there are enough remaining lines in the file, otherwise restart with a smaller Z
+        if (not reached_max_centroids) or (not reader.peek_forward(config.params['batch_size']*10)):  # this is a costly operation, better to predefine number of rows for each phase
+            print(f"Only reached {index.ntotal} centroids, not enough remaining lines, restarting with a smaller Z")
             max_dist2 -= (max_dist2 - min_dist2) * 0.5  # Reduce max_dist2 to increase sampling probability
             print(f"New max_dist2={max_dist2}, min_dist2={min_dist2}")
-            reader.close()
-            reader = Reader(filepath)  # reopen the data file
+            reader.reset_reader()
+        else:
+            print(f"peek forward succeeded, continuing with {index.ntotal} centroids")
 
 
 
     # Step 3. update centroids using a streaming version of the Kmeans algorithm
     ######################################
+
+    print("Startng centroid refinement phase")
     centroids = skmeans.get_centroids()  #extract centroids from the faiss index
     counters=np.ones(centroids.shape[0], dtype=np.int32)  # Initialize counters for each centroid
     
@@ -252,9 +255,15 @@ def Streaming_Kmeans(filepath: str) -> Tuple[npt.NDArray, npt.NDArray, List[Opti
 
 
     def refine_centroids(centroids, vectors,labels):
-        """ Refine centroids using the current batch of vectors. This is done based on the observation that with the current update rule 
-        some centroids are assigned many vectors and some none. The idea here is to eliminate those that are assigned too few and on the other hand split those
-        that are assigned too many vectors.
+        """ Refine centroids using a batch of vectors. 
+        Args:
+            centroids (np.ndarray): Current centroid vectors.
+            vectors (np.ndarray): Batch of input vectors.
+            labels (List): Corresponding labels for the input vectors.
+        Returns:
+            centroid_stats (dict): Updated centroid statistics including assigned vectors and labels.
+            rms (float): Root mean square error of the assignments.
+            len(too_small) (int): Number of centroids that were too small and needed
         """
 
         _, vec_assignments = skmeans._compute_distances_squared(vectors, skmeans.index)
@@ -264,6 +273,7 @@ def Streaming_Kmeans(filepath: str) -> Tuple[npt.NDArray, npt.NDArray, List[Opti
         centroids = skmeans.get_centroids()  # Get the current centroids from the index
         centroid_stats = {i:{'centroid':centroids[i], 'vectors': [], 'labels': []} for i in range(centroids.shape[0])}
 
+        # Assign vectors and labels to centroids
         for idx, centroid_idx in enumerate(vec_assignments):
             centroid_stats[centroid_idx]['labels'].append(labels[idx])
             centroid_stats[centroid_idx]['vectors'].append(vectors[idx])
@@ -321,9 +331,8 @@ def Streaming_Kmeans(filepath: str) -> Tuple[npt.NDArray, npt.NDArray, List[Opti
     
         
     for vectors, other in reader.stream_batches(config.params['batch_size']):
-
-        if len(vectors)<config.params['batch_size']:
-            break
+        print("read a batch for refinement")
+        print(f"len(vectors)={len(vectors)}")
         if config.params['normalize_vecs']:
             vectors = vectors / np.linalg.norm(vectors, axis=1, keepdims=True)
 
@@ -335,6 +344,7 @@ def Streaming_Kmeans(filepath: str) -> Tuple[npt.NDArray, npt.NDArray, List[Opti
             # Refine centroids using the current batch of vectors
             # This function will return the updated index and centroid statistics
             print(f"\nrefining vectors")
+            print("setting centroid_stats")
             centroid_stats, rms, len_too_small, finished = refine_centroids(centroids, vectors, labels)
             if rms_old == rms:
                 finished = True
