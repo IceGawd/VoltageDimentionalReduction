@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import matplotlib.transforms as mtransforms
 import numpy as np
 from typing import List
 from collections import Counter
@@ -15,7 +16,6 @@ def _prepare_image_rgba(digit_array, color, alpha_actual):
 		rgb_image[..., c] = color[c]
 	rgb_image[..., 3] = alpha_mask * alpha_actual
 	return rgb_image
-
 
 def _plot_digits(point_transformed_voltages, point_colors, data, voltages, ax, image_size, landmarkSize, alpha_actual, remove_clutter):
 	landmark_indicies = [landmark.index for landmark in voltages.get_all_landmarks()]
@@ -56,7 +56,7 @@ def plot_mnist_unlabeled(voltages, data, transformation="mds", landmarkSize=3, a
 	x_bound, y_bound, image_size = visualHelpers.compute_image_size(point_transformed_voltages, percent_size)
 	fig, ax = visualHelpers.setup_figure(x_bound, y_bound, image_size, landmarkSize, "Visualization of K-Means MNIST")
 
-	colors = visualHelpers.get_distinct_colors(point_voltages[0].shape[0])
+	colors = visualHelpers.get_colors(point_voltages[0].shape[0])
 	point_colors = [colors[np.argmax(p)] for p in point_voltages] if argmax else [colors[np.argmin(p)] for p in point_voltages]
 
 	_plot_digits(point_transformed_voltages, point_colors, data, voltages, ax, image_size, landmarkSize, alpha_actual, remove_clutter)
@@ -74,7 +74,7 @@ def plot_mnist_digits(voltages, data, labels, transformation="mds", landmarkSize
 	x_bound, y_bound, image_size = visualHelpers.compute_image_size(point_transformed_voltages, percent_size)
 	fig, ax = visualHelpers.setup_figure(x_bound, y_bound, image_size, landmarkSize, "Visualization of Digits")
 
-	colors = visualHelpers.get_distinct_colors(len(set(labels)))
+	colors = visualHelpers.get_colors(len(set(labels)))
 	point_colors = [colors[int(l)] if l is not None else (1, 1, 1) for l in labels]
 
 	_plot_digits(point_transformed_voltages, point_colors, data, voltages, ax, image_size, landmarkSize, alpha_actual, remove_clutter)
@@ -120,8 +120,39 @@ def fontsize_for_data_height(ax, data_height):
 	# Convert desired data height to inches, then to point_voltages (72 pt = 1 inch)
 	return data_height / data_per_inch * 72
 
+def collisionDetector(collidable, drawn_boxes, remove_clutter, force_draw, renderer, pad_pixels=2, **kwargs):
+	"""
+	Draw collidable on an axes with collision handling.
+
+	drawn_boxes: list of (bbox, collidable) tuples in DISPLAY coordinates.
+	force_draw:  if True, draw this collidable and hide any overlapping others.
+	"""
+	this_bbox = collidable.get_window_extent(renderer=renderer).padded(pad_pixels)
+
+	if not remove_clutter:
+		drawn_boxes.append((this_bbox, collidable))
+		return
+
+	if force_draw:
+		# bulldozer mode: hide others that collide, keep this one
+		survivors = []
+		for bbox, other_collidable in drawn_boxes:
+			if this_bbox.overlaps(bbox):
+				other_collidable.set_visible(False)
+			else:
+				survivors.append((bbox, other_collidable))
+		drawn_boxes[:] = survivors  # overwrite survivors only
+		drawn_boxes.append((this_bbox, collidable))
+	else:
+		# normal mode: hide this if it collides with existing
+		for bbox, _ in drawn_boxes:
+			if this_bbox.overlaps(bbox):
+				collidable.set_visible(False)
+				return
+		drawn_boxes.append((this_bbox, collidable))
+
 def scatter_plot(point_voltages, point_transformed_voltages, data, focus_on, labels, reverse_dict_labels, 
-				 percent_size=0.01, alpha_actual=1, out_file=None, element="digit", centroid_others=None, **kwargs):
+				 percent_size=0.01, alpha_actual=1, out_file=None, element="digit", centroid_others=None, dpi=100, remove_clutter=False, **kwargs):
 	"""
 	Creates a scatter plot of transformed point_voltages with digit images or point_voltages.
 	"""
@@ -129,21 +160,30 @@ def scatter_plot(point_voltages, point_transformed_voltages, data, focus_on, lab
 	if out_file == None:
 		out_file = "mnist_visualization.png"
 
-	fig, ax = plt.subplots(figsize=(12, 10), dpi=300)
+	fig, ax = plt.subplots(figsize=(12, 10), dpi=dpi)
 
-	colors = visualHelpers.get_distinct_colors(len(reverse_dict_labels))
+	colors = visualHelpers.get_colors(len(reverse_dict_labels))
 
 	x_bound = (point_transformed_voltages[:, 0].min(), point_transformed_voltages[:, 0].max())
 	y_bound = (point_transformed_voltages[:, 1].min(), point_transformed_voltages[:, 1].max())
 	image_size = (x_bound[1] + y_bound[1] - x_bound[0] - y_bound[0]) * percent_size / 2
 
+	ax.set_xlim(x_bound[0] - image_size, x_bound[1] + image_size)
+	ax.set_ylim(y_bound[0] - image_size, y_bound[1] + image_size)
+	ax.set_facecolor('black')
+	fig.patch.set_facecolor('black')
+	plt.title("Visualization of Digits")
+
 	count_nones = 0
 
-	fontsize = fontsize_for_data_height(ax, percent_size)
+	fontsize = fontsize_for_data_height(ax, 10 * percent_size)
+
+	drawn_boxes = []
 
 	for i in range(point_transformed_voltages.shape[0]):
 		voltages = point_voltages[i, :]
 		label = labels[i]
+		force_draw = False
 
 		if (label is not None) and (label != 0):
 			size = 1
@@ -154,40 +194,39 @@ def scatter_plot(point_voltages, point_transformed_voltages, data, focus_on, lab
 				min_index = np.argmin(voltages)
 				min_index = focus_on[min_index]
 				plt.text(x, y, str(min_index), fontsize=20, color='white', ha='center', va='center')
+				force_draw = True
 
 			if label == 1:  # weak_maj
 				plt.plot(x, y, marker='o', markersize=1, color=color)
 			else:
 				if element == "digit":
 					rgb_image = _prepare_image_rgba(data[i], color, alpha_actual)
-					ax.imshow(rgb_image, extent=(x - image_size * size, x + image_size * size,
+					image = ax.imshow(rgb_image, extent=(x - image_size * size, x + image_size * size,
 												 y - image_size * size, y + image_size * size), origin='upper')
+					collisionDetector(image, drawn_boxes, remove_clutter, force_draw, fig.canvas.get_renderer())
 				elif element == "point":
 					plt.plot(x, y, marker='o', markersize=6, color=color)
 				elif element == "label":
-					ax.text(x, y, str(reverse_dict_labels[label]),
-							color=color, fontsize=fontsize, alpha=alpha_actual,
-							ha='center', va='center')
+					text = ax.text(x, y, str(reverse_dict_labels[label]),
+								   color=color, fontsize=fontsize, alpha=alpha_actual,
+								   ha='center', va='center')
+
+					collisionDetector(text, drawn_boxes, remove_clutter, force_draw, fig.canvas.get_renderer())
 				elif centroid_others != None:
 					if len(centroid_others[i]) > 0:
 						counter = Counter(d[element] for d in centroid_others[i] if element in d)
 						most_common_value, count = counter.most_common(1)[0]
 
-						ax.text(x, y, str(most_common_value),
-								color=color, fontsize=fontsize, alpha=alpha_actual,
-								ha='center', va='center')
+						text = ax.text(x, y, str(most_common_value),
+									   color=color, fontsize=fontsize, alpha=alpha_actual,
+									   ha='center', va='center')
+						collisionDetector(text, drawn_boxes, remove_clutter, force_draw, fig.canvas.get_renderer())
 					else:
 						plt.plot(x, y, marker='o', markersize=6, color=color)
 				else:
 					raise ValueError("element must be either 'digit', 'point' or 'label'")
 		else:
 			count_nones += 1
-
-	ax.set_xlim(x_bound[0] - image_size, x_bound[1] + image_size)
-	ax.set_ylim(y_bound[0] - image_size, y_bound[1] + image_size)
-	ax.set_facecolor('black')
-	fig.patch.set_facecolor('black')
-	plt.title("Visualization of Digits")
 
 	print(f"Number of point_voltages with no label: {count_nones}")
 	visualHelpers.standard_save_display(out_file)

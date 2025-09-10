@@ -9,6 +9,11 @@ from Utilities import config
 import colorsys
 import os
 
+def get_colors(N):
+	if ('distinct_colors' in config.params and config.params['distinct_colors']):
+		return get_distinct_colors(N)
+	return generate_vivid_colors(N)
+
 def get_distinct_colors(N):
 	def inverse_pairwise_squared_distance_sum(points):
 		n_points = points.shape[0]
@@ -73,8 +78,8 @@ def standard_save_display(out_file):
 			os.makedirs(dirname)	
 		plt.savefig(out_file)
 		print(f"Plot saved to {out_file}")
-	#if not ('no-show-plots' in config.params and config.params['no-show-plots']):
-	#	plt.show()
+	if ('show_plots' in config.params and config.params['show_plots']):
+		plt.show()
 
 def generate_vivid_colors(n):
 	"""Generate N vivid RGB colors for visibility on black background."""
