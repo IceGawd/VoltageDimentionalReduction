@@ -120,7 +120,7 @@ def shuffle_large_file_external(input_path: str, output_path: str) -> None:
 
 def load_data(filepath: str, n_points: int):
 	"""
-	Load up to n_points vectors and their labels from the dataset.
+	Load up to n_points vectors, their labels, and additional metadata from the dataset.
 
 	Args:
 		filepath (str): Path to dataset file.
@@ -128,16 +128,26 @@ def load_data(filepath: str, n_points: int):
 
 	Returns:
 		X_data (np.ndarray): Shape [n_points, d], the feature vectors
-		y_data (np.ndarray): Shape [n_points], the labels
+		y_data (list): Shape [n_points], the labels
+		other_data (list[dict]): List of dicts containing other metadata for each point
 	"""
 	reader = Reader(filepath)
-	X_list, y_list = [], []
+	X_list, y_list, other_data = [], [], []
 	total_collected = 0
 
-	for vectors, labels in reader.stream_batches(config.params['batch_size']):
-		for v, l in zip(vectors, labels):
+	for vectors, others in reader.stream_batches(config.params['batch_size']):
+		for v, o in zip(vectors, others):
+			# Extract label
+			label = o.get("label", None)
+			y_list.append(label)
+
+			# Keep all other metadata except "label"
+			other_info = {k: v for k, v in o.items() if k != "label"}
+			other_data.append(other_info)
+
+			# Feature vector
 			X_list.append(v)
-			y_list.append(l)
+
 			total_collected += 1
 			if total_collected >= n_points:
 				break
@@ -146,11 +156,9 @@ def load_data(filepath: str, n_points: int):
 
 	reader.close()
 
-	X_data = np.vstack(X_list)  # shape: [n_points, d]
-	y_data = np.array(y_list)   # shape: [n_points]
+	X_data = np.vstack(X_list)   # shape: [n_points, d]
 
-	return X_data, y_data
-
+	return X_data, y_list, other_data
 
 def main() -> None:
 	"""

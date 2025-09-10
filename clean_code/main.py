@@ -38,7 +38,7 @@ def main(filepath=None, save=True):
 
 	timer=Timer()
 	# generate centroids using streaming k-means
-	points, counters, majority_labels, label_counts, rms=kmeans.Streaming_Kmeans(filepath)
+	points, counters, majority_labels, label_counts, centroid_others, rms = kmeans.Streaming_Kmeans(filepath)
 	timer.mark("Streaming K-means completed")
 	
 	#X=np.stack(points)
@@ -65,6 +65,7 @@ def main(filepath=None, save=True):
 	data_to_save = {
 		'majority_labels': majority_labels,	# your labels
 		'label_counts': label_counts,		# your label counts
+		'centroid_others': centroid_others,	# centroid others
 		'all_voltages': all_voltages,		# your VoltageMap object
 		'centroids': centroids				# your SetOfPoints object
 	}

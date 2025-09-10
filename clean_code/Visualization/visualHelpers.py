@@ -7,6 +7,7 @@ import math
 import itertools
 from Utilities import config
 import colorsys
+import os
 
 def get_distinct_colors(N):
 	def inverse_pairwise_squared_distance_sum(points):
@@ -14,7 +15,21 @@ def get_distinct_colors(N):
 		dist_sum = 0.0
 		for i in range(n_points):
 			for j in range(i + 1, n_points):
-				dist_sum += 1.0 / (np.sum((points[i] - points[j]) ** 2) + 10 ** (-len(points)))
+				distance = np.sum((points[i] - points[j]) ** 2)
+
+				if distance == 0:
+					return 1e100
+				else:
+					dist_sum += 1.0 / distance
+
+		for i in range(n_points):
+			brightness = np.sum(points[i] ** 2)
+
+			if brightness == 0:
+				return 1e100
+			else:
+				dist_sum += 1.0 / brightness
+
 		return dist_sum
 	
 	def objective(x, n):
@@ -53,9 +68,8 @@ def transform(points, transformation):
 def standard_save_display(out_file):
 	if out_file:
 		#check if directory exists and create if not
-		import os
 		dirname = os.path.dirname(out_file)
-		if not os.path.exists(dirname):
+		if dirname != '' and not os.path.exists(dirname):
 			os.makedirs(dirname)	
 		plt.savefig(out_file)
 		print(f"Plot saved to {out_file}")

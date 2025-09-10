@@ -121,17 +121,17 @@ def fontsize_for_data_height(ax, data_height):
 	return data_height / data_per_inch * 72
 
 def scatter_plot(point_voltages, point_transformed_voltages, data, focus_on, labels, reverse_dict_labels, 
-				 percent_size=0.01, alpha_actual=1, out_file=None, element="digit", **kwargs):
+				 percent_size=0.01, alpha_actual=1, out_file=None, element="digit", centroid_others=None, **kwargs):
 	"""
 	Creates a scatter plot of transformed point_voltages with digit images or point_voltages.
 	"""
 
-	if out_file is None:
+	if out_file == None:
 		out_file = "mnist_visualization.png"
 
-	fig, ax = plt.subplots(figsize=(12, 10))
+	fig, ax = plt.subplots(figsize=(12, 10), dpi=300)
 
-	colors = visualHelpers.generate_vivid_colors(len(reverse_dict_labels))
+	colors = visualHelpers.get_distinct_colors(len(reverse_dict_labels))
 
 	x_bound = (point_transformed_voltages[:, 0].min(), point_transformed_voltages[:, 0].max())
 	y_bound = (point_transformed_voltages[:, 1].min(), point_transformed_voltages[:, 1].max())
@@ -139,8 +139,7 @@ def scatter_plot(point_voltages, point_transformed_voltages, data, focus_on, lab
 
 	count_nones = 0
 
-	if element == "label":
-		fontsize = fontsize_for_data_height(ax, percent_size)
+	fontsize = fontsize_for_data_height(ax, percent_size)
 
 	for i in range(point_transformed_voltages.shape[0]):
 		voltages = point_voltages[i, :]
@@ -169,6 +168,16 @@ def scatter_plot(point_voltages, point_transformed_voltages, data, focus_on, lab
 					ax.text(x, y, str(reverse_dict_labels[label]),
 							color=color, fontsize=fontsize, alpha=alpha_actual,
 							ha='center', va='center')
+				elif centroid_others != None:
+					if len(centroid_others[i]) > 0:
+						counter = Counter(d[element] for d in centroid_others[i] if element in d)
+						most_common_value, count = counter.most_common(1)[0]
+
+						ax.text(x, y, str(most_common_value),
+								color=color, fontsize=fontsize, alpha=alpha_actual,
+								ha='center', va='center')
+					else:
+						plt.plot(x, y, marker='o', markersize=6, color=color)
 				else:
 					raise ValueError("element must be either 'digit', 'point' or 'label'")
 		else:
@@ -184,7 +193,7 @@ def scatter_plot(point_voltages, point_transformed_voltages, data, focus_on, lab
 	visualHelpers.standard_save_display(out_file)
 
 def plot_landmark_subset(point_voltages, centroids, label_counts, focus_on=None, log_transform=True,
-						 transformation='pca', **kwargs):
+						 transformation='pca', centroid_others=None, **kwargs):
 	"""
 	Visualizes a subset of point_voltages in 2D space after dimensionality reduction, focusing on specific landmarks.
 	"""
@@ -209,7 +218,9 @@ def plot_landmark_subset(point_voltages, centroids, label_counts, focus_on=None,
 	point_voltages = point_voltages[mask, :]
 	point_voltages = point_voltages[:, focus_on]
 	labels = np.array(labels)[mask]
-	centroids = centroids[mask, :]
+
+	if centroid_others:
+		centroid_others = [c for c, keep in zip(centroid_others, mask) if keep]
 
 	point_transformed_voltages = visualHelpers.transform(point_voltages, transformation)
 
@@ -219,9 +230,9 @@ def plot_landmark_subset(point_voltages, centroids, label_counts, focus_on=None,
 	# print(len(labels))
 	# print(len(reverse_dict_labels))
 
-	scatter_plot(point_voltages, point_transformed_voltages, centroids, focus_on, labels, reverse_dict_labels, **kwargs)
+	scatter_plot(point_voltages, point_transformed_voltages, centroids, focus_on, labels, reverse_dict_labels, centroid_others=centroid_others, **kwargs)
 
-def plot_point_sample(X_data, y_data, point_voltages, centroids, voltage_map, label_counts, **kwargs):
+def plot_point_sample(X_data, y_data, other_data, point_voltages, centroids, voltage_map, label_counts, centroid_others, **kwargs):
 	# Embed new features from the voltage map
 	features = voltage_embed.embed_voltage_features(X_data, centroids, voltage_map)
 
@@ -229,6 +240,7 @@ def plot_point_sample(X_data, y_data, point_voltages, centroids, voltage_map, la
 	all_point_voltages = [point_voltages[landmark.index] for landmark in voltage_map.get_all_landmarks()]
 	data = [centroids[landmark.index] for landmark in voltage_map.get_all_landmarks()]
 	all_label_counts = [label_counts[landmark.index] for landmark in voltage_map.get_all_landmarks()]
+	all_centroid_others = [centroid_others[landmark.index] for landmark in voltage_map.get_all_landmarks()]
 
 	# print("all_point_voltages[0]: " + str(all_point_voltages[0]))
 	# print("data[0]: " + str(data[0]))
@@ -241,6 +253,7 @@ def plot_point_sample(X_data, y_data, point_voltages, centroids, voltage_map, la
 	# Extend with full dataset
 	all_point_voltages.extend(features)
 	data.extend(X_data)
+	all_centroid_others.extend([[d] for d in other_data])
 
 	# Wrap y_data (numpy labels) into Counters so it matches label_counts structure
 	all_label_counts.extend([Counter({label: 1}) for label in y_data])
@@ -250,8 +263,8 @@ def plot_point_sample(X_data, y_data, point_voltages, centroids, voltage_map, la
 	data = setofpoints.SetOfPoints(np.array(data))
 
 	# Plot
-	plot_landmark_subset(all_point_voltages, data, all_label_counts, **kwargs)
+	plot_landmark_subset(all_point_voltages, data, all_label_counts, centroid_others=all_centroid_others, **kwargs)
 
-def plot_points_from_file(filepath, n_points, point_voltages, centroids, voltage_map, label_counts, **kwargs):
-	X_data, y_data = shuffle.load_data(filepath, n_points)
-	plot_point_sample(X_data, y_data, point_voltages, centroids, voltage_map, label_counts, **kwargs)
+def plot_points_from_file(filepath, n_points, point_voltages, centroids, voltage_map, label_counts, centroid_others, **kwargs):
+	X_data, y_data, other_data = shuffle.load_data(filepath, n_points)
+	plot_point_sample(X_data, y_data, other_data, point_voltages, centroids, voltage_map, label_counts, centroid_others, **kwargs)
