@@ -22,4 +22,4 @@ Note:
 
 from typing import Dict, Any
 
-params: Dict[str, Any] = {}
+params = None  # type: Dict[str, Any]

@@ -91,7 +91,7 @@ class Reader:
         Returns true if n rows remain, false otherwise.
         """
         current_pos = self.df.index.stop
-        self.df = pd.read_csv(self.file_path, skiprows=current_pos, nrows=n, dtype=self.column_types)
+        self.df = pd.read_csv(self.file_path, skiprows=current_pos, on_bad_lines='skip', nrows=n, dtype=self.column_types)
         has_n_rows = len(self.df) == n
         # reset df to original position
         self.df = pd.read_csv(self.file_path, skiprows=current_pos, nrows=0, dtype=self.column_types)

@@ -1,8 +1,0 @@
-Run initial main/select/visualize
-run_mnist.sh
-
-run filter to partition the file into 10 
-run_filter.sh
-
-Run 10 main/select/visualize, one on each part
-run_all.sh

@@ -68,6 +68,12 @@ def set_params():
         - Use --test flag for quick debugging with reduced parameters
         - Verbosity levels: 0 (silent), 1 (normal), 2 (verbose)
     """
+    
+    if config.params is not None:
+        # Parameters already set, skip re-initialization
+        return
+    
+    print("Setting command line parameters")
     parser = argparse.ArgumentParser(description="Set parameters for the streaming centroids algorithm.")
     ## defaults are set for the MNIST dataset
 
@@ -78,7 +84,7 @@ def set_params():
     parser.add_argument("--output_path", type=str, default='', help="Path to the output filtered text file")
 
     # parameters for streaming k-means
-    parser.add_argument("--normalize_vecs", action="store_true", help="normalize vectors to L_2=1 before calculating distances")
+    parser.add_argument("--normalize_vecs", action="store_true", default=True, help="normalize vectors to L_2=1 before calculating distances")
     parser.add_argument("--max_centroids", type=int, default=1000, help="Maximum number of centroids")
     parser.add_argument("--init_size", type=int, default=1000, help="Number of points to estimate Z")
     parser.add_argument("--batch_size", type=int, default=1000, help="Batch size for streaming")
@@ -135,7 +141,3 @@ def set_params():
         raise ValueError("init-size must be a positive integer.")
     if args.batch_size <= 0:
         raise ValueError("batch-size must be a positive integer.")
-    if args.normalize_vecs:
-        print("Normalizing vectors to L2=1 before distance calculations.")
-    else:
-        print("Using raw vectors without normalization for distance calculations.")
