@@ -1,0 +1,22 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from tensorflow.keras.datasets import mnist
+import umap
+
+# Load MNIST
+(X_train, y_train), (X_test, y_test) = mnist.load_data()
+X = np.concatenate([X_train, X_test])
+y = np.concatenate([y_train, y_test])
+
+# Flatten 28x28 images → 784-dim vectors
+X = X.reshape((X.shape[0], -1)).astype(np.float32) / 255.0
+
+##################
+
+# Create UMAP model
+umap_model = umap.UMAP(n_neighbors=15, min_dist=0.1, n_components=2, random_state=42)
+
+# Fit and transform
+X_umap = umap_model.fit_transform(X[:10000])  # subsample to 10k for speed
+y_umap = y[:10000]
+
