@@ -108,13 +108,19 @@ def filter_voltages(input_path: str, output_path: str, data_path: str, indices: 
         print(f"Partitioning output into {n_landmarks} files")
         # define output_indexed to be the output path without the suffix and suffix to be the suffix
 
-        output_indexed = output_path.rsplit('.', 1)[0]
-        suffix = output_path.rsplit('.', 1)[1]
-        print(f"output_path: {output_path}, output_indexed={output_indexed}, suffix={suffix}")
 
-        # create output files
-        outfiles = {index: open(f"{output_indexed}_{index}.{suffix}", 'w') for index in range(n_landmarks)}
-        writers = {index: Writer(f"{output_indexed}_{index}.{suffix}",reader) for index in range(n_landmarks)}
+        import os
+        base_name = os.path.basename(output_path)
+        name_no_ext = base_name.rsplit('.', 1)[0]
+        print(f"output_path: {output_path}, base_name={base_name}, name_no_ext={name_no_ext}")
+
+        # create subdirectories and output files
+        writers = {}
+        for index in range(n_landmarks):
+            subdir = f"{name_no_ext}_{index}"
+            os.makedirs(subdir, exist_ok=True)
+            file_path = os.path.join(subdir, name_no_ext)
+            writers[index] = Writer(file_path, reader)
 
         for writer in writers.values():
             writer.write_header()
