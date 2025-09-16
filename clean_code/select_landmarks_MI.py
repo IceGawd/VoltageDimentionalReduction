@@ -108,7 +108,7 @@ def select_landmarks(all_voltages: voltagemap.VoltageMap) -> voltagemap.VoltageM
                 best_landmark = j
 
         # move the best landmark to the voltage map
-        print(f"Adding landmark index={best_landmark} lm_index={voltage_map.entries[best_landmark]['landmark'].index} with MI={max_mi:.4f}")
+        print(f"{i}) Adding landmark index={best_landmark} lm_index={voltage_map.entries[best_landmark]['landmark'].index} with MI={max_mi:.4f}")
         voltage_map.entries[best_landmark]['MI_cumul'] = max_mi  # Update the advantage of the best landmark
         # Sort the voltage map by advantage
         voltage_map.sort_by_advantage(quantity="MI_cumul", reverse=True)
@@ -117,7 +117,7 @@ def select_landmarks(all_voltages: voltagemap.VoltageMap) -> voltagemap.VoltageM
     voltage_map.entries = voltage_map.entries[:N]   
     return voltage_map
 
-if __name__ == "__main__": 
+def main():
     """
     Main execution script for landmark selection.
 
@@ -147,10 +147,25 @@ if __name__ == "__main__":
     print(f"Data loaded from {save_data}")
     
     all_voltages = Data['all_voltages']
+    centroids = Data['centroids']
     voltage_map = select_landmarks(all_voltages)
 
     Data['voltage_map'] = voltage_map
+
+    from filter import count_neighborhoods
+    neighborhood = count_neighborhoods(input_path=config.params['file_path'], voltage_map=voltage_map, centroids=centroids)
+    Data['neighborhood'] = neighborhood
+
+    #pretty print the neighborhood matrix and the sum for each row.
+    np.set_printoptions(precision=3, suppress=True, linewidth=200)
+    print("Neighborhood matrix (rows sum to the number of times that landmark i was the highest voltage):")
+    print(neighborhood)
+    print("Row sums:")
+    print(np.sum(neighborhood, axis=1))     
+
     with open(save_data, 'wb') as f:
         pickle.dump(Data, f)
     print(f"added voltage_map to {save_data}")
 
+if __name__ == "__main__": 
+    main()

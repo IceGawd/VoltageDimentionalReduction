@@ -1,0 +1,10 @@
+python scripts/process_all.py &> glove_log0.txt &
+python scripts/process_all.py &> glove_log1.txt &
+python scripts/process_all.py &> glove_log2.txt &
+python scripts/process_all.py &> glove_log3.txt &
+python scripts/process_all.py &> glove_log4.txt &
+python scripts/process_all.py &> glove_log5.txt &
+python scripts/process_all.py &> glove_log6.txt &
+python scripts/process_all.py &> glove_log7.txt &
+python scripts/process_all.py &> glove_log8.txt &
+python scripts/process_all.py &> glove_log9.txt &
