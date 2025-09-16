@@ -111,7 +111,8 @@ def set_params():
     parser.add_argument("--no_log_transform", action="store_true", help="Disable log transformation of voltages for visualization")
     
     # parameters for filtering
-    parser.add_argument("--indices", type=list, default=[],nargs='+', help="List of indices of voltage maps accodring to which we filter the dataset")
+    parser.add_argument('--indices', type=lambda s: [int(item) for item in s.split(',')], default=[], \
+                        help="comma separated List of indices of voltage maps accodring to which we filter the dataset")
     parser.add_argument("--no_filter", action="store_true", help="If set, disables filtering by indices")
     parser.add_argument("--filter_partition", action="store_true", help="If set, filter the dataset into one output file per landmark")
     

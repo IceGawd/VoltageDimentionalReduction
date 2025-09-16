@@ -250,17 +250,20 @@ def Streaming_Kmeans(filepath: str) -> Tuple[npt.NDArray, npt.NDArray, List[Opti
 	total_count = 0  # Total number of vectors processed
 	 # compute for each centroid a label that is the majority of examples that are assigned to it
 
-
+############################ begin refine_centroids
 	def refine_centroids(centroids, vectors, other):
-		""" Refine centroids using the current batch of vectors. This is done based on the observation that with the current update rule 
-		some centroids are assigned many vectors and some none. The idea here is to eliminate those that are assigned too few and on the other hand split those
-		that are assigned too many vectors.
+		""" Refine centroids using the current batch of vectors
 		"""
 
 		_, vec_assignments = skmeans._compute_distances_squared(vectors, skmeans.index)
 		# Assign vectors and labels to centroids
 
 		# Create a dictionary to hold centroid statistics
+		# Each entry will contain:
+		# - 'centroid': current centroid vector
+		# - 'vectors': list of vectors assigned to this centroid
+		# - 'label': list of labels of the assigned vectors
+		# - 'other': list of other fields of the assigned vectors
 		centroids = skmeans.get_centroids()  # Get the current centroids from the index
 		centroid_stats = {i:{'centroid':centroids[i], 'vectors': [], 'label': [], 'other': []} for i in range(centroids.shape[0])}
 
@@ -292,24 +295,9 @@ def Streaming_Kmeans(filepath: str) -> Tuple[npt.NDArray, npt.NDArray, List[Opti
 		sizes = np.array([len(centroid_stats[i]['vectors']) for i in centroid_stats])
 		order = np.argsort(sizes)[::-1]  # Sort indices by size in descending order
 		sorted_sizes = np.sort(sizes)[::-1]  # Sorted sizes in descending order
-		print(f"sorted_sizes={sorted_sizes[:5]}")  # Print the top 5 sizes for debugging
-		if config.params['equalize_centroids']:
-			## Remove centroids that are too small
-			for j in range(len(too_small)):
-				i1 = too_small[j]   #points to the j'th small centroid
-				i2 = order[j] # points to the j'th largest centroid
-				#define two centroids that spit the largest centroid
-				#print(f"{len(centroid_stats[i2]['vectors'])} vectors assigned to centroid {i2}")
-
-				# perturb the centroid vector to create a new centroid
-				v = centroid_stats[i2]['centroid']  # Current centroid vector
-				d = v.shape[0]  # Dimensionality of the centroid
-				e = np.random.randn(d)
-				e = e * 1e-20 / np.linalg.norm(e)  # Normalize to unit length
-
-				centroid_stats[i1]['centroid'] = v+e
-
-
+		if(config.params['verbosity']>=2):	
+			print(f"sorted_sizes={sorted_sizes[:5]}")  # Print the top 5 sizes for debugging
+			print(f"too_small={too_small}")
 		new_centroids = np.array([centroid_stats[i]['centroid'] for i in centroid_stats])
 		if config.params['normalize_vecs']:
 			centroids=centroids/ np.linalg.norm(centroids, axis=1, keepdims=True)
@@ -318,26 +306,21 @@ def Streaming_Kmeans(filepath: str) -> Tuple[npt.NDArray, npt.NDArray, List[Opti
 		
 		skmeans.index.reset()  # Reset index to ensure it's empty
 		skmeans.index.add(new_centroids)  # Add the final centroids to the index
-		finished=not config.params['equalize_centroids'] or len(too_small)==0
-		return centroid_stats, rms,len(too_small),finished
+		return centroid_stats, rms,len(too_small)
 			
+########################### end refine_centroids
+
 	for vectors, other in reader.stream_batches(config.params['batch_size']):
 		if len(vectors) < config.params['batch_size']:
 			break
 		if config.params['normalize_vecs']:
 			vectors = vectors / np.linalg.norm(vectors, axis=1, keepdims=True)
 
-		finished = False
-		rms_old = -1 # not possible
-		while not finished:
-			# Refine centroids using the current batch of vectors
-			# This function will return the updated index and centroid statistics
-			print(f"\nrefining vectors")
-			centroid_stats, rms, len_too_small, finished = refine_centroids(centroids, vectors, other)
-			if rms_old == rms:
-				finished = True
-			rms_old = rms
-			print(f"too_small={len_too_small}, rms={rms}, finished={finished}")
+		# Refine centroids using the current batch of vectors
+		# This function will return the updated index and centroid statistics
+		centroid_stats, rms, len_too_small  = refine_centroids(centroids, vectors, other)
+
+		print(f"too_small={len_too_small}, rms={rms}")
 
 	
 	# Compute majority label for each centroid

@@ -45,6 +45,7 @@ def main():
     os.makedirs(config.params['plot_dir'], exist_ok=True)
     
     indices = config.params['indices']
+    print(f"indices={indices}")
     print(f"Focus landmarks (indices): {indices}")
     # Create the plot
     plot_landmark_subset(

@@ -56,6 +56,7 @@ def get_distinct_colors(N):
 	return optimized_points
 
 def transform(points, transformation):
+	print(f"points.shape: {points.shape}, transformation: {transformation}")
 	if transformation == "mds":
 		mds = MDS(n_components=2)
 		return mds.fit_transform(points)
