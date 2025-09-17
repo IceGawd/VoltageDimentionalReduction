@@ -205,7 +205,7 @@ def scatter_plot(point_voltages, point_transformed_voltages, data, focus_on, lab
 												 y - image_size * size, y + image_size * size), origin='upper')
 					collisionDetector(image, drawn_boxes, remove_clutter, force_draw, fig.canvas.get_renderer())
 				elif element == "point":
-					plt.plot(x, y, marker='o', markersize=6, color=color)
+					plt.plot(x, y, marker='o', markersize=6, color=color, alpha=alpha_actual)
 				elif element == "label":
 					text = ax.text(x, y, str(reverse_dict_labels[label]),
 								   color=color, fontsize=fontsize, alpha=alpha_actual,
@@ -239,6 +239,7 @@ def plot_landmark_subset(point_voltages, centroids, label_counts, focus_on=None,
 
 	if focus_on is None:
 		focus_on = np.array(range(point_voltages.shape[1]))
+
 	if log_transform:
 		point_voltages = -np.log(point_voltages)
 

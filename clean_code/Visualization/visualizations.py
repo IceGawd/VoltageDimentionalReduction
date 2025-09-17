@@ -54,7 +54,6 @@ def main():
 		focus_on=indices,
 		element=config.params['scatter_element'],
 		landmarkSize=config.params['landmarkSize'],
-		log_transform=not config.params['no_log_transform'],
 		transformation=config.params['transformation'],
 		alpha_actual=config.params['alpha'],
 		percent_size=config.params['percent_size'],
