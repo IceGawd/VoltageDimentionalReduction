@@ -108,7 +108,7 @@ def select_landmarks(all_voltages: voltagemap.VoltageMap) -> voltagemap.VoltageM
                 best_landmark = j
 
         # move the best landmark to the voltage map
-        print(f"Adding landmark index={best_landmark} lm_index={voltage_map.entries[best_landmark]['landmark'].index} with MI={max_mi:.4f}")
+        print(f"{i}) Adding landmark index={best_landmark} lm_index={voltage_map.entries[best_landmark]['landmark'].index} with MI={max_mi:.4f}")
         voltage_map.entries[best_landmark]['MI_cumul'] = max_mi  # Update the advantage of the best landmark
         # Sort the voltage map by advantage
         voltage_map.sort_by_advantage(quantity="MI_cumul", reverse=True)
@@ -117,7 +117,7 @@ def select_landmarks(all_voltages: voltagemap.VoltageMap) -> voltagemap.VoltageM
     voltage_map.entries = voltage_map.entries[:N]   
     return voltage_map
 
-if __name__ == "__main__": 
+def main():
     """
     Main execution script for landmark selection.
 
@@ -167,3 +167,5 @@ if __name__ == "__main__":
         pickle.dump(Data, f)
     print(f"added voltage_map to {save_data}")
 
+if __name__ == "__main__": 
+    main()
