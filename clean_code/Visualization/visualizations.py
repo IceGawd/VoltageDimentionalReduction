@@ -92,6 +92,5 @@ def main():
 	# Print shapes for verification (equivalent to the last cell)
 	print(f"Final verification - Centroids shape: {centroids.shape}, Points shape: {voltages.voltage_array().shape}")
 
-
 if __name__ == "__main__":
 	main()
