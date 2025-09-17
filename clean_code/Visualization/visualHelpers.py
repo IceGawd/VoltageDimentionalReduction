@@ -3,6 +3,7 @@ import numpy as np
 from scipy.optimize import minimize
 from sklearn.decomposition import PCA
 from sklearn.manifold import MDS
+import umap
 import math
 import itertools
 from Utilities import config
@@ -68,8 +69,11 @@ def transform(points, transformation):
 	elif transformation == "pca":
 		pca = PCA(n_components=2)
 		return pca.fit_transform(points)
+	elif transformation == "umap":
+		umap_model = umap.UMAP(n_components=2)
+		return umap_model.fit_transform(points)
 	else:
-		raise ValueError("transformation must be either \"pca\" or \"mds\"")
+		raise ValueError("transformation must be either \"pca\", \"mds\" or \"umap\"")
 
 def standard_save_display(out_file):
 	if out_file:

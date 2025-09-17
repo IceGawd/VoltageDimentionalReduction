@@ -10,7 +10,7 @@ from Utilities import voltage_embed
 from Utilities import shuffle
 
 def _prepare_image_rgba(digit_array, color, alpha_actual):
-	alpha_mask = np.clip(digit_array.reshape(28, 28), 0, 255) / 255
+	alpha_mask = np.clip(digit_array.reshape(28, 28), np.min(digit_array), np.max(digit_array)) / (np.max(digit_array) - np.min(digit_array)) + np.min(digit_array)
 	rgb_image = np.zeros((28, 28, 4))
 	for c in range(3):
 		rgb_image[..., c] = color[c]

@@ -77,14 +77,14 @@ def set_params():
 	
 	parser.add_argument("--output_path", type=str, default='', help="Path to the output filtered text file")
 
-    # parameters for streaming k-means
-    parser.add_argument("--normalize_vecs", action="store_true", default=True, help="normalize vectors to L_2=1 before calculating distances")
-    parser.add_argument("--max_centroids", type=int, default=1000, help="Maximum number of centroids")
-    parser.add_argument("--init_size", type=int, default=1000, help="Number of points to estimate Z")
-    parser.add_argument("--batch_size", type=int, default=1000, help="Batch size for streaming")
-    parser.add_argument("--kmeans_alpha", type=float, default=0.1, 
-                        help="defines fraction of new centroid that comes from the average of assigned vectors (0.0 to 1.0)")
-    parser.add_argument("--equalize_centroids", action="store_true", help="Equalize centroids by removing small ones and splitting large ones")
+	# parameters for streaming k-means
+	parser.add_argument("--normalize_vecs", action="store_true", default=True, help="normalize vectors to L_2=1 before calculating distances")
+	parser.add_argument("--max_centroids", type=int, default=1000, help="Maximum number of centroids")
+	parser.add_argument("--init_size", type=int, default=1000, help="Number of points to estimate Z")
+	parser.add_argument("--batch_size", type=int, default=1000, help="Batch size for streaming")
+	parser.add_argument("--kmeans_alpha", type=float, default=0.1, 
+						help="defines fraction of new centroid that comes from the average of assigned vectors (0.0 to 1.0)")
+	parser.add_argument("--equalize_centroids", action="store_true", help="Equalize centroids by removing small ones and splitting large ones")
 
 	# parameters for computing voltage maps
 	parser.add_argument("--k", type=int, default=10, help="k-connectivity for the k-nearest neighbor graph")
@@ -127,18 +127,18 @@ def set_params():
 	parser.add_argument("--test", action="store_true", help="Run in test mode with reduced parameters for quick debugging")
 	args = parser.parse_args()
 
-    config.params=vars(args)
-    if config.params['verbosity']>=2:
-        print("Configuration parameters:")
-        for key, value in config.params.items():
-            if type(value) is str:
-                value = re.sub(r'\s+', ' ', value)
-                value=f"'{value}'"
-        
-    # Validate input parameters
-    if args.max_centroids <= 0:
-        raise ValueError("max-centroids must be a positive integer.")
-    if args.init_size <= 0:
-        raise ValueError("init-size must be a positive integer.")
-    if args.batch_size <= 0:
-        raise ValueError("batch-size must be a positive integer.")
+	config.params=vars(args)
+	if config.params['verbosity']>=2:
+		print("Configuration parameters:")
+		for key, value in config.params.items():
+			if type(value) is str:
+				value = re.sub(r'\s+', ' ', value)
+				value=f"'{value}'"
+		
+	# Validate input parameters
+	if args.max_centroids <= 0:
+		raise ValueError("max-centroids must be a positive integer.")
+	if args.init_size <= 0:
+		raise ValueError("init-size must be a positive integer.")
+	if args.batch_size <= 0:
+		raise ValueError("batch-size must be a positive integer.")

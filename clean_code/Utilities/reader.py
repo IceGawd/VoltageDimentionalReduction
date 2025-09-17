@@ -66,55 +66,55 @@ class Reader:
 			self._csv_reader = pd.read_csv(self.file_path, **read_kwargs)
 		
 
-        # Continue reading from where we left off
-        if self._csv_reader is not None and not self._is_exhausted:
-            try:
-                for chunk in self._csv_reader:
-                    # extract vectors that are stored in columns starting with 'd'
-                    vectors = chunk.iloc[:, self.float_cols].to_numpy()
-                    # extract labels and other fields that are not part of the vectors
-                    additional_fields = chunk.drop(columns=chunk.columns[self.float_cols]).to_dict(orient='records')
-                    self.counter+=len(vectors)
-                    print(f"Read {len(vectors)} rows, total so far: {self.counter}",end='\r')
-                    yield vectors, additional_fields
-            except StopIteration:
-                self._is_exhausted = True
-                self._csv_reader = None 
-                
-    
-    def get_counter(self):
-        """ Return the number of lines read so far. """
-        return self.counter
+		# Continue reading from where we left off
+		if self._csv_reader is not None and not self._is_exhausted:
+			try:
+				for chunk in self._csv_reader:
+					# extract vectors that are stored in columns starting with 'd'
+					vectors = chunk.iloc[:, self.float_cols].to_numpy()
+					# extract labels and other fields that are not part of the vectors
+					additional_fields = chunk.drop(columns=chunk.columns[self.float_cols]).to_dict(orient='records')
+					self.counter+=len(vectors)
+					print(f"Read {len(vectors)} rows, total so far: {self.counter}",end='\r')
+					yield vectors, additional_fields
+			except StopIteration:
+				self._is_exhausted = True
+				self._csv_reader = None 
+				
+	
+	def get_counter(self):
+		""" Return the number of lines read so far. """
+		return self.counter
 
-    def peek_forward(self, n):
-        """ Peek ahead n lines without advancing the file pointer.
-        Returns true if n rows remain, false otherwise.
-        """
-        current_pos = self.df.index.stop
-        self.df = pd.read_csv(self.file_path, skiprows=current_pos, on_bad_lines='skip', nrows=n, dtype=self.column_types)
-        has_n_rows = len(self.df) == n
-        # reset df to original position
-        self.df = pd.read_csv(self.file_path, skiprows=current_pos, nrows=0, dtype=self.column_types)
-        return has_n_rows   
-    
-    def reset_reader(self):
-        """Reset the CSV reader to start from the beginning of the file."""
-        self._csv_reader = None
-        self._is_exhausted = False
-    
-    def is_exhausted(self):
-        """Check if the CSV reader has reached the end of the file."""
-        return self._is_exhausted
-    
-    def close(self):
-        """Close the CSV reader and clean up resources."""
-        if self._csv_reader is not None:
-            try:
-                self._csv_reader.close()
-            except AttributeError:
-                pass  # Some pandas versions don't have close method
-        self._csv_reader = None
-        self._is_exhausted = False
+	def peek_forward(self, n):
+		""" Peek ahead n lines without advancing the file pointer.
+		Returns true if n rows remain, false otherwise.
+		"""
+		current_pos = self.df.index.stop
+		self.df = pd.read_csv(self.file_path, skiprows=current_pos, on_bad_lines='skip', nrows=n, dtype=self.column_types)
+		has_n_rows = len(self.df) == n
+		# reset df to original position
+		self.df = pd.read_csv(self.file_path, skiprows=current_pos, nrows=0, dtype=self.column_types)
+		return has_n_rows   
+	
+	def reset_reader(self):
+		"""Reset the CSV reader to start from the beginning of the file."""
+		self._csv_reader = None
+		self._is_exhausted = False
+	
+	def is_exhausted(self):
+		"""Check if the CSV reader has reached the end of the file."""
+		return self._is_exhausted
+	
+	def close(self):
+		"""Close the CSV reader and clean up resources."""
+		if self._csv_reader is not None:
+			try:
+				self._csv_reader.close()
+			except AttributeError:
+				pass  # Some pandas versions don't have close method
+		self._csv_reader = None
+		self._is_exhausted = False
 
 class Writer:
 	""" Writer class for writing batches of vectors and additional fields to a CSV file.

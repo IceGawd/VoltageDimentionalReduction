@@ -18,10 +18,7 @@ import faiss
 
 def compute_voltages(centroids):
 	""" compute the voltage map for each centroid """
-
-	from Utilities.timer import Timer
-	timer=Timer()	
-	timer
+	# timer = Timer()	
 	all_voltages = voltagemap.VoltageMap()	
 	_problem = problem.Problem(centroids,r=config.params['r'])
 	_solver=solver.Solver(_problem)
@@ -29,7 +26,7 @@ def compute_voltages(centroids):
 		_landmark= landmark.Landmark(index, voltage=1.0)
 		voltages=_solver.compute_voltages(_landmark)
 		all_voltages.add_solution(_landmark, voltages=voltages)
-	timer.mark("Computed voltages for all centroids")
+	# timer.mark("Computed voltages for all centroids")
 	return all_voltages
 
 def main(filepath=None, save=True):
@@ -47,7 +44,7 @@ def main(filepath=None, save=True):
 	# define set of set of centroids
 	centroids = setofpoints.SetOfPoints(points=points, weights=counters)
 
-	timer.mark("Compute voltages started")
+	# timer.mark("Compute voltages started")
 	# compute voltages for each centroid
 	
 	all_voltages = compute_voltages(centroids)
