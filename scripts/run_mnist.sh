@@ -1,15 +1,15 @@
 #set -e
 
-# python ../clean_code/main.py \
-# 	../../Voltage_Data/mnist/mnist.csv\
-# 	--max_centroids 100 \
-# 	--batch_size=10000 \
-# 	--split_char ',' \
-# 	--save_data ../../Voltage_Temp/Results/mnist/saved_data.pkl
+python ../clean_code/main.py \
+	../../Voltage_Data/mnist/mnist.csv\
+	--max_centroids 500 \
+	--batch_size=10000 \
+	--split_char ',' \
+	--save_data ../../Voltage_Temp/Results/mnist/saved_data.pkl
 
-# python ../clean_code/select_landmarks_MI.py \
-# 	--NoOfLandmarks 10 \
-# 	--save_data ../../Voltage_Temp/Results/mnist/saved_data.pkl
+python ../clean_code/select_landmarks_MI.py \
+	--NoOfLandmarks 10 \
+	--save_data ../../Voltage_Temp/Results/mnist/saved_data.pkl
 
 python ../clean_code/Visualization/visualizations.py \
 	--scatter_element digit \

@@ -90,6 +90,7 @@ def filter_voltages(input_path: str, output_path: str, data_path: str, indices: 
     reader = Reader(input_path)
     stream = stream_voltages(reader, voltage_map, centroids, BatchSize)
     from Utilities import config
+    import pandas as pd
     if not config.params['filter_partition']:
         writer=Writer(output_path,reader)
         writer.write_header()
@@ -110,16 +111,19 @@ def filter_voltages(input_path: str, output_path: str, data_path: str, indices: 
 
 
         import os
+        #extract path from output_path
+        path = os.path.dirname(output_path)
         base_name = os.path.basename(output_path)
         name_no_ext = base_name.rsplit('.', 1)[0]
-        print(f"output_path: {output_path}, base_name={base_name}, name_no_ext={name_no_ext}")
+        print(f"path: {path}, output_path: {output_path}, base_name={base_name}, name_no_ext={name_no_ext}")
 
         # create subdirectories and output files
         writers = {}
         for index in range(n_landmarks):
-            subdir = f"{name_no_ext}_{index}"
+            subdir = f"{path}/_{index}"
+            print(f"Creating subdir: {subdir}")
             os.makedirs(subdir, exist_ok=True)
-            file_path = os.path.join(subdir, name_no_ext)
+            file_path = os.path.join(subdir, base_name)
             writers[index] = Writer(file_path, reader)
 
         for writer in writers.values():

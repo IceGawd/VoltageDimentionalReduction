@@ -78,7 +78,7 @@ def set_params():
 	parser.add_argument("--output_path", type=str, default='', help="Path to the output filtered text file")
 
 	# parameters for streaming k-means
-	parser.add_argument("--normalize_vecs", action="store_true", default=True, help="normalize vectors to L_2=1 before calculating distances")
+	parser.add_argument("--normalize_vecs", action="store_true", help="normalize vectors to L_2=1 before calculating distances")
 	parser.add_argument("--max_centroids", type=int, default=1000, help="Maximum number of centroids")
 	parser.add_argument("--init_size", type=int, default=1000, help="Number of points to estimate Z")
 	parser.add_argument("--batch_size", type=int, default=1000, help="Batch size for streaming")
@@ -134,7 +134,12 @@ def set_params():
 			if type(value) is str:
 				value = re.sub(r'\s+', ' ', value)
 				value=f"'{value}'"
-		
+
+	if config.params['normalize_vecs']:
+		print("Input vectors will be normalized to unit length before processing.")
+	else:
+		print("Input vectors will NOT be normalized before processing.")
+
 	# Validate input parameters
 	if args.max_centroids <= 0:
 		raise ValueError("max-centroids must be a positive integer.")

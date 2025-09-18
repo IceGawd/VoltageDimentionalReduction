@@ -75,7 +75,10 @@ class StreamingKMeansPlusPlus:
 		self.d = d
 		self.Z = max_dist2 - min_dist2  # Normalization constant for sampling probabilities
 		self.shift= min_dist2  # Shift to ensure non-negative distances
-	
+		if config.params['normalize_vecs']:
+			print("Input vectors will be normalized to unit length before processing.")
+		else:
+			print("Input vectors will NOT be normalized before processing.")
 		self.max_centroids = config.params['max_centroids']
 		assert type(index) == faiss.IndexFlatL2, "Index must be of type faiss.IndexFlatL2"
 		self.index = index
