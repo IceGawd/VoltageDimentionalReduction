@@ -132,6 +132,8 @@ def load_data(filepath: str, n_points: int):
 		other_data (list[dict]): List of dicts containing other metadata for each point
 	"""
 	reader = Reader(filepath)
+	if reader is None:
+		return
 	X_list, y_list, other_data = [], [], []
 	total_collected = 0
 

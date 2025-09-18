@@ -65,11 +65,15 @@ def stream_voltages(reader: Reader, voltage_map, centroids,BatchSize:int = 10000
     for vectors,other in reader.stream_batches(BatchSize):
         # Assuming vectors is a 2D numpy array where each row is a data point
         # and labels is a 1D numpy array of corresponding labels.
-        features = embed_voltage_features(vectors, centroids, voltage_map)
+        try:
+            features = embed_voltage_features(vectors, centroids, voltage_map)
+        except Exception as e:      
+            print(f"Error in embed_voltage_features: {e}")
+            break
 
         for i, feature in enumerate(features):
             yield other[i], vectors[i], features[i]
-    print(f"Total lines processed in stream_voltags: {reader.get_counter()}")
+    print(f"Total lines processed in stream_voltages: {reader.get_counter()}")
 
 def filter_voltages(input_path: str, output_path: str, data_path: str, indices: list[int], BatchSize: int = 10000) -> int:
     """
@@ -88,6 +92,8 @@ def filter_voltages(input_path: str, output_path: str, data_path: str, indices: 
     
     counter=0
     reader = Reader(input_path)
+    if reader is None:
+        return
     stream = stream_voltages(reader, voltage_map, centroids, BatchSize)
     from Utilities import config
     import pandas as pd
@@ -111,19 +117,21 @@ def filter_voltages(input_path: str, output_path: str, data_path: str, indices: 
 
 
         import os
-        #extract path from output_path
-        path = os.path.dirname(output_path)
-        base_name = os.path.basename(output_path)
-        name_no_ext = base_name.rsplit('.', 1)[0]
-        print(f"path: {path}, output_path: {output_path}, base_name={base_name}, name_no_ext={name_no_ext}")
 
-        # create subdirectories and output files
+        # construct output filename from output_path
+        if output_path.endswith('.csv'):
+            output_stem=output_path[:-4]
+        else:
+            raise  ValueError("output_path must end with .csv") 
+        
+        
+        print(f"output_path: {output_path}, output_stem={output_stem}")
+
+        # create output files
         writers = {}
         for index in range(n_landmarks):
-            subdir = f"{path}/_{index}"
-            print(f"Creating subdir: {subdir}")
-            os.makedirs(subdir, exist_ok=True)
-            file_path = os.path.join(subdir, base_name)
+            file_path = f"{output_stem}_{index}.csv"
+            print(f"Creating file: {file_path}")
             writers[index] = Writer(file_path, reader)
 
         for writer in writers.values():
@@ -160,6 +168,8 @@ def count_neighborhoods(input_path: str, voltage_map: np.ndarray, centroids: np.
                     It follows the same design pattern as filter_voltages and uses stream_voltages
     """
     reader = Reader(input_path)
+    if reader is None:
+        return
     stream = stream_voltages(reader, voltage_map, centroids, BatchSize)
 
     num_landmarks = len(voltage_map)

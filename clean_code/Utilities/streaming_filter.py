@@ -152,6 +152,8 @@ class StreamingFilter:
         
         # Initialize input reader (Reader class handles all file types automatically)
         self.input_reader = Reader(input_path)
+        if self.input_reader is None:
+            return
         
         # Create output directory if it doesn't exist
         output_dir = os.path.dirname(output_path)

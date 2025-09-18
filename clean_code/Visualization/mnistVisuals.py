@@ -190,7 +190,7 @@ def scatter_plot(point_voltages, point_transformed_voltages, data, focus_on, lab
 			color = np.array(colors[int(label)])
 			x, y = point_transformed_voltages[i]
 
-			if (np.min(voltages) == 0.0): # only works for log transform
+			if (np.min(voltages) < 0.0001): # only works for log transform
 				min_index = np.argmin(voltages)
 				min_index = focus_on[min_index]
 				plt.text(x, y, str(min_index), fontsize=20, color='white', ha='center', va='center')
@@ -205,7 +205,7 @@ def scatter_plot(point_voltages, point_transformed_voltages, data, focus_on, lab
 												 y - image_size * size, y + image_size * size), origin='upper')
 					collisionDetector(image, drawn_boxes, remove_clutter, force_draw, fig.canvas.get_renderer())
 				elif element == "point":
-					plt.plot(x, y, marker='o', markersize=6, color=color, alpha=alpha_actual)
+					plt.plot(x, y, marker='o', markersize=percent_size*1200, color=color, alpha=alpha_actual)
 				elif element == "label":
 					text = ax.text(x, y, str(reverse_dict_labels[label]),
 								   color=color, fontsize=fontsize, alpha=alpha_actual,
@@ -237,7 +237,7 @@ def plot_landmark_subset(point_voltages, centroids, label_counts, focus_on=None,
 	Visualizes a subset of point_voltages in 2D space after dimensionality reduction, focusing on specific landmarks.
 	"""
 
-	if focus_on is None:
+	if focus_on is None or focus_on==[]:
 		focus_on = np.array(range(point_voltages.shape[1]))
 
 	if log_transform:

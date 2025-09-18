@@ -101,7 +101,8 @@ def set_params():
 	parser.add_argument("--DepthOfLandmarkSearch", type=int, default=100, help="Depth of landmark search")
  
 	# parameters for visualization
-	parser.add_argument("--plot_dir", type=str, default='', help="Directory to save output plots")
+	parser.add_argument("--plot_file", type=str, default=None, help="File to save the output plot used if no indices set")
+	parser.add_argument("--plot_dir", type=str, default='', help="Directory to save output plots, used if indices set")
 	parser.add_argument("--num_labels", type=int, default=0, help="Number of labels for visualization")
 	parser.add_argument("--ratio_threshold", type=float, default=0, help="Threshold for ratio of the most common label to total count")
 	parser.add_argument("--scatter_element", type=str, default='digit', help="Element type for scatter plot. Could be either 'digit', 'label', 'point', 'word'")

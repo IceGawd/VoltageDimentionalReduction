@@ -75,10 +75,6 @@ class StreamingKMeansPlusPlus:
 		self.d = d
 		self.Z = max_dist2 - min_dist2  # Normalization constant for sampling probabilities
 		self.shift= min_dist2  # Shift to ensure non-negative distances
-		if config.params['normalize_vecs']:
-			print("Input vectors will be normalized to unit length before processing.")
-		else:
-			print("Input vectors will NOT be normalized before processing.")
 		self.max_centroids = config.params['max_centroids']
 		assert type(index) == faiss.IndexFlatL2, "Index must be of type faiss.IndexFlatL2"
 		self.index = index
@@ -179,6 +175,8 @@ def Streaming_Kmeans(filepath: str) -> Tuple[npt.NDArray, npt.NDArray, List[Opti
 			- 'normalize_vecs': Whether to normalize input vectors
 	"""
 	reader = Reader(filepath)
+	if reader is None:
+		return None
 
 	# Step 1: Read initial buffer of vectors for Z estimation
 	######################################
@@ -235,13 +233,15 @@ def Streaming_Kmeans(filepath: str) -> Tuple[npt.NDArray, npt.NDArray, List[Opti
 				reached_max_centroids=True
 				break
 		if not reached_max_centroids:
-			if reader.get_counter() < config.params['batch_size']*2:
-				raise ValueError(f"Only reached {index.ntotal} and {reader.get_counter()}<{config.params['batch_size']*2}, not enough data to continue, exiting")
+			# if reader.get_counter() < config.params['batch_size']*2:
+			# 	raise ValueError(f"Only reached {index.ntotal} and {reader.get_counter()}<{config.params['batch_size']*2}, not enough data to continue, exiting")
 			print(f"Only reached {index.ntotal} centroids, restarting with a smaller Z")
 			max_dist2 -= (max_dist2 - min_dist2) * 0.5  # Reduce max_dist2 to increase sampling probability
 			print(f"New max_dist2={max_dist2}, min_dist2={min_dist2}")
 			reader.close()
 			reader = Reader(filepath)  # reopen the data file
+			if reader is None:
+				return None
 
 
 
@@ -253,7 +253,7 @@ def Streaming_Kmeans(filepath: str) -> Tuple[npt.NDArray, npt.NDArray, List[Opti
 	total_count = 0  # Total number of vectors processed
 	 # compute for each centroid a label that is the majority of examples that are assigned to it
 
-############################ begin refine_centroids
+	########################### begin refine_centroids
 	def refine_centroids(centroids, vectors, other):
 		""" Refine centroids using the current batch of vectors
 		"""
@@ -381,38 +381,36 @@ def main() -> None:
 		- Generates visualization if successful
 	"""
 	
-	set_params()  # Set parameters according to the command line           
+	set_params()  # Set parameters according to the command line
 	if config.params['test']:
- 
-	  config.params['file_path']= '../../Voltage_Data/synthetic/2drandom10000.csv'
-	  config.params['split_char']= ','
-	  config.params['normalize_vecs']= False
+		config.params['file_path']= '../../Voltage_Data/synthetic/2drandom10000.csv'
+		config.params['split_char']= ','
+		config.params['normalize_vecs']= False
+		config.params['max_centroids']= 20
+		config.params['init_size']= 1000
+		config.params['batch_size']= 100
+		config.params['output']=None
 
-	  config.params['max_centroids']= 20
-	  config.params['init_size']= 1000
-	  config.params['batch_size']= 100
-	  config.params['output']=None
+		centroids,counters,majority_labels,label_counters,rms=Streaming_Kmeans(config.params['file_path'])
 
-	centroids,counters,majority_labels,label_counters,rms=Streaming_Kmeans(config.params['file_path'])
-
-	# Finalization and saving
-	print(f"\nNumber of centroids in index after finalization: {centroids.shape[0]}")
-	print('Final mean squared distance:', rms)
-	if config.params['test']:
-		if rms>0.04 or rms<0.035:
-			raise ValueError(f"test failed, rms={rms} is outside the range [0.035,0.04]")
+		# Finalization and saving
+		print(f"\nNumber of centroids in index after finalization: {centroids.shape[0]}")
+		print('Final mean squared distance:', rms)
+		if config.params['test']:
+			if rms>0.04 or rms<0.035:
+				raise ValueError(f"test failed, rms={rms} is outside the range [0.035,0.04]")
+			else:
+				print('Test Passed')
+		if config.params['output'] is not None:
+			np.savez(config.params['output'], centroids=centroids, counters=counters, label_counts=label_counters,)
+			print(f"Centroids saved to {config.params['output']}")
 		else:
-			print('Test Passed')
-	if config.params['output'] is not None:
-		np.savez(config.params['output'], centroids=centroids, counters=counters, label_counts=label_counts,)
-		print(f"Centroids saved to {config.params['output']}")
-	else:
-		print("No output file specified, centroids not saved.")
+			print("No output file specified, centroids not saved.")
 
-	# if 2d test then visualize datapoints, centroids labels
-	if config.params['test']:
-		generalVisualization.plot_centroids(centroids, counters, label_counts)
-	
-if __name__ == "__main__":
-	main()
+		# if 2d test then visualize datapoints, centroids labels
+		if config.params['test']:
+			generalVisualization.plot_centroids(centroids, counters, label_counters)
+
+	if __name__ == "__main__":
+		main()
 
