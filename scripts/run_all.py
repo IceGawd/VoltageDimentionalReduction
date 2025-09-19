@@ -1,26 +1,26 @@
 
-dataset="mnist"
-
+dataset="sphere"
 main_command="""python ../clean_code/main.py \
     ../../Voltage_Data/{dataset}/{dataset}{post}.csv\
     --max_centroids 100 \
-    --batch_size=300 \
+    --init_size 30 \
+    --batch_size 30 \
     --split_char ',' \
     --save_data ../../Voltage_Temp/Results/{dataset}/saved_data{post}.pkl
 """
 
 select_command = """python ../clean_code/select_landmarks_MI.py \
     ../../Voltage_Data/{dataset}/{dataset}{post}.csv\
-    --NoOfLandmarks 10 \
+    --NoOfLandmarks 4 \
     --save_data ../../Voltage_Temp/Results/{dataset}/saved_data{post}.pkl
 """
 
 visualize_command="""python ../clean_code/Visualization/visualizations.py \
-    --scatter_element digit \
+    --scatter_element point \
     --save_data ../../Voltage_Temp/Results/{dataset}/saved_data{post}.pkl \
     --point_from_file ../../Voltage_Data/{dataset}/{dataset}{post}.csv \
     --plotted_points 50000 \
-    --percent_size 0.01 \
+    --percent_size 0.003 \
     --alpha 0.8 \
     --plot_file ../../Voltage_Temp/Scatter_Plots/{dataset}/{dataset}{post}.png \
     --plot_dir ../../Voltage_Temp/Scatter_Plots/{dataset}/ \
@@ -46,7 +46,7 @@ def run_command(command, description):
     print(f"Completed: {description}")
     return True
 
-def check_file_size(file_path, min_line_no=1000):
+def check_file_size(file_path, min_line_no=100):
     """ Check if a file exists and has at least min_line_no lines"""
     if not os.path.isfile(file_path):
         return False
@@ -64,19 +64,17 @@ post=""
 # run_command(filter_command.format(post=post,dataset=dataset), "Running filter command")
 
 
-
-# for i in range(10):
-#     post=f"_{i}"
-#     print("="*50, post)
-#     if(check_file_size(f"../../Voltage_Data/{dataset}/{dataset}{post}.csv")):
-#         run_command(main_command.format(post=post,dataset=dataset), "Running main command")
-#         run_command(select_command.format(post=post,dataset=dataset), "Running select command")
-#         run_command(visualize_command.format(post=post,dataset=dataset), "Running visualize command")
-#         run_command(filter_command.format(post=post,dataset=dataset), "Running filter command")
+for i in range(4):
+    post=f"_{i}"
+    print("="*50, post)
+    if(check_file_size(f"../../Voltage_Data/{dataset}/{dataset}{post}.csv")):
+        run_command(main_command.format(post=post,dataset=dataset), "Running main command")
+        run_command(select_command.format(post=post,dataset=dataset), "Running select command")
+        run_command(visualize_command.format(post=post,dataset=dataset), "Running visualize command")
+        #run_command(filter_command.format(post=post,dataset=dataset), "Running filter command")
     
-
-# import sys
-# sys.exit(0)
+import sys
+sys.exit(0)
 
 for i in range(10):
     for j in range(10):
@@ -85,7 +83,20 @@ for i in range(10):
 
         if(check_file_size(f"../../Voltage_Data/{dataset}/{dataset}{post}.csv")):
 
-            run_command(main_command.format(post=post,dataset=dataset), "Running main command")
-            run_command(select_command.format(post=post,dataset=dataset), "Running select command")
+            # run_command(main_command.format(post=post,dataset=dataset), "Running main command")
+            # run_command(select_command.format(post=post,dataset=dataset), "Running select command")
             run_command(visualize_command.format(post=post,dataset=dataset), "Running visualize command")
-   
+            #run_command(filter_command.format(post=post,dataset=dataset), "Running filter command")
+
+for i in range(10):
+    for j in range(10):
+        for k in range(10):
+            post=f"_{i}_{j}_{k}"
+            print("="*50, post)
+
+            if(check_file_size(f"../../Voltage_Data/{dataset}/{dataset}{post}.csv")):
+
+                #  run_command(main_command.format(post=post,dataset=dataset), "Running main command")
+                #  run_command(select_command.format(post=post,dataset=dataset), "Running select command")
+                 run_command(visualize_command.format(post=post,dataset=dataset), "Running visualize command")
+ 

@@ -190,7 +190,7 @@ def scatter_plot(point_voltages, point_transformed_voltages, data, focus_on, lab
 			color = np.array(colors[int(label)])
 			x, y = point_transformed_voltages[i]
 
-			if (np.min(voltages) < 0.0001): # only works for log transform
+			if (np.min(voltages) < 0.1): # only works for log transform
 				min_index = np.argmin(voltages)
 				min_index = focus_on[min_index]
 				plt.text(x, y, str(min_index), fontsize=20, color='white', ha='center', va='center')
