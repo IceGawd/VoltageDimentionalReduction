@@ -1,5 +1,7 @@
 import matplotlib.pyplot as plt
 import matplotlib.transforms as mtransforms
+import matplotlib.cm as cm
+import matplotlib.colors as mcolors
 import numpy as np
 from typing import List
 from collections import Counter
@@ -152,7 +154,7 @@ def collisionDetector(collidable, drawn_boxes, remove_clutter, force_draw, rende
 		drawn_boxes.append((this_bbox, collidable))
 
 def scatter_plot(point_voltages, point_transformed_voltages, data, focus_on, labels, reverse_dict_labels, 
-				 percent_size=0.01, alpha_actual=1, out_file=None, element="digit", centroid_others=None, dpi=100, remove_clutter=False, **kwargs):
+				 percent_size=0.01, alpha_actual=1, out_file=None, element="digit", centroid_others=None, label_counts=None, dpi=100, remove_clutter=False, continous_label=False, **kwargs):
 	"""
 	Creates a scatter plot of transformed point_voltages with digit images or point_voltages.
 	"""
@@ -180,56 +182,79 @@ def scatter_plot(point_voltages, point_transformed_voltages, data, focus_on, lab
 
 	drawn_boxes = []
 
+	if continous_label:
+		cmap = cm.magma
+		norm = mcolors.Normalize(
+			vmin=min(min(c.keys()) for c in label_counts if c is not None),
+			vmax=max(max(c.keys()) for c in label_counts if c is not None)
+		)
+
 	for i in range(point_transformed_voltages.shape[0]):
 		voltages = point_voltages[i, :]
 		label = labels[i]
 		force_draw = False
 
-		if (label is not None) and (label != 0):
-			size = 1
-			color = np.array(colors[int(label)])
-			x, y = point_transformed_voltages[i]
+		if continous_label and label_counts is not None and label_counts[i] is not None:
+			counter = label_counts[i]
+			total = sum(counter.values())
+			avg_label = sum(k * v for k, v in counter.items()) / total
+			color = cmap(norm(avg_label))
+		else:
+			# --- discrete coloring ---
+			if (label is not None) and (label != 0):
+				color = np.array(colors[int(label)])
+			else:
+				count_nones += 1
+				continue
 
-			if (np.min(voltages) < 0.1): # only works for log transform
+      x, y = point_transformed_voltages[i]
+
+		if (np.min(voltages) < 1e5): # only works for log transform
 				min_index = np.argmin(voltages)
 				min_index = focus_on[min_index]
 				plt.text(x, y, str(min_index), fontsize=20, color='white', ha='center', va='center')
 				force_draw = True
 
-			if label == 1:  # weak_maj
-				plt.plot(x, y, marker='o', markersize=1, color=color)
-			else:
-				if element == "digit":
-					rgb_image = _prepare_image_rgba(data[i], color, alpha_actual)
-					image = ax.imshow(rgb_image, extent=(x - image_size * size, x + image_size * size,
-												 y - image_size * size, y + image_size * size), origin='upper')
-					collisionDetector(image, drawn_boxes, remove_clutter, force_draw, fig.canvas.get_renderer())
-				elif element == "point":
-					plt.plot(x, y, marker='o', markersize=percent_size*1200, color=color, alpha=alpha_actual)
-				elif element == "label":
-					text = ax.text(x, y, str(reverse_dict_labels[label]),
-								   color=color, fontsize=fontsize, alpha=alpha_actual,
-								   ha='center', va='center')
-
-					collisionDetector(text, drawn_boxes, remove_clutter, force_draw, fig.canvas.get_renderer())
-				elif centroid_others != None:
-					if len(centroid_others[i]) > 0:
-						counter = Counter(d[element] for d in centroid_others[i] if element in d)
-						most_common_value, count = counter.most_common(1)[0]
-
-						text = ax.text(x, y, str(most_common_value),
-									   color=color, fontsize=fontsize, alpha=alpha_actual,
-									   ha='center', va='center')
-						collisionDetector(text, drawn_boxes, remove_clutter, force_draw, fig.canvas.get_renderer())
-					else:
-						plt.plot(x, y, marker='o', markersize=6, color=color)
-				else:
-					raise ValueError("element must be either 'digit', 'point' or 'label'")
+		if label == 1:  # weak_maj
+			plt.plot(x, y, marker='o', markersize=1, color=color)
 		else:
-			count_nones += 1
+			if element == "digit":
+				rgb_image = _prepare_image_rgba(data[i], color, alpha_actual)
+				image = ax.imshow(
+					rgb_image,
+					extent=(x - image_size, x + image_size, y - image_size, y + image_size),
+					origin="upper"
+				)
+				collisionDetector(image, drawn_boxes, remove_clutter, force_draw, fig.canvas.get_renderer())
 
-	print(f"Number of point_voltages with no label: {count_nones}")
-	visualHelpers.standard_save_display(out_file)
+			elif element == "point":
+				plt.plot(x, y, marker="o", markersize=6, color=color, alpha=alpha_actual)
+
+			elif element == "label":
+				text = ax.text(
+					x, y, str(reverse_dict_labels[label]),
+					color=color, fontsize=fontsize, alpha=alpha_actual,
+					ha="center", va="center"
+				)
+				collisionDetector(text, drawn_boxes, remove_clutter, force_draw, fig.canvas.get_renderer())
+
+			elif centroid_others is not None:
+				if len(centroid_others[i]) > 0:
+					counter = Counter(d[element] for d in centroid_others[i] if element in d)
+					most_common_value, count = counter.most_common(1)[0]
+					text = ax.text(
+						x, y, str(most_common_value),
+						color=color, fontsize=fontsize, alpha=alpha_actual,
+						ha="center", va="center"
+					)
+					collisionDetector(text, drawn_boxes, remove_clutter, force_draw, fig.canvas.get_renderer())
+				else:
+					plt.plot(x, y, marker="o", markersize=6, color=color)
+			else:
+				raise ValueError("element must be either 'digit', 'point' or 'label'")
+
+		print(f"Number of point_voltages with no label: {count_nones}")
+		visualHelpers.standard_save_display(out_file)
 
 def plot_landmark_subset(point_voltages, centroids, label_counts, focus_on=None, log_transform=True,
 						 transformation='pca', centroid_others=None, **kwargs):
@@ -270,7 +295,7 @@ def plot_landmark_subset(point_voltages, centroids, label_counts, focus_on=None,
 	# print(len(labels))
 	# print(len(reverse_dict_labels))
 
-	scatter_plot(point_voltages, point_transformed_voltages, centroids, focus_on, labels, reverse_dict_labels, centroid_others=centroid_others, **kwargs)
+	scatter_plot(point_voltages, point_transformed_voltages, centroids, focus_on, labels, reverse_dict_labels, centroid_others=centroid_others, label_counts=label_counts, **kwargs)
 
 def plot_point_sample(X_data, y_data, other_data, point_voltages, centroids, voltage_map, label_counts, centroid_others, **kwargs):
 	# Embed new features from the voltage map

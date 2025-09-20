@@ -23,8 +23,8 @@ def main():
 	if args.add_random_noise > 0:
 		X += np.random.uniform(-args.add_random_noise, args.add_random_noise, X.shape)
 
-	df = pd.DataFrame(X, columns=["x", "y", "z"])
-	df["t"] = t  # manifold parameter
+	df = pd.DataFrame(X, columns=["dimx", "dimy", "dimz"])
+	df["label"] = t  # manifold parameter
 
 	df.to_csv(args.output, index=False)
 	print(f"Saved swiss roll dataset with {args.points} points to {args.output}")
