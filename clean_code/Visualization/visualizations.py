@@ -62,6 +62,7 @@ def main():
 		ratio_threshold=config.params['ratio_threshold'],
 		remove_clutter=config.params['remove_clutter'],
 		pad_pixels=config.params['pad_pixels'],
+		continous_label=config.params['continous_label'],
 		out_file=out_plot,
 	)
 

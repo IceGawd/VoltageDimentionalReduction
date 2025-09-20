@@ -12,7 +12,8 @@ set -e
 # 	--save_data ../../Voltage_Temp/Results/mnist/saved_data.pkl
 
 python ../clean_code/Visualization/visualizations.py \
-	../../Voltage_Data/mnist/mnist.csv\
+	--point_from_file ../../Voltage_Data/mnist/mnist.csv \
+	--plotted_points 1000 \
 	--scatter_element digit \
 	--save_data ../../Voltage_Temp/Results/mnist/saved_data.pkl \
 	--plot_dir ../../Voltage_Temp/Scatter_Plots/mnist/ \
