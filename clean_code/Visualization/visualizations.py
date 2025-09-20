@@ -32,15 +32,18 @@ def main():
 	points = voltages.voltage_array()
 
 	indices = config.params['indices']
-	# Set up output directory and filename    
-	# Create filename from focus landmarks
-	if len(indices) == 0:
-		indices = None
-		focus_str = 'all'
-	else:
-		focus_str = ','.join([str(x) for x in list(indices)])
+	
 
-	out_plot = config.params['plot_dir'] + focus_str + '.png'
+	# Set up output filename  
+	if len(indices) == 0:
+		if config.params['plot_file'] is None:
+			print("Error: 'plot_file' not found in config.params")
+			sys.exit(" if no indices are given, 'plot_file' must be set in the command line")
+		out_plot = config.params['plot_file']
+	else:
+		# Create filename from focus landmarks
+		focus_str = ','.join([str(x) for x in list(indices)])
+		out_plot = config.params['plot_dir'] + focus_str + '.png'
 
 	print(f"Output plot will be saved to: {out_plot}")
 	

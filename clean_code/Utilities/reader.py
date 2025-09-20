@@ -22,16 +22,12 @@ class Reader:
 	"""
 	def __init__(self, file_path):
 		self.file_path = file_path
-		
 		# Check if file is gzipped
 		self.is_gzipped = file_path.endswith('.gz')
-		
 		# Pandas automatically handles gzipped files when compression is specified or inferred
-		df = pd.read_csv(self.file_path, nrows=0)
 		self._find_column_types()
 		self.df = pd.read_csv(self.file_path, nrows=0, dtype=self.column_types)
 		self.counter=0
-
 		# Initialize persistent CSV reader
 		self._csv_reader = None
 		self._is_exhausted = False

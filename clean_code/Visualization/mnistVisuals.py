@@ -207,13 +207,13 @@ def scatter_plot(point_voltages, point_transformed_voltages, data, focus_on, lab
 				count_nones += 1
 				continue
 
-		x, y = point_transformed_voltages[i]
+      x, y = point_transformed_voltages[i]
 
-		if (np.min(voltages) == 0.0):  # only works for log transform
-			min_index = np.argmin(voltages)
-			min_index = focus_on[min_index]
-			plt.text(x, y, str(min_index), fontsize=20, color='white', ha='center', va='center')
-			force_draw = True
+		if (np.min(voltages) < 1e5): # only works for log transform
+				min_index = np.argmin(voltages)
+				min_index = focus_on[min_index]
+				plt.text(x, y, str(min_index), fontsize=20, color='white', ha='center', va='center')
+				force_draw = True
 
 		if label == 1:  # weak_maj
 			plt.plot(x, y, marker='o', markersize=1, color=color)
@@ -262,7 +262,7 @@ def plot_landmark_subset(point_voltages, centroids, label_counts, focus_on=None,
 	Visualizes a subset of point_voltages in 2D space after dimensionality reduction, focusing on specific landmarks.
 	"""
 
-	if focus_on is None:
+	if focus_on is None or focus_on==[]:
 		focus_on = np.array(range(point_voltages.shape[1]))
 
 	if log_transform:

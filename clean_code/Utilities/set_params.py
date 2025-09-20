@@ -78,7 +78,7 @@ def set_params():
 	parser.add_argument("--output_path", type=str, default='', help="Path to the output filtered text file")
 
 	# parameters for streaming k-means
-	parser.add_argument("--normalize_vecs", action="store_true", default=True, help="normalize vectors to L_2=1 before calculating distances")
+	parser.add_argument("--normalize_vecs", action="store_true", help="normalize vectors to L_2=1 before calculating distances")
 	parser.add_argument("--max_centroids", type=int, default=1000, help="Maximum number of centroids")
 	parser.add_argument("--init_size", type=int, default=1000, help="Number of points to estimate Z")
 	parser.add_argument("--batch_size", type=int, default=1000, help="Batch size for streaming")
@@ -101,7 +101,8 @@ def set_params():
 	parser.add_argument("--DepthOfLandmarkSearch", type=int, default=100, help="Depth of landmark search")
  
 	# parameters for visualization
-	parser.add_argument("--plot_dir", type=str, default='', help="Directory to save output plots")
+	parser.add_argument("--plot_file", type=str, default=None, help="File to save the output plot used if no indices set")
+	parser.add_argument("--plot_dir", type=str, default='', help="Directory to save output plots, used if indices set")
 	parser.add_argument("--num_labels", type=int, default=0, help="Number of labels for visualization")
 	parser.add_argument("--ratio_threshold", type=float, default=0, help="Threshold for ratio of the most common label to total count")
 	parser.add_argument("--scatter_element", type=str, default='digit', help="Element type for scatter plot. Could be either 'digit', 'label', 'point', 'word'")
@@ -135,7 +136,12 @@ def set_params():
 			if type(value) is str:
 				value = re.sub(r'\s+', ' ', value)
 				value=f"'{value}'"
-		
+
+	if config.params['normalize_vecs']:
+		print("Input vectors will be normalized to unit length before processing.")
+	else:
+		print("Input vectors will NOT be normalized before processing.")
+
 	# Validate input parameters
 	if args.max_centroids <= 0:
 		raise ValueError("max-centroids must be a positive integer.")
