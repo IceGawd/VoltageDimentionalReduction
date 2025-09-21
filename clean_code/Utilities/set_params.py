@@ -72,7 +72,7 @@ def set_params():
 	## defaults are set for the MNIST dataset
 
 	## data file reading parameters
-	parser.add_argument("file_path", nargs='?', default='../../Voltage_Data/mnist/mnist.csv', help="Path to a text file of vectors (word + floats)")
+	parser.add_argument("file_path", type=str, nargs='?', default=None, help="Path to a text file of vectors (word + floats)")
 	parser.add_argument("--split_char", type=str, default=",", help="Character to split input vectors")
 	
 	parser.add_argument("--output_path", type=str, default='', help="Path to the output filtered text file")
@@ -111,7 +111,6 @@ def set_params():
 	parser.add_argument("--percent_size", type=float, default=0.01, help="Size of scatter element roughly as percent of screen size")
 	parser.add_argument("--transformation", type=str, default="pca", help="A dimentionality reduction technique to run before visualization")
 	parser.add_argument("--dpi", type=int, default=100, help="The amount of dots per inch, increases image resolution but takes longer")
-	parser.add_argument("--point_from_file", type=str, default=None, help="The file to plot points from")
 	parser.add_argument("--plotted_points", type=int, default=100, help="The number of points to plot from the file")
 	parser.add_argument("--remove_clutter", action="store_true", help="Remove colliding clutter")
 	parser.add_argument("--pad_pixels", type=int, default=2, help="The number of pixels to pad when removing clutter")

@@ -22,9 +22,9 @@ python ../clean_code/Visualization/visualizations.py \
 	--ratio_threshold 0.5
 
 python ../clean_code/Visualization/visualizations.py \
+	../../Voltage_Data/glove/glove.csv \
 	--save_data ../../Voltage_Temp/Results/glove/saved_data.pkl \
 	--plot_dir ../../Voltage_Temp/Scatter_Plots/glove/points \
-	--point_from_file ../../Voltage_Data/glove/glove.csv \
 	--scatter_element word \
 	--dpi 300 \
 	--percent_size=0.005 \

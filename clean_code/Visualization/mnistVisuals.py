@@ -185,8 +185,8 @@ def scatter_plot(point_voltages, point_transformed_voltages, data, focus_on, lab
 	if continous_label:
 		cmap = cm.magma
 		norm = mcolors.Normalize(
-			vmin=min(min(c.keys()) for c in label_counts if c is not None),
-			vmax=max(max(c.keys()) for c in label_counts if c is not None)
+			vmin=min(min([float(ck) for ck in c.keys()]) for c in label_counts if c is not None),
+			vmax=max(max([float(ck) for ck in c.keys()]) for c in label_counts if c is not None)
 		)
 
 	for i in range(point_transformed_voltages.shape[0]):
@@ -197,7 +197,7 @@ def scatter_plot(point_voltages, point_transformed_voltages, data, focus_on, lab
 		if continous_label and label_counts is not None and label_counts[i] is not None:
 			counter = label_counts[i]
 			total = sum(counter.values())
-			avg_label = sum(k * v for k, v in counter.items()) / total
+			avg_label = sum(float(k) * v for k, v in counter.items()) / total
 			color = cmap(norm(avg_label))
 		else:
 			# --- discrete coloring ---
@@ -207,13 +207,13 @@ def scatter_plot(point_voltages, point_transformed_voltages, data, focus_on, lab
 				count_nones += 1
 				continue
 
-      x, y = point_transformed_voltages[i]
+		x, y = point_transformed_voltages[i]
 
-		if (np.min(voltages) < 1e5): # only works for log transform
-				min_index = np.argmin(voltages)
-				min_index = focus_on[min_index]
-				plt.text(x, y, str(min_index), fontsize=20, color='white', ha='center', va='center')
-				force_draw = True
+		if (np.min(voltages) == 0): # only works for log transform
+			min_index = np.argmin(voltages)
+			min_index = focus_on[min_index]
+			plt.text(x, y, str(min_index), fontsize=20, color='white', ha='center', va='center')
+			force_draw = True
 
 		if label == 1:  # weak_maj
 			plt.plot(x, y, marker='o', markersize=1, color=color)
@@ -253,8 +253,8 @@ def scatter_plot(point_voltages, point_transformed_voltages, data, focus_on, lab
 			else:
 				raise ValueError("element must be either 'digit', 'point' or 'label'")
 
-		print(f"Number of point_voltages with no label: {count_nones}")
-		visualHelpers.standard_save_display(out_file)
+	print(f"Number of point_voltages with no label: {count_nones}")
+	visualHelpers.standard_save_display(out_file)
 
 def plot_landmark_subset(point_voltages, centroids, label_counts, focus_on=None, log_transform=True,
 						 transformation='pca', centroid_others=None, **kwargs):
