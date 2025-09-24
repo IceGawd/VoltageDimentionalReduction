@@ -194,6 +194,14 @@ def scatter_plot(point_voltages, point_transformed_voltages, data, focus_on, lab
 		label = labels[i]
 		force_draw = False
 
+		x, y = point_transformed_voltages[i]
+
+		if (np.min(voltages) == 0): # only works for log transform
+			min_index = np.argmin(voltages)
+			min_index = focus_on[min_index]
+			plt.text(x, y, str(min_index), fontsize=20, color='white', ha='center', va='center')
+			force_draw = True
+
 		if continous_label and label_counts is not None and label_counts[i] is not None:
 			counter = label_counts[i]
 			total = sum(counter.values())
@@ -206,14 +214,6 @@ def scatter_plot(point_voltages, point_transformed_voltages, data, focus_on, lab
 			else:
 				count_nones += 1
 				continue
-
-		x, y = point_transformed_voltages[i]
-
-		if (np.min(voltages) == 0): # only works for log transform
-			min_index = np.argmin(voltages)
-			min_index = focus_on[min_index]
-			plt.text(x, y, str(min_index), fontsize=20, color='white', ha='center', va='center')
-			force_draw = True
 
 		if label == 1:  # weak_maj
 			plt.plot(x, y, marker='o', markersize=1, color=color)
