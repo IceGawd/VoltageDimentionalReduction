@@ -5,6 +5,7 @@ import matplotlib.colors as mcolors
 import numpy as np
 from typing import List
 from collections import Counter
+import math
 
 import setofpoints
 from Visualization import visualHelpers
@@ -122,6 +123,53 @@ def fontsize_for_data_height(ax, data_height):
 	# Convert desired data height to inches, then to point_voltages (72 pt = 1 inch)
 	return data_height / data_per_inch * 72
 
+def radialCollisionDetector(collidable, drawn_circles, remove_clutter, force_draw, renderer, pad_pixels=2, **kwargs):
+	"""
+	Place collidable as a circle with collision handling.
+
+	drawn_circles: list of (center, radius, collidable) tuples
+	force_draw:    if True, draw this collidable and hide any overlapping others.
+	"""
+
+	# Get the bounding box of the image in display coords
+	bbox = collidable.get_window_extent(renderer=renderer)
+
+	# Center of the box
+	cx = (bbox.x0 + bbox.x1) / 2
+	cy = (bbox.y0 + bbox.y1) / 2
+
+	# Radius = half the diagonal of the bbox
+	width = bbox.width
+	height = bbox.height
+	radius = math.sqrt(width**2 + height**2) / 2 + pad_pixels
+
+	if not remove_clutter:
+		drawn_circles.append(((cx, cy), radius, collidable))
+		return
+
+	def circles_overlap(c1, r1, c2, r2):
+		dx = c1[0] - c2[0]
+		dy = c1[1] - c2[1]
+		return dx*dx + dy*dy <= (r1 + r2)**2
+
+	if force_draw:
+		# bulldozer mode: keep this, hide others that collide
+		survivors = []
+		for (oc, orad, other_collidable) in drawn_circles:
+			if circles_overlap((cx, cy), radius, oc, orad):
+				other_collidable.set_visible(False)
+			else:
+				survivors.append((oc, orad, other_collidable))
+		drawn_circles[:] = survivors
+		drawn_circles.append(((cx, cy), radius, collidable))
+	else:
+		# normal mode: hide this if it collides with existing
+		for (oc, orad, _) in drawn_circles:
+			if circles_overlap((cx, cy), radius, oc, orad):
+				collidable.set_visible(False)
+				return
+		drawn_circles.append(((cx, cy), radius, collidable))
+
 def collisionDetector(collidable, drawn_boxes, remove_clutter, force_draw, renderer, pad_pixels=2, **kwargs):
 	"""
 	Draw collidable on an axes with collision handling.
@@ -225,7 +273,7 @@ def scatter_plot(point_voltages, point_transformed_voltages, data, focus_on, lab
 					extent=(x - image_size, x + image_size, y - image_size, y + image_size),
 					origin="upper"
 				)
-				collisionDetector(image, drawn_boxes, remove_clutter, force_draw, fig.canvas.get_renderer())
+				radialCollisionDetector(image, drawn_boxes, remove_clutter, force_draw, fig.canvas.get_renderer(), **kwargs)
 
 			elif element == "point":
 				plt.plot(x, y, marker="o", markersize=6, color=color, alpha=alpha_actual)
@@ -236,7 +284,7 @@ def scatter_plot(point_voltages, point_transformed_voltages, data, focus_on, lab
 					color=color, fontsize=fontsize, alpha=alpha_actual,
 					ha="center", va="center"
 				)
-				collisionDetector(text, drawn_boxes, remove_clutter, force_draw, fig.canvas.get_renderer())
+				collisionDetector(text, drawn_boxes, remove_clutter, force_draw, fig.canvas.get_renderer(), **kwargs)
 
 			elif centroid_others is not None:
 				if len(centroid_others[i]) > 0:
@@ -247,7 +295,7 @@ def scatter_plot(point_voltages, point_transformed_voltages, data, focus_on, lab
 						color=color, fontsize=fontsize, alpha=alpha_actual,
 						ha="center", va="center"
 					)
-					collisionDetector(text, drawn_boxes, remove_clutter, force_draw, fig.canvas.get_renderer())
+					collisionDetector(text, drawn_boxes, remove_clutter, force_draw, fig.canvas.get_renderer(), **kwargs)
 				else:
 					plt.plot(x, y, marker="o", markersize=6, color=color)
 			else:

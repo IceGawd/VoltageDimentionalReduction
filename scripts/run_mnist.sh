@@ -18,6 +18,7 @@ python ../clean_code/Visualization/visualizations.py \
 	--save_data ../../Voltage_Temp/Results/mnist/saved_data.pkl \
 	--plotted_points 2000 \
 	--remove_clutter \
+	--pad_pixels -20 \
 	--plot_dir ../../Voltage_Temp/Scatter_Plots/mnist/ \
 	--plot_file mnist.png \
 	--dpi 300
