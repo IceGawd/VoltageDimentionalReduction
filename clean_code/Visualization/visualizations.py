@@ -39,7 +39,7 @@ def main():
 		if config.params['plot_file'] is None:
 			print("Error: 'plot_file' not found in config.params")
 			sys.exit(" if no indices are given, 'plot_file' must be set in the command line")
-		out_plot = config.params['plot_file']
+		out_plot = config.params['plot_dir'] + config.params['plot_file']
 	else:
 		# Create filename from focus landmarks
 		focus_str = ','.join([str(x) for x in list(indices)])
@@ -65,12 +65,13 @@ def main():
 		ratio_threshold=config.params['ratio_threshold'],
 		remove_clutter=config.params['remove_clutter'],
 		pad_pixels=config.params['pad_pixels'],
+		continous_label=config.params['continous_label'],
 		out_file=out_plot,
 	)
 
-	if config.params['point_from_file']:
+	if config.params['file_path']:
 		plot_points_from_file(
-			config.params['point_from_file'],
+			config.params['file_path'],
 			config.params['plotted_points'],
 			points,
 			centroids,
