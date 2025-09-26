@@ -111,6 +111,7 @@ def set_params():
 	parser.add_argument("--percent_size", type=float, default=0.01, help="Size of scatter element roughly as percent of screen size")
 	parser.add_argument("--transformation", type=str, default="pca", help="A dimentionality reduction technique to run before visualization")
 	parser.add_argument("--dpi", type=int, default=100, help="The amount of dots per inch, increases image resolution but takes longer")
+	parser.add_argument("--point_from_file", action="store_true", help="If set, plot points from this file instead of the main data file")
 	parser.add_argument("--plotted_points", type=int, default=100, help="The number of points to plot from the file")
 	parser.add_argument("--remove_clutter", action="store_true", help="Remove colliding clutter")
 	parser.add_argument("--pad_pixels", type=int, default=2, help="The number of pixels to pad when removing clutter")

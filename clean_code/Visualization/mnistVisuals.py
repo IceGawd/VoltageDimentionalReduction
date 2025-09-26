@@ -202,9 +202,28 @@ def collisionDetector(collidable, drawn_boxes, remove_clutter, force_draw, rende
 		drawn_boxes.append((this_bbox, collidable))
 
 def scatter_plot(point_voltages, point_transformed_voltages, data, focus_on, labels, reverse_dict_labels, 
-				 percent_size=0.01, alpha_actual=1, out_file=None, element="digit", centroid_others=None, label_counts=None, dpi=100, remove_clutter=False, continous_label=False, **kwargs):
+				 percent_size=0.01, alpha_actual=1, out_file=None, element="digit", centroid_others=None, label_counts=None, dpi=100, remove_clutter=False, continous_label=False, show_legend=True, **kwargs):
 	"""
 	Creates a scatter plot of transformed point_voltages with digit images or point_voltages.
+	
+	Args:
+		point_voltages: Voltage values for each point
+		point_transformed_voltages: 2D transformed coordinates for plotting
+		data: Original data points
+		focus_on: Indices to focus on
+		labels: Integer labels for each point
+		reverse_dict_labels: Dictionary mapping integer labels back to string labels
+		percent_size: Size of elements as percentage of plot area
+		alpha_actual: Transparency level
+		out_file: Output file path
+		element: Type of elements to plot ("digit", "point", "label")
+		centroid_others: Additional centroid data
+		label_counts: Count data for labels
+		dpi: Resolution for output
+		remove_clutter: Whether to remove overlapping elements
+		continous_label: Whether to use continuous label coloring
+		show_legend: Whether to display a legend mapping colors to string labels
+		**kwargs: Additional keyword arguments
 	"""
 
 	if out_file == None:
@@ -300,6 +319,27 @@ def scatter_plot(point_voltages, point_transformed_voltages, data, focus_on, lab
 					plt.plot(x, y, marker="o", markersize=6, color=color)
 			else:
 				raise ValueError("element must be either 'digit', 'point' or 'label'")
+
+	# Create legend mapping colors to string labels
+	if show_legend and not continous_label:
+		legend_elements = []
+		for label_id, label_str in reverse_dict_labels.items():
+			if label_id != 0:  # Skip 'small' labels as they are not plotted
+				color = colors[int(label_id)]
+				legend_elements.append(plt.Line2D([0], [0], marker='o', color='w', 
+												markerfacecolor=color, markersize=10, label=label_str))
+		
+		if legend_elements:
+			# Sort legend elements by label for consistent ordering
+			legend_elements.sort(key=lambda x: x.get_label())
+			
+			legend = ax.legend(handles=legend_elements, loc='upper right', bbox_to_anchor=(0.98, 0.98),
+							 frameon=True, fancybox=True, shadow=True, ncol=1, fontsize=10,
+							 title="Labels", title_fontsize=12)
+			legend.get_frame().set_facecolor('white')
+			legend.get_frame().set_alpha(0.9)
+			legend.get_frame().set_edgecolor('gray')
+			legend.get_title().set_color('black')
 
 	print(f"Number of point_voltages with no label: {count_nones}")
 	visualHelpers.standard_save_display(out_file)
