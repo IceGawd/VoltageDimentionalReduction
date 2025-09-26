@@ -231,7 +231,27 @@ def scatter_plot(point_voltages, point_transformed_voltages, data, focus_on, lab
 
 	fig, ax = plt.subplots(figsize=(12, 10), dpi=dpi)
 
-	colors = visualHelpers.get_colors(len(reverse_dict_labels))
+	# Create consistent color mapping based on label strings (not just count)
+	def get_consistent_color_for_label(label_str, base_colors):
+		"""Generate a consistent color for a label string using hash-based selection."""
+		if label_str == 'small':
+			return (0.5, 0.5, 0.5)  # Gray for 'small'
+		elif label_str == 'weak_maj':
+			return (0.8, 0.8, 0.8)  # Light gray for 'weak_maj'
+		else:
+			# Use hash of string to consistently select from color palette
+			import hashlib
+			hash_val = int(hashlib.md5(label_str.encode()).hexdigest(), 16)
+			color_idx = hash_val % len(base_colors)
+			return base_colors[color_idx]
+	
+	# Generate base color palette - use a large set to ensure variety
+	base_colors = visualHelpers.get_colors(max(20, len(reverse_dict_labels)))
+	
+	# Create consistent color mapping for each label
+	colors = {}
+	for label_id, label_str in reverse_dict_labels.items():
+		colors[label_id] = get_consistent_color_for_label(label_str, base_colors)
 
 	x_bound = (point_transformed_voltages[:, 0].min(), point_transformed_voltages[:, 0].max())
 	y_bound = (point_transformed_voltages[:, 1].min(), point_transformed_voltages[:, 1].max())
@@ -325,20 +345,23 @@ def scatter_plot(point_voltages, point_transformed_voltages, data, focus_on, lab
 		legend_elements = []
 		for label_id, label_str in reverse_dict_labels.items():
 			if label_id != 0:  # Skip 'small' labels as they are not plotted
-				color = colors[int(label_id)]
+				color = colors[label_id]  # Use our consistent color mapping
 				legend_elements.append(plt.Line2D([0], [0], marker='o', color='w', 
-												markerfacecolor=color, markersize=10, label=label_str))
+												markerfacecolor=color, markersize=8, label=label_str))
 		
 		if legend_elements:
 			# Sort legend elements by label for consistent ordering
 			legend_elements.sort(key=lambda x: x.get_label())
 			
-			legend = ax.legend(handles=legend_elements, loc='upper right', bbox_to_anchor=(0.98, 0.98),
-							 frameon=True, fancybox=True, shadow=True, ncol=1, fontsize=10,
-							 title="Labels", title_fontsize=12)
+			# Position legend in the very corner to minimize interference
+			legend = ax.legend(handles=legend_elements, loc='upper right', bbox_to_anchor=(1.0, 1.0),
+							 frameon=True, fancybox=False, shadow=False, ncol=1, fontsize=8,
+							 title="Labels", title_fontsize=9, borderpad=0.3, handletextpad=0.4,
+							 columnspacing=0.5, handlelength=1.0)
 			legend.get_frame().set_facecolor('white')
-			legend.get_frame().set_alpha(0.9)
-			legend.get_frame().set_edgecolor('gray')
+			legend.get_frame().set_alpha(0.95)
+			legend.get_frame().set_edgecolor('black')
+			legend.get_frame().set_linewidth(0.5)
 			legend.get_title().set_color('black')
 
 	print(f"Number of point_voltages with no label: {count_nones}")
