@@ -1,6 +1,6 @@
 
 dataset="synthetic"
-post="sphere_shell"
+post="torus"
 no_of_landmarks=4
 main_command="""python ../clean_code/main.py \
 	../../Voltage_Data/{dataset}/{post}.csv\
@@ -67,7 +67,7 @@ def check_file_size(file_path, min_line_no=100):
 for i in range(no_of_landmarks):
 	filter_post = post + "_" + str(i)
 	print("="*50, filter_post)
-	if (check_file_size(f"../../Voltage_Data/{dataset}/{filter_post}.csv")):
+	if (check_file_size(f"../../Voltage_Data/{dataset}/{filter_post}.csv", 0)):
 		run_command(main_command.format(post=filter_post,dataset=dataset), "Running main command")
 		run_command(select_command.format(post=filter_post,dataset=dataset, no_of_landmarks=4), "Running select command")
 		run_command(visualize_command.format(post=filter_post,dataset=dataset), "Running visualize command")

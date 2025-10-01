@@ -345,7 +345,7 @@ def plot_landmark_subset(point_voltages, centroids, label_counts, focus_on=None,
 
 	scatter_plot(point_voltages, point_transformed_voltages, centroids, focus_on, labels, reverse_dict_labels, centroid_others=centroid_others, label_counts=label_counts, **kwargs)
 
-def plot_point_sample(X_data, y_data, other_data, point_voltages, centroids, voltage_map, label_counts, centroid_others, **kwargs):
+def plot_point_sample(X_data, y_data, other_data, point_voltages, centroids, voltage_map, label_counts, centroid_others, remove_centroids=False, **kwargs):
 	# Embed new features from the voltage map
 	features = voltage_embed.embed_voltage_features(X_data, centroids, voltage_map)
 
@@ -363,17 +363,28 @@ def plot_point_sample(X_data, y_data, other_data, point_voltages, centroids, vol
 	# print("X_data[0]: " + str(X_data[0]))
 	# print("Counter({y_data[0]: 1}): " + str(Counter({y_data[0]: 1})))
 
-	# Extend with full dataset
-	all_point_voltages.extend(features)
-	data.extend(X_data)
-	all_centroid_others.extend([[d] for d in other_data])
+	if remove_centroids:
+		# Extend with full dataset
+		all_centroid_others = [[d] for d in other_data]
 
-	# Wrap y_data (numpy labels) into Counters so it matches label_counts structure
-	all_label_counts.extend([Counter({label: 1}) for label in y_data])
+		# Wrap y_data (numpy labels) into Counters so it matches label_counts structure
+		all_label_counts = [Counter({label: 1}) for label in y_data]
 
-	# Make sure arrays are numpy arrays where expected
-	all_point_voltages = np.array(all_point_voltages)
-	data = setofpoints.SetOfPoints(np.array(data))
+		# Make sure arrays are numpy arrays where expected
+		all_point_voltages = np.array(features)
+		data = setofpoints.SetOfPoints(np.array(X_data))
+	else:
+		# Extend with full dataset
+		all_point_voltages.extend(features)
+		data.extend(X_data)
+		all_centroid_others.extend([[d] for d in other_data])
+
+		# Wrap y_data (numpy labels) into Counters so it matches label_counts structure
+		all_label_counts.extend([Counter({label: 1}) for label in y_data])
+
+		# Make sure arrays are numpy arrays where expected
+		all_point_voltages = np.array(all_point_voltages)
+		data = setofpoints.SetOfPoints(np.array(data))
 
 	# Plot
 	plot_landmark_subset(all_point_voltages, data, all_label_counts, centroid_others=all_centroid_others, **kwargs)

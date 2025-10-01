@@ -70,14 +70,21 @@ def main():
 	)
 
 	if config.params['file_path']:
+		plotted_points = config.params['plotted_points']
+		if plotted_points == "all":
+			plotted_points = None
+		else:
+			plotted_points = int(plotted_points)
+
 		plot_points_from_file(
 			config.params['file_path'],
-			config.params['plotted_points'],
+			plotted_points,
 			points,
 			centroids,
 			voltages,
 			label_counts,
 			centroid_others,
+			remove_centroids=config.params["remove_centroids"], 
 			**shared_kwargs,
 		)
 	else:

@@ -151,9 +151,9 @@ def load_data(filepath: str, n_points: int):
 			X_list.append(v)
 
 			total_collected += 1
-			if total_collected >= n_points:
+			if n_points and total_collected >= n_points:
 				break
-		if total_collected >= n_points:
+		if n_points and total_collected >= n_points:
 			break
 
 	reader.close()
